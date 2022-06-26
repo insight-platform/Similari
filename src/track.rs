@@ -31,7 +31,7 @@ pub trait Metric {
 pub trait AttributeMatch<A> {
     fn compatible(&self, other: &A) -> bool;
     fn merge(&mut self, other: &A);
-    fn ready(&mut self) -> bool;
+    fn baked(&self, observations: &FeatureObservationsGroups) -> bool;
 }
 
 #[derive(Default)]
@@ -63,8 +63,23 @@ where
     M: Metric + Default + Send + Sync,
     U: AttributeUpdate<A> + Send + Sync,
 {
+    pub fn new(track_id: u64) -> Self {
+        Self {
+            attributes: Default::default(),
+            track_id,
+            observations: Default::default(),
+            metric: M::default(),
+            phantom_attribute_update: Default::default(),
+            merge_history: vec![track_id],
+        }
+    }
+
     pub fn get_track_id(&self) -> u64 {
         self.track_id
+    }
+
+    pub fn get_attributes(&self) -> &A {
+        &self.attributes
     }
 
     fn update_attributes(&mut self, update: U) {
@@ -79,11 +94,13 @@ where
             }
             Some(observations) => {
                 observations.push((reid_q, reid_v));
-                let prev_length = observations.len();
-                self.metric
-                    .optimize(&feature_id, &self.merge_history, observations, prev_length);
             }
         }
+        let observations = self.observations.get_mut(&feature_id).unwrap();
+        let prev_length = observations.len() - 1;
+
+        self.metric
+            .optimize(&feature_id, &self.merge_history, observations, prev_length);
     }
 
     pub fn merge(&mut self, other: &Self, features: &Vec<u64>) {
@@ -127,8 +144,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::track::{
-        AttributeMatch, AttributeUpdate, feat_sort_cmp, Feature, FeatureSpec,
-        Metric, standard_vector_distance, Track,
+        feat_sort_cmp, standard_vector_distance, AttributeMatch, AttributeUpdate, Feature,
+        FeatureObservationsGroups, FeatureSpec, Metric, Track,
     };
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -151,7 +168,7 @@ mod tests {
 
         fn merge(&mut self, _other: &DefaultAttrs) {}
 
-        fn ready(&mut self) -> bool {
+        fn baked(&self, _observations: &FeatureObservationsGroups) -> bool {
             false
         }
     }
@@ -184,6 +201,12 @@ mod tests {
 
         let d = standard_vector_distance(&v1, &v2);
         assert!((d - 2.0f32).abs() < EPS);
+    }
+
+    #[test]
+    fn basic_methods() {
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::new(3);
+        assert_eq!(t1.get_track_id(), 3);
     }
 
     #[test]
@@ -283,7 +306,7 @@ mod tests {
                 self.end_time = self.end_time.max(other.end_time);
             }
 
-            fn ready(&mut self) -> bool {
+            fn baked(&self, _observations: &FeatureObservationsGroups) -> bool {
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()

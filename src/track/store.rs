@@ -1,7 +1,7 @@
+use crate::track::{AttributeMatch, AttributeUpdate, Feature, Metric, Track};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use rayon::prelude::*;
-use crate::track::{AttributeMatch, AttributeUpdate, Feature, Metric, Track};
 
 pub struct TrackStore<A, U, M>
 where
@@ -35,7 +35,44 @@ where
         }
     }
 
-    pub fn distances(&self, track_id: u64, feature_id: u64) -> Option<Vec<(u64, f32)>> {
+    pub fn baked(&self) -> Vec<u64> {
+        self.tracks
+            .iter()
+            .flat_map(|(track_id, track)| {
+                if track.get_attributes().baked(&track.observations) {
+                    Some(*track_id)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn pull_baked(&mut self, backed: &Vec<u64>) -> Vec<Track<A, M, U>> {
+        let mut res = Vec::default();
+        for track_id in backed {
+            if let Some(t) = self.tracks.remove(track_id) {
+                res.push(t);
+            }
+        }
+        res
+    }
+
+    pub fn foreign_track_distances(
+        &self,
+        track: &Track<A, M, U>,
+        feature_id: u64,
+    ) -> Option<Vec<(u64, f32)>> {
+        Some(
+            self.tracks
+                .par_iter()
+                .flat_map(|(_, other)| track.distances(other, feature_id))
+                .flatten()
+                .collect(),
+        )
+    }
+
+    pub fn owned_track_distances(&self, track_id: u64, feature_id: u64) -> Option<Vec<(u64, f32)>> {
         let track = self.tracks.get(&track_id);
         if track.is_none() {
             return None;
