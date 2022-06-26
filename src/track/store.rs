@@ -35,7 +35,7 @@ where
         }
     }
 
-    pub fn baked(&self) -> Vec<u64> {
+    pub fn find_baked(&self) -> Vec<u64> {
         self.tracks
             .iter()
             .flat_map(|(track_id, track)| {
@@ -48,7 +48,7 @@ where
             .collect()
     }
 
-    pub fn pull_baked(&mut self, backed: &Vec<u64>) -> Vec<Track<A, M, U>> {
+    pub fn fetch_backed(&mut self, backed: &Vec<u64>) -> Vec<Track<A, M, U>> {
         let mut res = Vec::default();
         for track_id in backed {
             if let Some(t) = self.tracks.remove(track_id) {
