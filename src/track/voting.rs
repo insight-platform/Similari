@@ -61,13 +61,19 @@ mod tests {
 
         let mut candidates = v.find_merge_candidates(vec![
             (1, Ok(0.2)),
+            (1, Ok(0.22)),
             (2, Ok(0.21)),
+            (2, Ok(0.2)),
             (3, Ok(0.22)),
+            (3, Ok(0.2)),
             (4, Ok(0.23)),
+            (4, Ok(0.3)),
             (5, Ok(0.24)),
+            (5, Ok(0.3)),
             (6, Ok(0.25)),
+            (6, Ok(0.5)),
         ]);
-        candidates.sort();
-        assert_eq!(candidates, vec![(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]);
+        candidates.sort_by(|(l, _), (r, _)| l.partial_cmp(r).unwrap());
+        assert_eq!(candidates, vec![(1, 2), (2, 2), (3, 2), (4, 2), (5, 2)]);
     }
 }
