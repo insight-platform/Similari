@@ -1,3 +1,5 @@
+use crate::Errors;
+use anyhow::Result;
 use itertools::Itertools;
 use nalgebra::{Dynamic, OMatrix};
 use std::cmp::Ordering;
@@ -6,6 +8,7 @@ use std::marker::PhantomData;
 use std::ops::Sub;
 
 pub mod store;
+pub mod voting;
 
 pub type Feature = OMatrix<f32, Dynamic, Dynamic>;
 pub type FeatureSpec = (f32, Feature);
@@ -16,7 +19,7 @@ pub fn standard_vector_distance(f1: &Feature, f2: &Feature) -> f32 {
 }
 
 pub trait Metric {
-    fn distance(feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> f32;
+    fn distance(feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32>;
     fn optimize(
         &mut self,
         feature_id: &u64,
@@ -30,7 +33,7 @@ pub trait Metric {
 
 pub trait AttributeMatch<A> {
     fn compatible(&self, other: &A) -> bool;
-    fn merge(&mut self, other: &A);
+    fn merge(&mut self, other: &A) -> Result<()>;
     fn baked(&self, observations: &FeatureObservationsGroups) -> bool;
 }
 
@@ -63,12 +66,20 @@ where
     M: Metric + Default + Send + Sync,
     U: AttributeUpdate<A> + Send + Sync,
 {
-    pub fn new(track_id: u64) -> Self {
+    pub fn new(track_id: u64, metric: Option<M>, attributes: Option<A>) -> Self {
         Self {
-            attributes: Default::default(),
+            attributes: if let Some(attributes) = attributes {
+                attributes
+            } else {
+                A::default()
+            },
             track_id,
             observations: Default::default(),
-            metric: M::default(),
+            metric: if let Some(m) = metric {
+                m
+            } else {
+                M::default()
+            },
             phantom_attribute_update: Default::default(),
             merge_history: vec![track_id],
         }
@@ -103,8 +114,8 @@ where
             .optimize(&feature_id, &self.merge_history, observations, prev_length);
     }
 
-    pub fn merge(&mut self, other: &Self, features: &Vec<u64>) {
-        self.attributes.merge(&other.attributes);
+    pub fn merge(&mut self, other: &Self, features: &Vec<u64>) -> Result<()> {
+        self.attributes.merge(&other.attributes)?;
         for feature_id in features {
             let dest = self.observations.get_mut(feature_id);
             let src = other.observations.get(feature_id);
@@ -119,23 +130,27 @@ where
                 );
             }
         }
+        Ok(())
     }
 
-    pub(crate) fn distances(&self, other: &Self, feature_id: u64) -> Option<Vec<(u64, f32)>> {
+    pub(crate) fn distances(
+        &self,
+        other: &Self,
+        feature_id: u64,
+    ) -> Result<Vec<(u64, Result<f32>)>> {
         if !self.attributes.compatible(&other.attributes) {
-            None
+            Err(Errors::IncompatibleAttributes.into())
         } else {
             match (
                 self.observations.get(&feature_id),
                 other.observations.get(&feature_id),
             ) {
-                (Some(left), Some(right)) => Some(
-                    left.iter()
-                        .cartesian_product(right.iter())
-                        .map(|(l, r)| (other.track_id, M::distance(feature_id, l, r)))
-                        .collect(),
-                ),
-                _ => None,
+                (Some(left), Some(right)) => Ok(left
+                    .iter()
+                    .cartesian_product(right.iter())
+                    .map(|(l, r)| (other.track_id, M::distance(feature_id, l, r)))
+                    .collect()),
+                _ => Err(Errors::MissingObservation.into()),
             }
         }
     }
@@ -147,9 +162,9 @@ mod tests {
         feat_sort_cmp, standard_vector_distance, AttributeMatch, AttributeUpdate, Feature,
         FeatureObservationsGroups, FeatureSpec, Metric, Track,
     };
+    use crate::EPS;
+    use anyhow::Result;
     use std::time::{SystemTime, UNIX_EPOCH};
-
-    const EPS: f32 = 0.00001;
 
     #[derive(Default)]
     pub struct DefaultAttrs;
@@ -166,7 +181,9 @@ mod tests {
             true
         }
 
-        fn merge(&mut self, _other: &DefaultAttrs) {}
+        fn merge(&mut self, _other: &DefaultAttrs) -> Result<()> {
+            Ok(())
+        }
 
         fn baked(&self, _observations: &FeatureObservationsGroups) -> bool {
             false
@@ -176,8 +193,8 @@ mod tests {
     #[derive(Default)]
     struct DefaultMetric;
     impl Metric for DefaultMetric {
-        fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> f32 {
-            standard_vector_distance(&e1.1, &e2.1)
+        fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
+            Ok(standard_vector_distance(&e1.1, &e2.1))
         }
 
         fn optimize(
@@ -205,7 +222,7 @@ mod tests {
 
     #[test]
     fn basic_methods() {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::new(3);
+        let t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::new(3, None, None);
         assert_eq!(t1.get_track_id(), 3);
     }
 
@@ -230,12 +247,12 @@ mod tests {
         let dists = t1.distances(&t1, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!(dists[0].1 < EPS);
+        assert!(*dists[0].1.as_ref().unwrap() < EPS);
 
         let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((dists[0].1 - 2.0).abs() < EPS);
+        assert!((*dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
 
         t2.add(
             0,
@@ -249,8 +266,8 @@ mod tests {
         let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 2);
-        assert!((dists[0].1 - 2.0).abs() < EPS);
-        assert!((dists[1].1 - 1.0).abs() < EPS);
+        assert!((*dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
+        assert!((*dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
     }
 
     #[test]
@@ -270,7 +287,8 @@ mod tests {
             Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         );
-        t1.merge(&t2, &vec![0]);
+        let r = t1.merge(&t2, &vec![0]);
+        assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 2);
     }
 
@@ -301,9 +319,10 @@ mod tests {
                 self.end_time <= other.start_time
             }
 
-            fn merge(&mut self, other: &TimeAttrs) {
+            fn merge(&mut self, other: &TimeAttrs) -> Result<()> {
                 self.start_time = self.start_time.min(other.start_time);
                 self.end_time = self.end_time.max(other.end_time);
+                Ok(())
             }
 
             fn baked(&self, _observations: &FeatureObservationsGroups) -> bool {
@@ -319,8 +338,8 @@ mod tests {
         #[derive(Default)]
         struct TimeMetric;
         impl Metric for TimeMetric {
-            fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> f32 {
-                standard_vector_distance(&e1.1, &e2.1)
+            fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
+                Ok(standard_vector_distance(&e1.1, &e2.1))
             }
 
             fn optimize(
@@ -356,7 +375,7 @@ mod tests {
         let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((dists[0].1 - 2.0).abs() < EPS);
+        assert!((*dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
         assert_eq!(dists[0].0, 2);
 
         let mut t3 = Track::default();
@@ -368,6 +387,6 @@ mod tests {
         );
 
         let dists = t1.distances(&t3, 0);
-        assert!(dists.is_none());
+        assert!(dists.is_err());
     }
 }
