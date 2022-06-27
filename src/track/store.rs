@@ -164,7 +164,7 @@ where
 mod tests {
     use crate::track::store::TrackStore;
     use crate::track::{
-        feat_sort_cmp, standard_vector_distance, AttributeMatch, AttributeUpdate, Feature,
+        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, Feature,
         FeatureObservationsGroups, FeatureSpec, Metric,
     };
     use crate::{Errors, EPS};
@@ -221,7 +221,7 @@ mod tests {
 
     impl Metric for TimeMetric {
         fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-            Ok(standard_vector_distance(&e1.1, &e2.1))
+            Ok(euclid_distance(&e1.1, &e2.1))
         }
 
         fn optimize(

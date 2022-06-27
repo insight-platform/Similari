@@ -14,7 +14,7 @@ pub type Feature = OMatrix<f32, Dynamic, Dynamic>;
 pub type FeatureSpec = (f32, Feature);
 pub type FeatureObservationsGroups = HashMap<u64, Vec<FeatureSpec>>;
 
-pub fn standard_vector_distance(f1: &Feature, f2: &Feature) -> f32 {
+pub fn euclid_distance(f1: &Feature, f2: &Feature) -> f32 {
     f1.sub(f2).map(|component| component * component).sum()
 }
 
@@ -159,7 +159,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::track::{
-        feat_sort_cmp, standard_vector_distance, AttributeMatch, AttributeUpdate, Feature,
+        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, Feature,
         FeatureObservationsGroups, FeatureSpec, Metric, Track,
     };
     use crate::EPS;
@@ -194,7 +194,7 @@ mod tests {
     struct DefaultMetric;
     impl Metric for DefaultMetric {
         fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-            Ok(standard_vector_distance(&e1.1, &e2.1))
+            Ok(euclid_distance(&e1.1, &e2.1))
         }
 
         fn optimize(
@@ -213,10 +213,10 @@ mod tests {
     fn vec_distances() {
         let v1 = Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]);
         let v2 = Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]);
-        let d = standard_vector_distance(&v1, &v1);
+        let d = euclid_distance(&v1, &v1);
         assert!(d < EPS);
 
-        let d = standard_vector_distance(&v1, &v2);
+        let d = euclid_distance(&v1, &v2);
         assert!((d - 2.0f32).abs() < EPS);
     }
 
@@ -339,7 +339,7 @@ mod tests {
         struct TimeMetric;
         impl Metric for TimeMetric {
             fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-                Ok(standard_vector_distance(&e1.1, &e2.1))
+                Ok(euclid_distance(&e1.1, &e2.1))
             }
 
             fn optimize(
