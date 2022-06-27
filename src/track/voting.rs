@@ -55,10 +55,11 @@ mod tests {
         let candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (1, Ok(0.4))]);
         assert_eq!(candidates, vec![(1, 1)]);
 
-        let candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (2, Ok(0.2))]);
+        let mut candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (2, Ok(0.2))]);
+        candidates.sort();
         assert_eq!(candidates, vec![(1, 1), (2, 1)]);
 
-        let candidates = v.find_merge_candidates(vec![
+        let mut candidates = v.find_merge_candidates(vec![
             (1, Ok(0.2)),
             (2, Ok(0.21)),
             (3, Ok(0.22)),
@@ -66,6 +67,7 @@ mod tests {
             (5, Ok(0.24)),
             (6, Ok(0.25)),
         ]);
-        assert_eq!(candidates.len(), 5);
+        candidates.sort();
+        assert_eq!(candidates, vec![(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]);
     }
 }

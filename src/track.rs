@@ -26,15 +26,22 @@ pub trait Metric {
         merge_history: &[u64],
         observations: &mut Vec<FeatureSpec>,
         prev_length: usize,
-    );
+    ) -> Result<()>;
     // features.sort_by(feat_sort_cmp);
     // features.truncate(M::filter(feature_id, &self.merge_history));
+}
+
+#[derive(Clone)]
+pub enum BakingStatus {
+    Ready,
+    Pending,
+    Wasted,
 }
 
 pub trait AttributeMatch<A> {
     fn compatible(&self, other: &A) -> bool;
     fn merge(&mut self, other: &A) -> Result<()>;
-    fn baked(&self, observations: &FeatureObservationsGroups) -> bool;
+    fn baked(&self, observations: &FeatureObservationsGroups) -> Result<BakingStatus>;
 }
 
 #[derive(Default)]
@@ -53,7 +60,7 @@ where
 }
 
 pub trait AttributeUpdate<A> {
-    fn apply(&self, attrs: &mut A);
+    fn apply(&self, attrs: &mut A) -> Result<()>;
 }
 
 pub fn feat_sort_cmp(e1: &FeatureSpec, e2: &FeatureSpec) -> Ordering {
@@ -93,12 +100,12 @@ where
         &self.attributes
     }
 
-    fn update_attributes(&mut self, update: U) {
-        update.apply(&mut self.attributes);
+    fn update_attributes(&mut self, update: U) -> Result<()> {
+        update.apply(&mut self.attributes)
     }
 
-    fn add(&mut self, feature_id: u64, reid_q: f32, reid_v: Feature, update: U) {
-        self.update_attributes(update);
+    fn add(&mut self, feature_id: u64, reid_q: f32, reid_v: Feature, update: U) -> Result<()> {
+        self.update_attributes(update)?;
         match self.observations.get_mut(&feature_id) {
             None => {
                 self.observations.insert(feature_id, vec![(reid_q, reid_v)]);
@@ -111,7 +118,9 @@ where
         let prev_length = observations.len() - 1;
 
         self.metric
-            .optimize(&feature_id, &self.merge_history, observations, prev_length);
+            .optimize(&feature_id, &self.merge_history, observations, prev_length)?;
+
+        Ok(())
     }
 
     pub fn merge(&mut self, other: &Self, features: &Vec<u64>) -> Result<()> {
@@ -127,7 +136,7 @@ where
                     &self.merge_history,
                     dest_observations,
                     prev_length,
-                );
+                )?;
             }
         }
         Ok(())
@@ -159,7 +168,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::track::{
-        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, Feature,
+        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, BakingStatus, Feature,
         FeatureObservationsGroups, FeatureSpec, Metric, Track,
     };
     use crate::EPS;
@@ -173,7 +182,9 @@ mod tests {
     pub struct DefaultAttrUpdates;
 
     impl AttributeUpdate<DefaultAttrs> for DefaultAttrUpdates {
-        fn apply(&self, _attrs: &mut DefaultAttrs) {}
+        fn apply(&self, _attrs: &mut DefaultAttrs) -> Result<()> {
+            Ok(())
+        }
     }
 
     impl AttributeMatch<DefaultAttrs> for DefaultAttrs {
@@ -185,8 +196,8 @@ mod tests {
             Ok(())
         }
 
-        fn baked(&self, _observations: &FeatureObservationsGroups) -> bool {
-            false
+        fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<BakingStatus> {
+            Ok(BakingStatus::Pending)
         }
     }
 
@@ -203,9 +214,10 @@ mod tests {
             _merge_history: &[u64],
             features: &mut Vec<FeatureSpec>,
             _prev_length: usize,
-        ) {
+        ) -> Result<()> {
             features.sort_by(feat_sort_cmp);
             features.truncate(20);
+            Ok(())
         }
     }
 
@@ -227,14 +239,14 @@ mod tests {
     }
 
     #[test]
-    fn track_distances() {
+    fn track_distances() -> Result<()> {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
         t1.add(
             0,
             0.3,
             Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates {},
-        );
+        )?;
 
         let mut t2 = Track::default();
         t2.add(
@@ -242,7 +254,7 @@ mod tests {
             0.3,
             Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
-        );
+        )?;
 
         let dists = t1.distances(&t1, 0);
         let dists = dists.unwrap();
@@ -259,7 +271,7 @@ mod tests {
             0.2,
             Feature::from_vec(1, 3, vec![1f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
-        );
+        )?;
 
         assert_eq!(t2.observations.get(&0).unwrap().len(), 2);
 
@@ -268,17 +280,18 @@ mod tests {
         assert_eq!(dists.len(), 2);
         assert!((*dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
         assert!((*dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
+        Ok(())
     }
 
     #[test]
-    fn merge() {
+    fn merge() -> Result<()> {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
         t1.add(
             0,
             0.3,
             Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates {},
-        );
+        )?;
 
         let mut t2 = Track::default();
         t2.add(
@@ -286,14 +299,15 @@ mod tests {
             0.3,
             Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
-        );
+        )?;
         let r = t1.merge(&t2, &vec![0]);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn attribute_compatible_match() {
+    fn attribute_compatible_match() -> Result<()> {
         #[derive(Default, Debug)]
         pub struct TimeAttrs {
             start_time: u64,
@@ -306,11 +320,12 @@ mod tests {
         }
 
         impl AttributeUpdate<TimeAttrs> for TimeAttrUpdates {
-            fn apply(&self, attrs: &mut TimeAttrs) {
+            fn apply(&self, attrs: &mut TimeAttrs) -> Result<()> {
                 attrs.end_time = self.time;
                 if attrs.start_time == 0 {
                     attrs.start_time = self.time;
                 }
+                Ok(())
             }
         }
 
@@ -325,13 +340,18 @@ mod tests {
                 Ok(())
             }
 
-            fn baked(&self, _observations: &FeatureObservationsGroups) -> bool {
-                SystemTime::now()
+            fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<BakingStatus> {
+                if SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
                     - self.end_time
                     > 30
+                {
+                    Ok(BakingStatus::Ready)
+                } else {
+                    Ok(BakingStatus::Pending)
+                }
             }
         }
 
@@ -348,9 +368,10 @@ mod tests {
                 _merge_history: &[u64],
                 features: &mut Vec<FeatureSpec>,
                 _prev_length: usize,
-            ) {
+            ) -> Result<()> {
                 features.sort_by(feat_sort_cmp);
                 features.truncate(20);
+                Ok(())
             }
         }
 
@@ -361,7 +382,7 @@ mod tests {
             0.3,
             Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
             TimeAttrUpdates { time: 2 },
-        );
+        )?;
 
         let mut t2 = Track::default();
         t2.add(
@@ -369,7 +390,7 @@ mod tests {
             0.3,
             Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
             TimeAttrUpdates { time: 3 },
-        );
+        )?;
         t2.track_id = 2;
 
         let dists = t1.distances(&t2, 0);
@@ -384,9 +405,10 @@ mod tests {
             0.3,
             Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
             TimeAttrUpdates { time: 1 },
-        );
+        )?;
 
         let dists = t1.distances(&t3, 0);
         assert!(dists.is_err());
+        Ok(())
     }
 }

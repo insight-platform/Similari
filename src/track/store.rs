@@ -1,4 +1,4 @@
-use crate::track::{AttributeMatch, AttributeUpdate, Feature, Metric, Track};
+use crate::track::{AttributeMatch, AttributeUpdate, BakingStatus, Feature, Metric, Track};
 use crate::Errors;
 use anyhow::Result;
 use rayon::prelude::*;
@@ -49,16 +49,18 @@ where
         }
     }
 
-    pub fn find_baked(&self) -> Vec<u64> {
+    pub fn find_baked(&self) -> Vec<(u64, Result<BakingStatus>)> {
         self.tracks
             .par_iter()
-            .flat_map(|(track_id, track)| {
-                if track.get_attributes().baked(&track.observations) {
-                    Some(*track_id)
-                } else {
-                    None
-                }
-            })
+            .flat_map(
+                |(track_id, track)| match track.get_attributes().baked(&track.observations) {
+                    Ok(status) => match status {
+                        BakingStatus::Pending => None,
+                        other => Some((*track_id, Ok(other))),
+                    },
+                    Err(e) => Some((*track_id, Err(e))),
+                },
+            )
             .collect()
     }
 
@@ -139,7 +141,7 @@ where
         reid_q: f32,
         reid_v: Feature,
         attribute_update: U,
-    ) {
+    ) -> Result<()> {
         match self.tracks.get_mut(&track_id) {
             None => {
                 let mut t = Track {
@@ -150,13 +152,14 @@ where
                     phantom_attribute_update: PhantomData,
                     merge_history: vec![track_id],
                 };
-                t.update_attributes(attribute_update);
+                t.update_attributes(attribute_update)?;
                 self.tracks.insert(track_id, t);
             }
             Some(track) => {
-                track.add(feature_id, reid_q, reid_v, attribute_update);
+                track.add(feature_id, reid_q, reid_v, attribute_update)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -164,7 +167,7 @@ where
 mod tests {
     use crate::track::store::TrackStore;
     use crate::track::{
-        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, Feature,
+        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, BakingStatus, Feature,
         FeatureObservationsGroups, FeatureSpec, Metric,
     };
     use crate::{Errors, EPS};
@@ -185,11 +188,12 @@ mod tests {
     }
 
     impl AttributeUpdate<TimeAttrs> for TimeAttrUpdates {
-        fn apply(&self, attrs: &mut TimeAttrs) {
+        fn apply(&self, attrs: &mut TimeAttrs) -> Result<()> {
             attrs.end_time = self.time;
             if attrs.start_time == 0 {
                 attrs.start_time = self.time;
             }
+            Ok(())
         }
     }
 
@@ -204,13 +208,18 @@ mod tests {
             Ok(())
         }
 
-        fn baked(&self, _observations: &FeatureObservationsGroups) -> bool {
-            SystemTime::now()
+        fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<BakingStatus> {
+            if SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis()
                 - self.end_time
                 > self.baked_period
+            {
+                Ok(BakingStatus::Ready)
+            } else {
+                Ok(BakingStatus::Pending)
+            }
         }
     }
 
@@ -230,9 +239,10 @@ mod tests {
             _merge_history: &[u64],
             features: &mut Vec<FeatureSpec>,
             _prev_length: usize,
-        ) {
+        ) -> Result<()> {
             features.sort_by(feat_sort_cmp);
             features.truncate(self.max_length);
+            Ok(())
         }
     }
 
@@ -241,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    fn test_storage() {
+    fn test_storage() -> Result<()> {
         let _default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric> =
             TrackStore::default();
 
@@ -263,15 +273,15 @@ mod tests {
                     .unwrap()
                     .as_millis(),
             },
-        );
+        )?;
         let baked = store.find_baked();
         assert!(baked.is_empty());
         thread::sleep(Duration::from_millis(30));
         let baked = store.find_baked();
         assert_eq!(baked.len(), 1);
-        assert_eq!(baked[0], 0);
+        assert_eq!(baked[0].0, 0);
 
-        let vectors = store.fetch_tracks(&baked);
+        let vectors = store.fetch_tracks(&baked.into_iter().map(|(t, _)| t).collect());
         assert_eq!(vectors.len(), 1);
         assert_eq!(vectors[0].track_id, 0);
         assert_eq!(vectors[0].observations.len(), 1);
@@ -287,7 +297,7 @@ mod tests {
                     .unwrap()
                     .as_millis(),
             },
-        );
+        )?;
         let (dists, errs) = store.owned_track_distances(0, 0);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
@@ -303,7 +313,7 @@ mod tests {
                     .unwrap()
                     .as_millis(),
             },
-        );
+        )?;
 
         let (dists, errs) = store.owned_track_distances(0, 0);
         assert_eq!(dists.len(), 1);
@@ -380,7 +390,7 @@ mod tests {
                     .unwrap()
                     .as_millis(),
             },
-        );
+        )?;
 
         v[0].attributes.end_time = store.tracks.get(&1).unwrap().attributes.start_time - 1;
         let (dists, errs) = store.foreign_track_distances(&v[0], 0);
@@ -390,5 +400,7 @@ mod tests {
         assert!((dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
         assert!((dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
         assert!(errs.is_empty());
+
+        Ok(())
     }
 }
