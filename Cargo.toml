@@ -1,5 +1,6 @@
 [package]
 name = "similari"
+authors = ["Ivan Kudriavtsev <ivan.a.kudryavtsev@gmail.com>"]
 description = "Vector similarity search engine library"
 homepage = "https://github.com/insight-platform/Similari"
 repository = "https://github.com/insight-platform/Similari"
