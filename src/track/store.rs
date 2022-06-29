@@ -1,4 +1,4 @@
-use crate::track::{AttributeMatch, AttributeUpdate, BakingStatus, Feature, Metric, Track};
+use crate::track::{AttributeMatch, AttributeUpdate, Feature, Metric, Track, TrackBakingStatus};
 use crate::Errors;
 use anyhow::Result;
 use rayon::prelude::*;
@@ -49,13 +49,13 @@ where
         }
     }
 
-    pub fn find_baked(&self) -> Vec<(u64, Result<BakingStatus>)> {
+    pub fn find_baked(&self) -> Vec<(u64, Result<TrackBakingStatus>)> {
         self.tracks
             .par_iter()
             .flat_map(
                 |(track_id, track)| match track.get_attributes().baked(&track.observations) {
                     Ok(status) => match status {
-                        BakingStatus::Pending => None,
+                        TrackBakingStatus::Pending => None,
                         other => Some((*track_id, Ok(other))),
                     },
                     Err(e) => Some((*track_id, Err(e))),
@@ -77,7 +77,7 @@ where
     pub fn foreign_track_distances(
         &self,
         track: &Track<A, M, U>,
-        feature_id: u64,
+        feature_class: u64,
     ) -> (
         Vec<(u64, Result<f32>)>,
         Vec<Result<Vec<(u64, Result<f32>)>>>,
@@ -85,7 +85,7 @@ where
         let res: Vec<_> = self
             .tracks
             .par_iter()
-            .map(|(_, other)| track.distances(other, feature_id))
+            .map(|(_, other)| track.distances(other, feature_class))
             .collect();
 
         let mut distances = Vec::default();
@@ -104,7 +104,7 @@ where
     pub fn owned_track_distances(
         &self,
         track_id: u64,
-        feature_id: u64,
+        feature_class: u64,
     ) -> (
         Vec<(u64, Result<f32>)>,
         Vec<Result<Vec<(u64, Result<f32>)>>>,
@@ -118,7 +118,7 @@ where
             .tracks
             .par_iter()
             .filter(|(other_track_id, _)| **other_track_id != track_id)
-            .map(|(_, other)| track.distances(other, feature_id))
+            .map(|(_, other)| track.distances(other, feature_class))
             .collect();
 
         let mut distances = Vec::default();
@@ -137,7 +137,7 @@ where
     pub fn add(
         &mut self,
         track_id: u64,
-        feature_id: u64,
+        feature_class: u64,
         reid_q: f32,
         reid_v: Feature,
         attribute_update: U,
@@ -147,7 +147,7 @@ where
                 let mut t = Track {
                     attributes: self.attributes.clone(),
                     track_id,
-                    observations: HashMap::from([(feature_id, vec![(reid_q, reid_v)])]),
+                    observations: HashMap::from([(feature_class, vec![(reid_q, reid_v)])]),
                     metric: self.metric.clone(),
                     phantom_attribute_update: PhantomData,
                     merge_history: vec![track_id],
@@ -156,7 +156,7 @@ where
                 self.tracks.insert(track_id, t);
             }
             Some(track) => {
-                track.add(feature_id, reid_q, reid_v, attribute_update)?;
+                track.add_observation(feature_class, reid_q, reid_v, attribute_update)?;
             }
         }
         Ok(())
@@ -168,8 +168,8 @@ mod tests {
     use crate::distance::euclidean;
     use crate::track::store::TrackStore;
     use crate::track::{
-        feat_sort_cmp, AttributeMatch, AttributeUpdate, BakingStatus, Feature,
-        FeatureObservationsGroups, FeatureSpec, Metric,
+        feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
+        FeatureSpec, Metric, TrackBakingStatus,
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
@@ -209,7 +209,7 @@ mod tests {
             Ok(())
         }
 
-        fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<BakingStatus> {
+        fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus> {
             if SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -217,9 +217,9 @@ mod tests {
                 - self.end_time
                 > self.baked_period
             {
-                Ok(BakingStatus::Ready)
+                Ok(TrackBakingStatus::Ready)
             } else {
-                Ok(BakingStatus::Pending)
+                Ok(TrackBakingStatus::Pending)
             }
         }
     }
@@ -230,18 +230,18 @@ mod tests {
     }
 
     impl Metric for TimeMetric {
-        fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
+        fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
             Ok(euclidean(&e1.1, &e2.1))
         }
 
         fn optimize(
             &mut self,
-            _feature_id: &u64,
+            _feature_class: &u64,
             _merge_history: &[u64],
             features: &mut Vec<FeatureSpec>,
             _prev_length: usize,
         ) -> Result<()> {
-            features.sort_by(feat_sort_cmp);
+            features.sort_by(feat_confidence_cmp);
             features.truncate(self.max_length);
             Ok(())
         }

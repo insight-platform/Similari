@@ -6,6 +6,7 @@ pub fn euclidean(f1: &Feature, f2: &Feature) -> f32 {
     f1.metric_distance(&f2)
 }
 
+/// Cosine distance between two vectors
 pub fn cosine(f1: &Feature, f2: &Feature) -> f32 {
     let divided = f1.component_mul(&f2).sum();
 
