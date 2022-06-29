@@ -143,7 +143,7 @@ fn main() {
 
     assert!(res.is_ok());
 
-    let (dists, errs) = db.foreign_track_distances(&ext_track, 0);
+    let (dists, errs) = db.foreign_track_distances(&ext_track, 0, true);
 
     assert_eq!(dists.len(), 2);
     assert_eq!(errs.len(), 0);
@@ -158,7 +158,7 @@ fn main() {
         &results
     );
 
-    let (dists, _errs) = db.foreign_track_distances(&ext_track, 0);
+    let (dists, _errs) = db.foreign_track_distances(&ext_track, 0, true);
 
     // max distance filter set to 0.4
     let top1_voting_engine_filter = TopNVoting::new(2, 0.4, 1);

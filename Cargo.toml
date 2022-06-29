@@ -10,7 +10,6 @@ categories = ["algorithms", "data-structures", "database", "mathematics", "scien
 version = "0.1.1"
 edition = "2021"
 license="Apache-2.0"
-license-file = "LICENSE"
 
 [dependencies]
 nalgebra = "0.31.0"
