@@ -165,9 +165,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::distance::euclidean;
     use crate::track::store::TrackStore;
     use crate::track::{
-        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, BakingStatus, Feature,
+        feat_sort_cmp, AttributeMatch, AttributeUpdate, BakingStatus, Feature,
         FeatureObservationsGroups, FeatureSpec, Metric,
     };
     use crate::{Errors, EPS};
@@ -230,7 +231,7 @@ mod tests {
 
     impl Metric for TimeMetric {
         fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-            Ok(euclid_distance(&e1.1, &e2.1))
+            Ok(euclidean(&e1.1, &e2.1))
         }
 
         fn optimize(

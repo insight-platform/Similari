@@ -1,4 +1,6 @@
+pub mod distance;
 pub mod track;
+
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -13,4 +15,4 @@ pub enum Errors {
     SelfDistanceCalculation,
 }
 
-pub(crate) const EPS: f32 = 0.00001;
+const EPS: f32 = 0.00001;

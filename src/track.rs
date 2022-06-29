@@ -5,7 +5,6 @@ use nalgebra::{Dynamic, OMatrix};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::ops::Sub;
 
 pub mod store;
 pub mod voting;
@@ -13,10 +12,6 @@ pub mod voting;
 pub type Feature = OMatrix<f32, Dynamic, Dynamic>;
 pub type FeatureSpec = (f32, Feature);
 pub type FeatureObservationsGroups = HashMap<u64, Vec<FeatureSpec>>;
-
-pub fn euclid_distance(f1: &Feature, f2: &Feature) -> f32 {
-    f1.sub(f2).map(|component| component * component).sum()
-}
 
 pub trait Metric {
     fn distance(feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32>;
@@ -167,8 +162,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::distance::euclidean;
     use crate::track::{
-        euclid_distance, feat_sort_cmp, AttributeMatch, AttributeUpdate, BakingStatus, Feature,
+        feat_sort_cmp, AttributeMatch, AttributeUpdate, BakingStatus, Feature,
         FeatureObservationsGroups, FeatureSpec, Metric, Track,
     };
     use crate::EPS;
@@ -205,7 +201,7 @@ mod tests {
     struct DefaultMetric;
     impl Metric for DefaultMetric {
         fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-            Ok(euclid_distance(&e1.1, &e2.1))
+            Ok(euclidean(&e1.1, &e2.1))
         }
 
         fn optimize(
@@ -219,17 +215,6 @@ mod tests {
             features.truncate(20);
             Ok(())
         }
-    }
-
-    #[test]
-    fn vec_distances() {
-        let v1 = Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]);
-        let v2 = Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]);
-        let d = euclid_distance(&v1, &v1);
-        assert!(d < EPS);
-
-        let d = euclid_distance(&v1, &v2);
-        assert!((d - 2.0f32).abs() < EPS);
     }
 
     #[test]
@@ -359,7 +344,7 @@ mod tests {
         struct TimeMetric;
         impl Metric for TimeMetric {
             fn distance(_feature_id: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-                Ok(euclid_distance(&e1.1, &e2.1))
+                Ok(euclidean(&e1.1, &e2.1))
             }
 
             fn optimize(
