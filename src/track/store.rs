@@ -111,7 +111,7 @@ where
     ) {
         let track = self.tracks.get(&track_id);
         if track.is_none() {
-            return (vec![], vec![Err(Errors::MissingTrack.into())]);
+            return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
         }
         let track = track.unwrap();
         let res: Vec<_> = self
@@ -334,9 +334,13 @@ mod tests {
                 let errs = e.downcast_ref::<Errors>().unwrap();
                 match errs {
                     Errors::IncompatibleAttributes => {}
-                    Errors::MissingObservation
-                    | Errors::MissingTrack
-                    | Errors::SelfDistanceCalculation => {
+                    Errors::ObservationForClassNotFound(_t1, _t2, _c) => {
+                        unreachable!();
+                    }
+                    Errors::TrackNotFound(_t) => {
+                        unreachable!();
+                    }
+                    Errors::SelfDistanceCalculation => {
                         unreachable!();
                     }
                 }
@@ -370,9 +374,13 @@ mod tests {
                 let errs = e.downcast_ref::<Errors>().unwrap();
                 match errs {
                     Errors::IncompatibleAttributes => {}
-                    Errors::MissingObservation
-                    | Errors::MissingTrack
-                    | Errors::SelfDistanceCalculation => {
+                    Errors::ObservationForClassNotFound(_t1, _t2, _c) => {
+                        unreachable!();
+                    }
+                    Errors::TrackNotFound(_t) => {
+                        unreachable!();
+                    }
+                    Errors::SelfDistanceCalculation => {
                         unreachable!();
                     }
                 }

@@ -1,4 +1,3 @@
-/// Module doc
 use crate::Errors;
 use anyhow::Result;
 use itertools::Itertools;
@@ -304,7 +303,12 @@ where
                     .cartesian_product(right.iter())
                     .map(|(l, r)| (other.track_id, M::distance(feature_class, l, r)))
                     .collect()),
-                _ => Err(Errors::MissingObservation.into()),
+                _ => Err(Errors::ObservationForClassNotFound(
+                    self.track_id,
+                    other.track_id,
+                    feature_class,
+                )
+                .into()),
             }
         }
     }
