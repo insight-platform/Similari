@@ -1,14 +1,23 @@
 use crate::track::Feature;
-use std::ops::Sub;
+use nalgebra::SimdComplexField;
 
+/// Euclidian distance between two vectors
 pub fn euclidean(f1: &Feature, f2: &Feature) -> f32 {
-    f1.sub(f2).map(|component| component * component).sum()
+    f1.metric_distance(&f2)
 }
 
 pub fn cosine(f1: &Feature, f2: &Feature) -> f32 {
     let divided = f1.component_mul(&f2).sum();
-    let divisor = f1.component_mul(&f1).sum().sqrt() * f2.component_mul(&f2).sum().sqrt();
-    divided / divisor
+
+    let f1_divisor = f1
+        .fold(0.0_f32, |acc, a| acc + a.simd_modulus_squared())
+        .simd_sqrt();
+
+    let f2_divisor = f2
+        .fold(0.0_f32, |acc, a| acc + a.simd_modulus_squared())
+        .simd_sqrt();
+
+    divided / (f1_divisor * f2_divisor)
 }
 
 #[cfg(test)]
@@ -25,7 +34,7 @@ mod tests {
         assert!(d.abs() < EPS);
 
         let d = euclidean(&v1, &v2);
-        assert!((d - 2.0f32).abs() < EPS);
+        assert!((d - 2.0f32.sqrt()).abs() < EPS);
     }
 
     #[test]

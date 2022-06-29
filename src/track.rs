@@ -249,7 +249,7 @@ mod tests {
         let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
+        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
 
         t2.add(
             0,
@@ -263,7 +263,7 @@ mod tests {
         let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 2);
-        assert!((*dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
+        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!((*dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
         Ok(())
     }
@@ -381,7 +381,7 @@ mod tests {
         let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].1.as_ref().unwrap() - 2.0).abs() < EPS);
+        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert_eq!(dists[0].0, 2);
 
         let mut t3 = Track::default();
