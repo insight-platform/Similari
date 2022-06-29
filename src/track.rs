@@ -234,7 +234,16 @@ where
 
     /// Merges vector into current track across specified feature classes.
     ///
-    /// The merge works successfully
+    /// The merge works across specified feature classes:
+    /// * step 1: attributes are merged
+    /// * step 2.0: features are merged for classes
+    /// * step 2.1: features are optimized for every class
+    ///
+    /// If feature class doesn't exist any of tracks it's skipped, otherwise:
+    /// * both: `{S[class]} U {OTHER[class]}`
+    /// * self: `{S[class]}`
+    /// * other: `{OTHER[class]}`
+    ///
     pub fn merge(&mut self, other: &Self, classes: &Vec<u64>) -> Result<()> {
         self.attributes.merge(&other.attributes)?;
         for cls in classes {
@@ -271,6 +280,16 @@ where
         Ok(())
     }
 
+    /// Calculates distances between all features for two tracks for a class.
+    ///
+    /// First it calculates cartesian product `S X O` and calculates the distance for every pair.
+    ///
+    /// Before it calculates the distance, it checks that attributes are compatible. If no,
+    /// [`Err(Errors::IncompatibleAttributes)`](Errors::IncompatibleAttributes) returned. Otherwise,
+    /// the vector of distances returned that holds `(other.track_id, Result<f32>)` pairs. `Track_id` is
+    /// the same for all results and used in higher level operations. `Result<f32>` is `Ok(f32)` when
+    /// the distance calculated by `Metric` well, `Err(e)` when `Metric` is unable to calculate the distance.
+    ///
     pub fn distances(&self, other: &Self, feature_class: u64) -> Result<Vec<(u64, Result<f32>)>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
