@@ -239,7 +239,7 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::{
         feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, Metric, TrackBakingStatus,
+        FeatureSpec, Metric, Track, TrackBakingStatus,
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    fn test_store() -> Result<()> {
+    fn general_ops() -> Result<()> {
         let _default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric> =
             TrackStore::default();
 
@@ -478,6 +478,140 @@ mod tests {
         assert!(dists[0].1.is_ok());
         assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!((dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
+        assert!(errs.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn only_baked_similarity() -> Result<()> {
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let mut ext_track = Track::new(
+            2,
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.foreign_track_distances(&ext_track, 0, true);
+        assert!(dists.is_empty());
+        assert!(errs.is_empty());
+
+        store.add(
+            1,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.owned_track_distances(1, 0, true);
+        assert!(dists.is_empty());
+        assert!(errs.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn all_similarity() -> Result<()> {
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let mut ext_track = Track::new(
+            2,
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.foreign_track_distances(&ext_track, 0, false);
+        assert_eq!(dists.len(), 1);
+        assert!(errs.is_empty());
+
+        store.add(
+            1,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.owned_track_distances(0, 0, false);
+        assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
         Ok(())
