@@ -1,3 +1,4 @@
+/// Module doc
 use crate::Errors;
 use anyhow::Result;
 use itertools::Itertools;
