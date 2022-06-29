@@ -1,18 +1,34 @@
 use anyhow::Result;
 use itertools::Itertools;
 
-pub trait Voting {
-    fn find_merge_candidates(&self, distances: Vec<(u64, Result<f32>)>) -> Vec<(u64, usize)>;
+pub trait Voting<R> {
+    fn find_merge_candidates(&self, distances: Vec<(u64, Result<f32>)>) -> Vec<R>;
 }
 
-pub struct DefaultVoting {
-    count: usize,
+pub struct TopNVoting {
+    topn: usize,
     max_distance: f32,
     min_votes: usize,
 }
 
-impl Voting for DefaultVoting {
-    fn find_merge_candidates(&self, distances: Vec<(u64, Result<f32>)>) -> Vec<(u64, usize)> {
+impl TopNVoting {
+    pub fn new(topn: usize, max_distance: f32, min_votes: usize) -> Self {
+        Self {
+            topn,
+            max_distance,
+            min_votes,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct TopNVotingElt {
+    pub track_id: u64,
+    pub votes: usize,
+}
+
+impl Voting<TopNVotingElt> for TopNVoting {
+    fn find_merge_candidates(&self, distances: Vec<(u64, Result<f32>)>) -> Vec<TopNVotingElt> {
         let mut tracks: Vec<_> = distances
             .into_iter()
             .filter(|(_, e)| match e {
@@ -27,21 +43,25 @@ impl Voting for DefaultVoting {
             .counts()
             .into_iter()
             .filter(|(_, count)| *count >= self.min_votes)
-            .collect::<Vec<(_, _)>>();
-        counts.sort_by(|(_, c1), (_, c2)| c2.partial_cmp(c1).unwrap());
-        counts.truncate(self.count);
+            .map(|(e, c)| TopNVotingElt {
+                track_id: e,
+                votes: c,
+            })
+            .collect::<Vec<_>>();
+        counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
+        counts.truncate(self.topn);
         counts
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::track::voting::{DefaultVoting, Voting};
+    use crate::track::voting::{TopNVoting, Voting};
 
     #[test]
     fn default_voting() {
-        let v = DefaultVoting {
-            count: 5,
+        let v = TopNVoting {
+            topn: 5,
             max_distance: 0.32,
             min_votes: 1,
         };
