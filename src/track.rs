@@ -9,6 +9,8 @@ use std::marker::PhantomData;
 pub mod store;
 pub mod voting;
 
+pub type TrackDistance = (u64, Result<f32>);
+
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
 pub type Feature = OMatrix<f32, Dynamic, Dynamic>;
 
@@ -270,7 +272,7 @@ where
 
             if let Some(prev_length) = prev_length {
                 self.metric.optimize(
-                    &cls,
+                    cls,
                     &self.merge_history,
                     self.observations.get_mut(cls).unwrap(),
                     prev_length,
@@ -290,7 +292,7 @@ where
     /// the same for all results and used in higher level operations. `Result<f32>` is `Ok(f32)` when
     /// the distance calculated by `Metric` well, `Err(e)` when `Metric` is unable to calculate the distance.
     ///
-    pub fn distances(&self, other: &Self, feature_class: u64) -> Result<Vec<(u64, Result<f32>)>> {
+    pub fn distances(&self, other: &Self, feature_class: u64) -> Result<Vec<TrackDistance>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {

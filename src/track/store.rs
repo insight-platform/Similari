@@ -1,9 +1,13 @@
-use crate::track::{AttributeMatch, AttributeUpdate, Feature, Metric, Track, TrackBakingStatus};
+use crate::track::{
+    AttributeMatch, AttributeUpdate, Feature, Metric, Track, TrackBakingStatus, TrackDistance,
+};
 use crate::Errors;
 use anyhow::Result;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+
+pub type TrackDistanceError = Result<Vec<(u64, Result<f32>)>>;
 
 pub struct TrackStore<A, U, M>
 where
@@ -78,10 +82,7 @@ where
         &self,
         track: &Track<A, M, U>,
         feature_class: u64,
-    ) -> (
-        Vec<(u64, Result<f32>)>,
-        Vec<Result<Vec<(u64, Result<f32>)>>>,
-    ) {
+    ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
         let res: Vec<_> = self
             .tracks
             .par_iter()
@@ -105,10 +106,7 @@ where
         &self,
         track_id: u64,
         feature_class: u64,
-    ) -> (
-        Vec<(u64, Result<f32>)>,
-        Vec<Result<Vec<(u64, Result<f32>)>>>,
-    ) {
+    ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
         let track = self.tracks.get(&track_id);
         if track.is_none() {
             return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);

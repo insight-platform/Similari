@@ -21,10 +21,16 @@ impl TopNVoting {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct TopNVotingElt {
     pub track_id: u64,
     pub votes: usize,
+}
+
+impl TopNVotingElt {
+    pub fn new(track_id: u64, votes: usize) -> Self {
+        Self { track_id, votes }
+    }
 }
 
 impl Voting<TopNVotingElt> for TopNVoting {
@@ -37,7 +43,7 @@ impl Voting<TopNVotingElt> for TopNVoting {
             })
             .map(|(track, _)| track)
             .collect();
-        tracks.sort();
+        tracks.sort_unstable();
         let mut counts = tracks
             .into_iter()
             .counts()
@@ -56,7 +62,7 @@ impl Voting<TopNVotingElt> for TopNVoting {
 
 #[cfg(test)]
 mod tests {
-    use crate::track::voting::{TopNVoting, Voting};
+    use crate::track::voting::{TopNVoting, TopNVotingElt, Voting};
 
     #[test]
     fn default_voting() {
@@ -67,17 +73,20 @@ mod tests {
         };
 
         let candidates = v.find_merge_candidates(vec![(1, Ok(0.2))]);
-        assert_eq!(candidates, vec![(1, 1)]);
+        assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
         let candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (1, Ok(0.3))]);
-        assert_eq!(candidates, vec![(1, 2)]);
+        assert_eq!(candidates, vec![TopNVotingElt::new(1, 2)]);
 
         let candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (1, Ok(0.4))]);
-        assert_eq!(candidates, vec![(1, 1)]);
+        assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
         let mut candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (2, Ok(0.2))]);
-        candidates.sort();
-        assert_eq!(candidates, vec![(1, 1), (2, 1)]);
+        candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
+        assert_eq!(
+            candidates,
+            vec![TopNVotingElt::new(1, 1), TopNVotingElt::new(2, 1)]
+        );
 
         let mut candidates = v.find_merge_candidates(vec![
             (1, Ok(0.2)),
@@ -93,7 +102,16 @@ mod tests {
             (6, Ok(0.25)),
             (6, Ok(0.5)),
         ]);
-        candidates.sort_by(|(l, _), (r, _)| l.partial_cmp(r).unwrap());
-        assert_eq!(candidates, vec![(1, 2), (2, 2), (3, 2), (4, 2), (5, 2)]);
+        candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
+        assert_eq!(
+            candidates,
+            vec![
+                TopNVotingElt::new(1, 2),
+                TopNVotingElt::new(2, 2),
+                TopNVotingElt::new(3, 2),
+                TopNVotingElt::new(4, 2),
+                TopNVotingElt::new(5, 2)
+            ]
+        );
     }
 }
