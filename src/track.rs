@@ -232,12 +232,14 @@ where
         Ok(())
     }
 
-    /// Merges vector into current track across specified features.
-    pub fn merge(&mut self, other: &Self, features: &Vec<u64>) -> Result<()> {
+    /// Merges vector into current track across specified feature classes.
+    ///
+    /// The merge works successfully
+    pub fn merge(&mut self, other: &Self, classes: &Vec<u64>) -> Result<()> {
         self.attributes.merge(&other.attributes)?;
-        for f in features {
-            let dest = self.observations.get_mut(f);
-            let src = other.observations.get(f);
+        for cls in classes {
+            let dest = self.observations.get_mut(cls);
+            let src = other.observations.get(cls);
             let prev_length = match (dest, src) {
                 (Some(dest_observations), Some(src_observations)) => {
                     let prev_length = dest_observations.len();
@@ -245,17 +247,23 @@ where
                     Some(prev_length)
                 }
                 (None, Some(src_observations)) => {
-                    self.observations.insert(*f, src_observations.clone());
+                    self.observations.insert(*cls, src_observations.clone());
                     Some(0)
                 }
+
+                (Some(dest_observations), None) => {
+                    let prev_length = dest_observations.len();
+                    Some(prev_length)
+                }
+
                 _ => None,
             };
 
             if let Some(prev_length) = prev_length {
                 self.metric.optimize(
-                    &f,
+                    &cls,
                     &self.merge_history,
-                    self.observations.get_mut(f).unwrap(),
+                    self.observations.get_mut(cls).unwrap(),
                     prev_length,
                 )?;
             }
