@@ -1,7 +1,14 @@
 [package]
 name = "similari"
+description = "Vector similarity search engine library"
+homepage = "https://github.com/insight-platform/Similari"
+repository = "https://github.com/insight-platform/Similari"
+readme = "README.md"
+keywords = ["artificial-intelligence", "machine-learning", "algebra", "vector-similarity", "similarity-engine", "feature-similirity"]
+categories = ["algorithms", "concurrency", "data-structures", "database", "mathematics", "science"]
 version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE"
 
 [dependencies]
 nalgebra = "0.31.0"
