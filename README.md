@@ -20,6 +20,6 @@ To keep the calculations performant the crate uses:
 * [rayon](https://docs.rs/rayon/latest/rayon/) - parallel calculations are implemented within track storage operations;
 * [nalgebra](https://nalgebra.org/) - fast linear algebra library.
 
-**The performance depends a lot on the optimization level defined for build. On lower or default optimization 
-levels Rust may not use vectorized optimizations, so when running benchmarks take care of proper optimization 
-levels configured.**
+The vector operations performance depends a lot on the optimization level defined for the build. On low or default 
+optimization levels Rust may not use vectorized optimizations, so when running benchmarks take care of proper optimization 
+levels configured.
