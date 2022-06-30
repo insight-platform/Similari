@@ -1,5 +1,7 @@
 # Similari
 
+[![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
+
 The purpose of crate is to provide tools to build in-memory vector similarity engines.
 
 Similarity calculation is the important resource demanding task in machine learning and AI systems. Vectors in 
