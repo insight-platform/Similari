@@ -82,7 +82,10 @@ where
 
     /// Method is used to find ready to use tracks within the store.
     ///
-    /// The search is parallelized with Rayon.
+    /// The search is parallelized with Rayon. The results returned for tracks with
+    /// * `TrackBakingStatus::Ready`,
+    /// * `TrackBakingStatus::Wasted` or
+    /// * `Err(e)`
     ///
     pub fn find_baked(&self) -> Vec<(u64, Result<TrackBakingStatus>)> {
         self.tracks
@@ -99,13 +102,13 @@ where
             .collect()
     }
 
-    /// Access track in read-only mode
+    /// Access track in ref mode
     ///
     pub fn get(&self, track_id: u64) -> Option<&Track<A, M, U>> {
         self.tracks.get(&track_id)
     }
 
-    /// Access track in read-write mode
+    /// Access track in mut mode
     ///
     pub fn get_mut(&mut self, track_id: u64) -> Option<&mut Track<A, M, U>> {
         self.tracks.get_mut(&track_id)
@@ -125,6 +128,11 @@ where
 
     /// Calculates distances for external track (not in track store) to all tracks in DB which are
     /// allowed.
+    ///
+    /// # Arguments
+    /// * `track` - external track that is used as a distance subject
+    /// * `feature_class` - what feature to use for distance calculation
+    /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
     ///
     pub fn foreign_track_distances(
         &self,
@@ -160,7 +168,14 @@ where
         (distances, errors)
     }
 
-    /// Calculates track distances for a track inside store
+    /// Calculates track distances for a track within the store
+    ///
+    /// The distances for (self, self) are not calculated.
+    ///
+    /// # Arguments
+    /// * `track` - external track that is used as a distance subject
+    /// * `feature_class` - what feature to use for distance calculation
+    /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
     ///
     pub fn owned_track_distances(
         &self,
@@ -204,29 +219,36 @@ where
 
     /// Injects new feature observation for feature class into track
     ///
+    /// # Arguments
+    /// * `track_id` - unique Id of the track within the store
+    /// * `feature_class` - where the observation will be placed within the track
+    /// * `feature_q` - feature quality parameter
+    /// * `feature` - feature observation
+    /// * `attributes_update` - the update to be applied to attributes upon the feature insert
+    ///
     pub fn add(
         &mut self,
         track_id: u64,
         feature_class: u64,
-        reid_q: f32,
-        reid_v: Feature,
-        attribute_update: U,
+        feature_q: f32,
+        feature: Feature,
+        attributes_update: U,
     ) -> Result<()> {
         match self.tracks.get_mut(&track_id) {
             None => {
                 let mut t = Track {
                     attributes: self.attributes.clone(),
                     track_id,
-                    observations: HashMap::from([(feature_class, vec![(reid_q, reid_v)])]),
+                    observations: HashMap::from([(feature_class, vec![(feature_q, feature)])]),
                     metric: self.metric.clone(),
                     phantom_attribute_update: PhantomData,
                     merge_history: vec![track_id],
                 };
-                t.update_attributes(attribute_update)?;
+                t.update_attributes(attributes_update)?;
                 self.tracks.insert(track_id, t);
             }
             Some(track) => {
-                track.add_observation(feature_class, reid_q, reid_v, attribute_update)?;
+                track.add_observation(feature_class, feature_q, feature, attributes_update)?;
             }
         }
         Ok(())
@@ -492,6 +514,7 @@ mod tests {
                 ..Default::default()
             }),
         );
+        thread::sleep(Duration::from_millis(1));
         store.add(
             0,
             0,
@@ -514,6 +537,7 @@ mod tests {
             }),
         );
 
+        thread::sleep(Duration::from_millis(1));
         ext_track.add_observation(
             0,
             0.8,
@@ -530,6 +554,7 @@ mod tests {
         assert!(dists.is_empty());
         assert!(errs.is_empty());
 
+        thread::sleep(Duration::from_millis(1));
         store.add(
             1,
             0,
@@ -552,6 +577,28 @@ mod tests {
 
     #[test]
     fn all_similarity() -> Result<()> {
+        let mut ext_track = Track::new(
+            2,
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        thread::sleep(Duration::from_millis(1));
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
         let mut store = TrackStore::new(
             Some(TimeMetric { max_length: 20 }),
             Some(TimeAttrs {
@@ -559,6 +606,7 @@ mod tests {
                 ..Default::default()
             }),
         );
+        thread::sleep(Duration::from_millis(1));
         store.add(
             0,
             0,
@@ -572,31 +620,11 @@ mod tests {
             },
         )?;
 
-        let mut ext_track = Track::new(
-            2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
-                baked_period: 10,
-                ..Default::default()
-            }),
-        );
-
-        ext_track.add_observation(
-            0,
-            0.8,
-            vec2(0.66, 0.33),
-            TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
-            },
-        )?;
-
         let (dists, errs) = store.foreign_track_distances(&ext_track, 0, false);
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
+        thread::sleep(Duration::from_millis(1));
         store.add(
             1,
             0,

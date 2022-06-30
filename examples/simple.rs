@@ -1,11 +1,11 @@
 use anyhow::Result;
-use similari::db;
 use similari::distance::euclidean;
-use similari::track::voting::{TopNVoting, Voting};
+use similari::store;
 use similari::track::{
     feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
     FeatureSpec, Metric, Track, TrackBakingStatus,
 };
+use similari::voting::{TopNVoting, Voting};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -89,7 +89,8 @@ fn vec2(x: f32, y: f32) -> Feature {
 
 fn main() {
     const DEFAULT_FEATURE: u64 = 0;
-    let mut db = db::TrackStore::new(Some(SimpleMetric::default()), Some(SimpleAttrs::default()));
+    let mut db =
+        store::TrackStore::new(Some(SimpleMetric::default()), Some(SimpleAttrs::default()));
     let res = db.add(
         0,
         DEFAULT_FEATURE,
@@ -152,17 +153,15 @@ fn main() {
     eprintln!("Errs: {:?}", &errs);
 
     let top1_voting_engine = TopNVoting::new(1, 1.0, 1);
-    let results = top1_voting_engine.find_merge_candidates(dists);
+    let results = top1_voting_engine.winners(&dists);
     eprintln!(
         "Voting results (the less distance, the better result): {:?}",
         &results
     );
 
-    let (dists, _errs) = db.foreign_track_distances(&ext_track, 0, true);
-
     // max distance filter set to 0.4
     let top1_voting_engine_filter = TopNVoting::new(2, 0.4, 1);
-    let results = top1_voting_engine_filter.find_merge_candidates(dists);
+    let results = top1_voting_engine_filter.winners(&dists);
     eprintln!(
         "Voting results (the less distance, the better result): {:?}",
         &results

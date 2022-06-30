@@ -1,10 +1,32 @@
 use anyhow::Result;
 use itertools::Itertools;
 
+/// Trait to implement distance voting engines.
+///
+/// Distance voting engine is used to select winning tracks among distances
+/// resulted from the distance calculation.
+///
 pub trait Voting<R> {
-    fn find_merge_candidates(&self, distances: Vec<(u64, Result<f32>)>) -> Vec<R>;
+    /// Method that selects winning tracks
+    ///
+    ///
+    /// # Arguments
+    /// * `distances` - distances resulted from the distance calculation.
+    ///   * `.0` is the track_id
+    ///   * `.1` is the distance
+    ///
+    fn winners(&self, distances: &Vec<(u64, Result<f32>)>) -> Vec<R>;
 }
 
+/// TopN winners voting engine that selects Top N vectors with most close distances.
+///
+/// It calculates winners as:
+/// 1. removes all distances that are greater than threshold
+/// 2. sorts remaining tracks according to their IDs
+/// 3. counts tracks by their ID's
+/// 4. sorts groups by frequency decreasingly
+/// 5. returns TopN
+///
 pub struct TopNVoting {
     topn: usize,
     max_distance: f32,
@@ -12,6 +34,13 @@ pub struct TopNVoting {
 }
 
 impl TopNVoting {
+    /// Constructs new engine
+    ///
+    /// # Arguments
+    /// * `topn` - top winners
+    /// * `max_distance` - max distance permitted to participate
+    /// * `min_votes` - minimal amount of votes required the track to participate
+    ///
     pub fn new(topn: usize, max_distance: f32, min_votes: usize) -> Self {
         Self {
             topn,
@@ -21,9 +50,13 @@ impl TopNVoting {
     }
 }
 
+/// Return type fot TopN voting engine
+///
 #[derive(Default, Debug, PartialEq)]
 pub struct TopNVotingElt {
+    /// winning track
     pub track_id: u64,
+    /// number of votes it gathered
     pub votes: usize,
 }
 
@@ -34,7 +67,7 @@ impl TopNVotingElt {
 }
 
 impl Voting<TopNVotingElt> for TopNVoting {
-    fn find_merge_candidates(&self, distances: Vec<(u64, Result<f32>)>) -> Vec<TopNVotingElt> {
+    fn winners(&self, distances: &Vec<(u64, Result<f32>)>) -> Vec<TopNVotingElt> {
         let mut tracks: Vec<_> = distances
             .into_iter()
             .filter(|(_, e)| match e {
@@ -50,7 +83,7 @@ impl Voting<TopNVotingElt> for TopNVoting {
             .into_iter()
             .filter(|(_, count)| *count >= self.min_votes)
             .map(|(e, c)| TopNVotingElt {
-                track_id: e,
+                track_id: *e,
                 votes: c,
             })
             .collect::<Vec<_>>();
@@ -72,23 +105,23 @@ mod tests {
             min_votes: 1,
         };
 
-        let candidates = v.find_merge_candidates(vec![(1, Ok(0.2))]);
+        let candidates = v.winners(&vec![(1, Ok(0.2))]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
-        let candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (1, Ok(0.3))]);
+        let candidates = v.winners(&vec![(1, Ok(0.2)), (1, Ok(0.3))]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 2)]);
 
-        let candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (1, Ok(0.4))]);
+        let candidates = v.winners(&vec![(1, Ok(0.2)), (1, Ok(0.4))]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
-        let mut candidates = v.find_merge_candidates(vec![(1, Ok(0.2)), (2, Ok(0.2))]);
+        let mut candidates = v.winners(&vec![(1, Ok(0.2)), (2, Ok(0.2))]);
         candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
         assert_eq!(
             candidates,
             vec![TopNVotingElt::new(1, 1), TopNVotingElt::new(2, 1)]
         );
 
-        let mut candidates = v.find_merge_candidates(vec![
+        let mut candidates = v.winners(&vec![
             (1, Ok(0.2)),
             (1, Ok(0.22)),
             (2, Ok(0.21)),
