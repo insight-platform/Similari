@@ -7,8 +7,22 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+/// Auxiliary type to express distance calculation errors
 pub type TrackDistanceError = Result<Vec<(u64, Result<f32>)>>;
 
+/// Track store container with accelerated similarity operations.
+///
+/// TrackStore is implemented for certain attributes (A), attribute update (U), and metric (M), so
+/// it handles only such objects. You cannot store tracks with different attributes within the same
+/// TrackStore.
+///
+/// The metric is also defined for TrackStore, however Metric implementation may have various metric
+/// calculation options for concrete feature classes. E.g. FEAT1 may be calculated with Euclide distance,
+/// while FEAT2 may be calculated with cosine. It is up to Metric implementor how the metric works.
+///
+/// Simple TrackStore example can be found at:
+/// [examples/simple.rs](https://github.com/insight-platform/Similari/blob/main/examples/simple.rs).
+///
 pub struct TrackStore<A, U, M>
 where
     A: Default + AttributeMatch<A> + Send + Sync + Clone,
@@ -31,12 +45,25 @@ where
     }
 }
 
+/// The basic implementation should fit to most of needs.
+///
 impl<A, U, M> TrackStore<A, U, M>
 where
     A: Default + AttributeMatch<A> + Send + Sync + Clone,
     U: AttributeUpdate<A> + Send + Sync,
     M: Metric + Default + Send + Sync + Clone,
 {
+    /// Constructor method
+    ///
+    /// When you construct track store you may pass two initializer objects:
+    /// * Metric
+    /// * Attributes
+    ///
+    /// They will be used upon track creation to initialize per-track metric and attributes.
+    /// They are cloned when a certain track is created.
+    ///
+    /// If `None` is passed, `Default` initializers are used.
+    ///
     pub fn new(metric: Option<M>, default_attributes: Option<A>) -> Self {
         Self {
             attributes: if let Some(a) = default_attributes {
@@ -53,6 +80,13 @@ where
         }
     }
 
+    /// Method is used to find ready to use tracks within the store.
+    ///
+    /// The search is parallelized with Rayon. The results returned for tracks with
+    /// * `TrackBakingStatus::Ready`,
+    /// * `TrackBakingStatus::Wasted` or
+    /// * `Err(e)`
+    ///
     pub fn find_baked(&self) -> Vec<(u64, Result<TrackBakingStatus>)> {
         self.tracks
             .par_iter()
@@ -68,6 +102,20 @@ where
             .collect()
     }
 
+    /// Access track in ref mode
+    ///
+    pub fn get(&self, track_id: u64) -> Option<&Track<A, M, U>> {
+        self.tracks.get(&track_id)
+    }
+
+    /// Access track in mut mode
+    ///
+    pub fn get_mut(&mut self, track_id: u64) -> Option<&mut Track<A, M, U>> {
+        self.tracks.get_mut(&track_id)
+    }
+
+    /// Pulls (and removes) requested tracks from the store.
+    ///
     pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U>> {
         let mut res = Vec::default();
         for track_id in tracks {
@@ -78,15 +126,33 @@ where
         res
     }
 
+    /// Calculates distances for external track (not in track store) to all tracks in DB which are
+    /// allowed.
+    ///
+    /// # Arguments
+    /// * `track` - external track that is used as a distance subject
+    /// * `feature_class` - what feature to use for distance calculation
+    /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
+    ///
     pub fn foreign_track_distances(
         &self,
         track: &Track<A, M, U>,
         feature_class: u64,
+        only_baked: bool,
     ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
         let res: Vec<_> = self
             .tracks
             .par_iter()
-            .map(|(_, other)| track.distances(other, feature_class))
+            .flat_map(|(_, other)| {
+                if !only_baked {
+                    Some(track.distances(other, feature_class))
+                } else {
+                    match other.get_attributes().baked(&other.observations) {
+                        Ok(TrackBakingStatus::Ready) => Some(track.distances(other, feature_class)),
+                        _ => None,
+                    }
+                }
+            })
             .collect();
 
         let mut distances = Vec::default();
@@ -102,10 +168,20 @@ where
         (distances, errors)
     }
 
+    /// Calculates track distances for a track within the store
+    ///
+    /// The distances for (self, self) are not calculated.
+    ///
+    /// # Arguments
+    /// * `track` - external track that is used as a distance subject
+    /// * `feature_class` - what feature to use for distance calculation
+    /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
+    ///
     pub fn owned_track_distances(
         &self,
         track_id: u64,
         feature_class: u64,
+        only_baked: bool,
     ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
         let track = self.tracks.get(&track_id);
         if track.is_none() {
@@ -116,7 +192,16 @@ where
             .tracks
             .par_iter()
             .filter(|(other_track_id, _)| **other_track_id != track_id)
-            .map(|(_, other)| track.distances(other, feature_class))
+            .flat_map(|(_, other)| {
+                if !only_baked {
+                    Some(track.distances(other, feature_class))
+                } else {
+                    match other.get_attributes().baked(&other.observations) {
+                        Ok(TrackBakingStatus::Ready) => Some(track.distances(other, feature_class)),
+                        _ => None,
+                    }
+                }
+            })
             .collect();
 
         let mut distances = Vec::default();
@@ -132,29 +217,38 @@ where
         (distances, errors)
     }
 
+    /// Injects new feature observation for feature class into track
+    ///
+    /// # Arguments
+    /// * `track_id` - unique Id of the track within the store
+    /// * `feature_class` - where the observation will be placed within the track
+    /// * `feature_q` - feature quality parameter
+    /// * `feature` - feature observation
+    /// * `attributes_update` - the update to be applied to attributes upon the feature insert
+    ///
     pub fn add(
         &mut self,
         track_id: u64,
         feature_class: u64,
-        reid_q: f32,
-        reid_v: Feature,
-        attribute_update: U,
+        feature_q: f32,
+        feature: Feature,
+        attributes_update: U,
     ) -> Result<()> {
         match self.tracks.get_mut(&track_id) {
             None => {
                 let mut t = Track {
                     attributes: self.attributes.clone(),
                     track_id,
-                    observations: HashMap::from([(feature_class, vec![(reid_q, reid_v)])]),
+                    observations: HashMap::from([(feature_class, vec![(feature_q, feature)])]),
                     metric: self.metric.clone(),
                     phantom_attribute_update: PhantomData,
                     merge_history: vec![track_id],
                 };
-                t.update_attributes(attribute_update)?;
+                t.update_attributes(attributes_update)?;
                 self.tracks.insert(track_id, t);
             }
             Some(track) => {
-                track.add_observation(feature_class, reid_q, reid_v, attribute_update)?;
+                track.add_observation(feature_class, feature_q, feature, attributes_update)?;
             }
         }
         Ok(())
@@ -167,7 +261,7 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::{
         feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, Metric, TrackBakingStatus,
+        FeatureSpec, Metric, Track, TrackBakingStatus,
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
@@ -250,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn test_store() -> Result<()> {
+    fn general_ops() -> Result<()> {
         let _default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric> =
             TrackStore::default();
 
@@ -297,7 +391,7 @@ mod tests {
                     .as_millis(),
             },
         )?;
-        let (dists, errs) = store.owned_track_distances(0, 0);
+        let (dists, errs) = store.owned_track_distances(0, 0, false);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
         thread::sleep(Duration::from_millis(10));
@@ -314,14 +408,14 @@ mod tests {
             },
         )?;
 
-        let (dists, errs) = store.owned_track_distances(0, 0);
+        let (dists, errs) = store.owned_track_distances(0, 0, false);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].0, 1);
         assert!(dists[0].1.is_ok());
         assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
-        let (dists, errs) = store.owned_track_distances(1, 0);
+        let (dists, errs) = store.owned_track_distances(1, 0, false);
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 1);
         match errs[0].as_ref() {
@@ -347,7 +441,7 @@ mod tests {
 
         let mut v = store.fetch_tracks(&vec![0]);
 
-        let (dists, errs) = store.foreign_track_distances(&v[0], 0);
+        let (dists, errs) = store.foreign_track_distances(&v[0], 0, false);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].0, 1);
         assert!(dists[0].1.is_ok());
@@ -361,7 +455,7 @@ mod tests {
             .unwrap()
             .as_millis();
 
-        let (dists, errs) = store.foreign_track_distances(&v[0], 0);
+        let (dists, errs) = store.foreign_track_distances(&v[0], 0, false);
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 1);
         match errs[0].as_ref() {
@@ -400,12 +494,152 @@ mod tests {
         )?;
 
         v[0].attributes.end_time = store.tracks.get(&1).unwrap().attributes.start_time - 1;
-        let (dists, errs) = store.foreign_track_distances(&v[0], 0);
+        let (dists, errs) = store.foreign_track_distances(&v[0], 0, false);
         assert_eq!(dists.len(), 2);
         assert_eq!(dists[0].0, 1);
         assert!(dists[0].1.is_ok());
         assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!((dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
+        assert!(errs.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn only_baked_similarity() -> Result<()> {
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let mut ext_track = Track::new(
+            2,
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        thread::sleep(Duration::from_millis(1));
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.foreign_track_distances(&ext_track, 0, true);
+        assert!(dists.is_empty());
+        assert!(errs.is_empty());
+
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            1,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.owned_track_distances(1, 0, true);
+        assert!(dists.is_empty());
+        assert!(errs.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn all_similarity() -> Result<()> {
+        let mut ext_track = Track::new(
+            2,
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        thread::sleep(Duration::from_millis(1));
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.foreign_track_distances(&ext_track, 0, false);
+        assert_eq!(dists.len(), 1);
+        assert!(errs.is_empty());
+
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            1,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let (dists, errs) = store.owned_track_distances(0, 0, false);
+        assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
         Ok(())

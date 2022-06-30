@@ -1,5 +1,7 @@
 # Similari
 
+[![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
+
 The purpose of crate is to provide tools to build in-memory vector similarity engines.
 
 Similarity calculation is the important resource demanding task in machine learning and AI systems. Vectors in 
@@ -23,3 +25,7 @@ To keep the calculations performant the crate uses:
 The vector operations performance depends a lot on the optimization level defined for the build. On low or default 
 optimization levels Rust may not use vectorized optimizations, so when running benchmarks take care of proper optimization 
 levels configured.
+
+## Usage Examples
+
+Take a look at [examples/simple.rs](examples/simple.rs) for an idea of simple usage.

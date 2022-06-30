@@ -1,28 +1,30 @@
 //!
 //! # Similari
 //!
-//! The purpose of crate is to provide tools to build vector embedded im-memory similarity engines.
-//! Similarity calculation is the important resource demanding task in machine learning and AI systems.
+//! The purpose of the crate is to provide tools to build in-memory vector (feature) similarity engines.
+//! Similarity calculation is an important resource demanding task broadly used in machine learning and AI systems.
 //!
-//! Vectors in similarity engines are compared by calculating of n-dimensional distance - Euclidian, Cosine or another one.
+//! Vectors (or features) in similarity engines are compared by calculation of n-dimensional distances - Euclidian, Cosine or another one.
 //! The distance is used to estimate how the vectors are close between each other.
 //!
-//! The library helps building various kinds of similarity engines - the simplest one is that holds vector features and allows compare
-//! new vectors against the ones kept in the database. More sophisticated engines operates over tracks - series of observations for the
-//! same feature collected during the lifecycle. Such kind of systems are often used in video processing or other class of systems where
-//! observer receives fuzzy or changing observation results.
+//! The library helps building various kinds of similarity engines - the simplest one is that holds single vectors and supports comparing
+//! a received vector versus the ones kept in the database. More sophisticated engines may operate with tracks - series of observations for the
+//! same feature kinds collected during the object or phenomenon lifecycle. Such kind of systems are often used in video processing or other
+//! systems where observer receives fuzzy, unstable or time-changing observation results.
 //!
-//! The crate provides the tools to gather tracks build track storages, find similar tracks, and merge them. The crate doesn't provide
+//! The crate provides the necessary primitives to gather tracks, build track storages, find similar tracks, and merge them. The crate doesn't provide
 //! any persistence layer yet.
 //!
 //! ## Performance
 //!
-//! To keep the calculations performant the crate uses:
-//! * [rayon](https://docs.rs/rayon/latest/rayon/) - parallel calculations are implemented within track storage operations;
-//! * [nalgebra](https://nalgebra.org/) - fast linear algebra library.
+//! To provide state-of-art performance the crate stands on:
+//! * [rayon](https://docs.rs/rayon/latest/rayon/) - most of track storage operations are parallelized calculations;
+//! * [nalgebra](https://nalgebra.org/) - fast linear algebra library that uses simd optimization (and GPU acceleration, which is not used in Similari right now).
 //!
-//! **The performance depends a lot of the optimization level defined for build. On lower or default optimization levels Rust
-//! may not use vectorized optimizations, so when running benchmarks take care of proper optimization levels configured.**
+//! The performance of `nalgebra` depends a lot of the optimization level defined for the build. When lower or default optimization levels in use
+//! Rust may not use vectorized optimizations, so the performance may be far from the perfect.
+//!
+//! When running benchmarks take care of proper optimization levels configured. Levels 2 and 3 will lead to best results.**
 
 /// Holds auxiliary functions that calculate distances between two features.
 ///
@@ -34,7 +36,8 @@ pub mod distance;
 ///
 pub mod track;
 
-pub use track::store as db;
+pub use track::store;
+pub use track::voting;
 
 use thiserror::Error;
 
