@@ -18,6 +18,9 @@ itertools = "0.10.3"
 anyhow = "1.0.58"
 thiserror = "1.0.31"
 
+[dev-dependencies]
+rand = "0.8.5"
+
 [profile.dev]
 opt-level = 3
 
