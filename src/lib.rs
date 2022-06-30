@@ -57,8 +57,13 @@ pub enum Errors {
     TrackNotFound(u64),
     /// The distance is calculated against self. Ignore it.
     ///
-    #[error("Distance with self must not be used")]
-    SelfDistanceCalculation,
+    #[error("Calculation with self id={0} not permitted")]
+    SameTrackCalculation(u64),
+
+    /// Track ID is duplicate
+    ///
+    #[error("Duplicate track id={0}")]
+    DuplicateTrackId(u64),
 }
 
 #[cfg(test)]

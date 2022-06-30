@@ -217,6 +217,25 @@ where
         (distances, errors)
     }
 
+    /// Adds external track into storage
+    ///
+    /// # Arguments
+    /// * `track` - track compatible with the storage.
+    ///
+    /// # Returns
+    /// * `Ok(track_id)` if added
+    /// * `Err(Errors::DuplicateTrackId(track_id))` if failed to add
+    ///
+    pub fn add_track(&mut self, track: Track<A, M, U>) -> Result<u64> {
+        let track_id = track.track_id;
+        if self.tracks.get(&track_id).is_none() {
+            self.tracks.insert(track_id, track);
+            Ok(track_id)
+        } else {
+            Err(Errors::DuplicateTrackId(track_id).into())
+        }
+    }
+
     /// Injects new feature observation for feature class into track
     ///
     /// # Arguments
@@ -252,6 +271,71 @@ where
             }
         }
         Ok(())
+    }
+
+    /// Merge store owned tracks
+    ///
+    /// # Arguments
+    /// * `dest_id` - identifier of destination track
+    /// * `src_id` - identifier of source track
+    /// * `classes` - optional list of classes to merge (otherwise all defined in src are merged into dest)
+    /// * `remove_src_if_ok` - whether remove source track from store if merge completed or not
+    pub fn merge_owned(
+        &mut self,
+        dest_id: u64,
+        src_id: u64,
+        classes: Option<&[u64]>,
+        remove_src_if_ok: bool,
+    ) -> Result<Option<Track<A, M, U>>> {
+        let mut src = self.fetch_tracks(&vec![src_id]);
+        if src.is_empty() {
+            return Err(Errors::TrackNotFound(src_id).into());
+        }
+        let src = src.pop().unwrap();
+        match self.merge_external(dest_id, &src, classes) {
+            Ok(_) => {
+                if !remove_src_if_ok {
+                    self.tracks.insert(src_id, src);
+                    return Ok(None);
+                }
+                Ok(Some(src))
+            }
+            err => {
+                self.tracks.insert(src_id, src);
+                err?;
+                unreachable!();
+            }
+        }
+    }
+
+    /// Merge external track with destination stored in store
+    ///
+    /// * `dest_id` - identifier of destination track
+    /// * `src` - source track
+    /// * `classes` - optional list of classes to merge (otherwise all defined in src are merged into dest)
+    ///
+    pub fn merge_external(
+        &mut self,
+        dest_id: u64,
+        src: &Track<A, M, U>,
+        classes: Option<&[u64]>,
+    ) -> Result<()> {
+        let dest = self.tracks.get_mut(&dest_id);
+        match dest {
+            Some(dest) => {
+                if dest_id == src.track_id {
+                    return Err(Errors::SameTrackCalculation(dest_id).into());
+                }
+                let res = if let Some(classes) = classes {
+                    dest.merge(src, classes)
+                } else {
+                    dest.merge(src, &src.get_feature_classes())
+                };
+                res?;
+                Ok(())
+            }
+            None => Err(Errors::TrackNotFound(dest_id).into()),
+        }
     }
 }
 
@@ -429,10 +513,9 @@ mod tests {
                     Errors::ObservationForClassNotFound(_t1, _t2, _c) => {
                         unreachable!();
                     }
-                    Errors::TrackNotFound(_t) => {
-                        unreachable!();
-                    }
-                    Errors::SelfDistanceCalculation => {
+                    Errors::TrackNotFound(_t)
+                    | Errors::DuplicateTrackId(_t)
+                    | Errors::SameTrackCalculation(_t) => {
                         unreachable!();
                     }
                 }
@@ -469,10 +552,9 @@ mod tests {
                     Errors::ObservationForClassNotFound(_t1, _t2, _c) => {
                         unreachable!();
                     }
-                    Errors::TrackNotFound(_t) => {
-                        unreachable!();
-                    }
-                    Errors::SelfDistanceCalculation => {
+                    Errors::TrackNotFound(_t)
+                    | Errors::DuplicateTrackId(_t)
+                    | Errors::SameTrackCalculation(_t) => {
                         unreachable!();
                     }
                 }
@@ -641,6 +723,230 @@ mod tests {
         let (dists, errs) = store.owned_track_distances(0, 0, false);
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_track_ok() -> Result<()> {
+        let mut ext_track = Track::new(
+            2,
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        thread::sleep(Duration::from_millis(1));
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        store.add_track(ext_track)?;
+        Ok(())
+    }
+
+    #[test]
+    fn add_track_dup_id() -> Result<()> {
+        let mut ext_track = Track::new(
+            0, // duplicate track id
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        thread::sleep(Duration::from_millis(1));
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        assert!(store.add_track(ext_track).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn merge_ext_tracks() -> Result<()> {
+        let mut ext_track = Track::new(
+            2,
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+
+        thread::sleep(Duration::from_millis(1));
+        ext_track.add_observation(
+            0,
+            0.8,
+            vec2(0.66, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        ext_track.add_observation(
+            1,
+            0.8,
+            vec2(0.65, 0.33),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let res = store.merge_external(0, &ext_track, Some(&[0]));
+        assert!(res.is_ok());
+        let classes = store.get(0).unwrap().get_feature_classes();
+        assert_eq!(classes, vec![0]);
+
+        let res = store.merge_external(0, &ext_track, None);
+        assert!(res.is_ok());
+        let mut classes = store.get(0).unwrap().get_feature_classes();
+        classes.sort();
+        assert_eq!(classes, vec![0, 1]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn merge_own_tracks() -> Result<()> {
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+        );
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            1,
+            1,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            },
+        )?;
+
+        let res = store.merge_owned(0, 1, None, false);
+        if let Ok(None) = res {
+            ();
+        } else {
+            unreachable!();
+        }
+
+        let res = store.merge_owned(0, 1, None, true);
+        if let Ok(Some(t)) = res {
+            assert_eq!(t.track_id, 1);
+        } else {
+            unreachable!();
+        }
 
         Ok(())
     }
