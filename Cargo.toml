@@ -18,3 +18,9 @@ itertools = "0.10.3"
 anyhow = "1.0.58"
 thiserror = "1.0.31"
 
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+
