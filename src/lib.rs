@@ -22,9 +22,9 @@
 //! * [nalgebra](https://nalgebra.org/) - fast linear algebra library that uses simd optimization (and GPU acceleration, which is not used in Similari right now).
 //!
 //! The performance of `nalgebra` depends a lot of the optimization level defined for the build. When lower or default optimization levels in use
-//! Rust may not use vectorized optimizations, so the performance may be far from the perfect.
+//! Rust may not use f32 vectorization, so the performance may be far from the perfect.
 //!
-//! When running benchmarks take care of proper optimization levels configured. Levels 2 and 3 will lead to best results.**
+//! When running benchmarks take care of proper optimization levels configured. Levels 2 and 3 will lead to best results.
 
 /// Holds auxiliary functions that calculate distances between two features.
 ///
