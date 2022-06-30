@@ -15,7 +15,7 @@ pub trait Voting<R> {
     ///   * `.0` is the track_id
     ///   * `.1` is the distance
     ///
-    fn winners(&self, distances: &Vec<(u64, Result<f32>)>) -> Vec<R>;
+    fn winners(&self, distances: &[(u64, Result<f32>)]) -> Vec<R>;
 }
 
 /// TopN winners voting engine that selects Top N vectors with most close distances.
@@ -67,9 +67,9 @@ impl TopNVotingElt {
 }
 
 impl Voting<TopNVotingElt> for TopNVoting {
-    fn winners(&self, distances: &Vec<(u64, Result<f32>)>) -> Vec<TopNVotingElt> {
+    fn winners(&self, distances: &[(u64, Result<f32>)]) -> Vec<TopNVotingElt> {
         let mut tracks: Vec<_> = distances
-            .into_iter()
+            .iter()
             .filter(|(_, e)| match e {
                 Ok(e) => *e <= self.max_distance,
                 _ => false,
