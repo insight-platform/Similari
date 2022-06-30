@@ -23,8 +23,8 @@ To keep the calculations performant the crate uses:
 * [nalgebra](https://nalgebra.org/) - fast linear algebra library.
 
 The vector operations performance depends a lot on the optimization level defined for the build. On low or default 
-optimization levels Rust may not use vectorized optimizations, so when running benchmarks take care of proper optimization 
-levels configured.
+optimization levels Rust may not use f32 vectorization, so when running benchmarks take care of proper 
+optimization levels configured.
 
 ## Usage Examples
 

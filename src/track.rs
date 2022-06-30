@@ -184,6 +184,12 @@ where
         &self.attributes
     }
 
+    /// Returns all classes
+    ///
+    pub fn get_feature_classes(&self) -> Vec<u64> {
+        self.observations.keys().cloned().collect()
+    }
+
     fn update_attributes(&mut self, update: U) -> Result<()> {
         update.apply(&mut self.attributes)
     }
@@ -246,7 +252,7 @@ where
     /// * self: `{S[class]}`
     /// * other: `{OTHER[class]}`
     ///
-    pub fn merge(&mut self, other: &Self, classes: &Vec<u64>) -> Result<()> {
+    pub fn merge(&mut self, other: &Self, classes: &[u64]) -> Result<()> {
         self.attributes.merge(&other.attributes)?;
         for cls in classes {
             let dest = self.observations.get_mut(cls);
@@ -425,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn merge() -> Result<()> {
+    fn merge_same() -> Result<()> {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
         t1.add_observation(
             0,
@@ -444,6 +450,30 @@ mod tests {
         let r = t1.merge(&t2, &vec![0]);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn merge_other_feature_class() -> Result<()> {
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        t1.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+
+        let mut t2 = Track::default();
+        t2.add_observation(
+            1,
+            0.3,
+            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+        let r = t1.merge(&t2, &vec![1]);
+        assert!(r.is_ok());
+        assert_eq!(t1.observations.get(&0).unwrap().len(), 1);
+        assert_eq!(t1.observations.get(&1).unwrap().len(), 1);
         Ok(())
     }
 
@@ -553,6 +583,30 @@ mod tests {
 
         let dists = t1.distances(&t3, 0);
         assert!(dists.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn get_classes() -> Result<()> {
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        t1.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+
+        t1.add_observation(
+            1,
+            0.3,
+            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+        let mut classes = t1.get_feature_classes();
+        classes.sort();
+
+        assert_eq!(classes, vec![0, 1]);
+
         Ok(())
     }
 }
