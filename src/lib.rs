@@ -30,6 +30,8 @@
 ///
 pub mod distance;
 
+pub mod test_stuff;
+
 /// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions. It defines the track's
 /// look and feel, provides `Track` structure that holds track attributes and features, can accumulate track features and
 /// calculate feature distances between pair of tracks.
