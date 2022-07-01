@@ -126,11 +126,11 @@ pub fn feat_confidence_cmp(e1: &FeatureSpec, e2: &FeatureSpec) -> Ordering {
 ///   merged or collected
 /// * AttributeUpdate specifies how attributes are update from external sources.
 ///
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Track<A, M, U>
 where
-    A: Default + AttributeMatch<A> + Send + Sync,
-    M: Metric + Default + Send + Sync,
+    A: Default + AttributeMatch<A> + Send + Sync + Clone,
+    M: Metric + Default + Send + Sync + Clone,
     U: AttributeUpdate<A> + Send + Sync,
 {
     attributes: A,
@@ -145,8 +145,8 @@ where
 ///
 impl<A, M, U> Track<A, M, U>
 where
-    A: Default + AttributeMatch<A> + Send + Sync,
-    M: Metric + Default + Send + Sync,
+    A: Default + AttributeMatch<A> + Send + Sync + Clone,
+    M: Metric + Default + Send + Sync + Clone,
     U: AttributeUpdate<A> + Send + Sync,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
@@ -207,8 +207,7 @@ where
     ///
     /// # Returns
     /// Returns `Result<()>` where `Ok(())` if attributes are updated without errors AND observation is added AND observations optimized without errors.
-    /// When the method returns Err, the track is likely incorrect and must be either removed from store or validated by user somehow. That's because
-    /// all operations mentioned above are not transactional to avoid memory copies.
+    ///
     ///
     pub fn add_observation(
         &mut self,
@@ -217,7 +216,16 @@ where
         feature: Feature,
         attribute_update: U,
     ) -> Result<()> {
-        self.update_attributes(attribute_update)?;
+        let last_attributes = self.attributes.clone();
+        let last_observations = self.observations.clone();
+        let last_metric = self.metric.clone();
+
+        let res = self.update_attributes(attribute_update);
+        if res.is_err() {
+            self.attributes = last_attributes;
+            res?;
+            unreachable!();
+        }
         match self.observations.get_mut(&feature_class) {
             None => {
                 self.observations
@@ -230,13 +238,19 @@ where
         let observations = self.observations.get_mut(&feature_class).unwrap();
         let prev_length = observations.len() - 1;
 
-        self.metric.optimize(
+        let res = self.metric.optimize(
             &feature_class,
             &self.merge_history,
             observations,
             prev_length,
-        )?;
-
+        );
+        if res.is_err() {
+            self.attributes = last_attributes;
+            self.observations = last_observations;
+            self.metric = last_metric;
+            res?;
+            unreachable!();
+        }
         Ok(())
     }
 
@@ -248,12 +262,23 @@ where
     /// * step 2.1: features are optimized for every class
     ///
     /// If feature class doesn't exist any of tracks it's skipped, otherwise:
+    ///
     /// * both: `{S[class]} U {OTHER[class]}`
     /// * self: `{S[class]}`
     /// * other: `{OTHER[class]}`
     ///
     pub fn merge(&mut self, other: &Self, classes: &[u64]) -> Result<()> {
-        self.attributes.merge(&other.attributes)?;
+        let last_attributes = self.attributes.clone();
+        let res = self.attributes.merge(&other.attributes);
+        if res.is_err() {
+            self.attributes = last_attributes;
+            res?;
+            unreachable!();
+        }
+
+        let last_observations = self.observations.clone();
+        let last_metric = self.metric.clone();
+
         for cls in classes {
             let dest = self.observations.get_mut(cls);
             let src = other.observations.get(cls);
@@ -277,12 +302,20 @@ where
             };
 
             if let Some(prev_length) = prev_length {
-                self.metric.optimize(
+                let res = self.metric.optimize(
                     cls,
                     &self.merge_history,
                     self.observations.get_mut(cls).unwrap(),
                     prev_length,
-                )?;
+                );
+
+                if res.is_err() {
+                    self.attributes = last_attributes;
+                    self.observations = last_observations;
+                    self.metric = last_metric;
+                    res?;
+                    unreachable!();
+                }
             }
         }
         Ok(())
@@ -333,7 +366,7 @@ mod tests {
     use anyhow::Result;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     pub struct DefaultAttrs;
 
     #[derive(Default)]
@@ -359,7 +392,7 @@ mod tests {
         }
     }
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     struct DefaultMetric;
     impl Metric for DefaultMetric {
         fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
@@ -380,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn basic_methods() {
+    fn init() {
         let t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::new(3, None, None);
         assert_eq!(t1.get_track_id(), 3);
     }
@@ -479,7 +512,7 @@ mod tests {
 
     #[test]
     fn attribute_compatible_match() -> Result<()> {
-        #[derive(Default, Debug)]
+        #[derive(Default, Debug, Clone)]
         pub struct TimeAttrs {
             start_time: u64,
             end_time: u64,
@@ -529,7 +562,7 @@ mod tests {
             }
         }
 
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         struct TimeMetric;
         impl Metric for TimeMetric {
             fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
@@ -608,5 +641,139 @@ mod tests {
         assert_eq!(classes, vec![0, 1]);
 
         Ok(())
+    }
+
+    #[test]
+    fn attr_metric_update_recover() {
+        use thiserror::Error;
+
+        #[derive(Error, Debug)]
+        enum TestError {
+            #[error("Update Error")]
+            UpdateError,
+            #[error("MergeError")]
+            MergeError,
+            #[error("OptimizeError")]
+            OptimizeError,
+        }
+
+        #[derive(Default, Clone, PartialEq, Debug)]
+        pub struct DefaultAttrs {
+            pub count: u32,
+        }
+
+        #[derive(Default)]
+        pub struct DefaultAttrUpdates {
+            ignore: bool,
+        }
+
+        impl AttributeUpdate<DefaultAttrs> for DefaultAttrUpdates {
+            fn apply(&self, attrs: &mut DefaultAttrs) -> Result<()> {
+                if !self.ignore {
+                    attrs.count += 1;
+                    if attrs.count > 1 {
+                        Err(TestError::UpdateError.into())
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        impl AttributeMatch<DefaultAttrs> for DefaultAttrs {
+            fn compatible(&self, _other: &DefaultAttrs) -> bool {
+                true
+            }
+
+            fn merge(&mut self, _other: &DefaultAttrs) -> Result<()> {
+                Err(TestError::MergeError.into())
+            }
+
+            fn baked(
+                &self,
+                _observations: &FeatureObservationsGroups,
+            ) -> Result<TrackBakingStatus> {
+                Ok(TrackBakingStatus::Pending)
+            }
+        }
+
+        #[derive(Default, Clone)]
+        struct DefaultMetric;
+        impl Metric for DefaultMetric {
+            fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
+                Ok(euclidean(&e1.1, &e2.1))
+            }
+
+            fn optimize(
+                &mut self,
+                _feature_class: &u64,
+                _merge_history: &[u64],
+                _features: &mut Vec<FeatureSpec>,
+                prev_length: usize,
+            ) -> Result<()> {
+                if prev_length == 1 {
+                    Err(TestError::OptimizeError.into())
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        assert_eq!(t1.attributes, DefaultAttrs { count: 0 });
+        let res = t1.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            DefaultAttrUpdates { ignore: false },
+        );
+        assert!(res.is_ok());
+        assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
+
+        let res = t1.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            DefaultAttrUpdates { ignore: true },
+        );
+        assert!(res.is_err());
+        if let Err(e) = res {
+            match e.root_cause().downcast_ref::<TestError>().unwrap() {
+                TestError::UpdateError | TestError::MergeError => {
+                    unreachable!();
+                }
+                TestError::OptimizeError => {}
+            }
+        } else {
+            unreachable!();
+        }
+
+        assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
+
+        let mut t2: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        assert_eq!(t2.attributes, DefaultAttrs { count: 0 });
+        let res = t2.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            DefaultAttrUpdates { ignore: false },
+        );
+        assert!(res.is_ok());
+        assert_eq!(t2.attributes, DefaultAttrs { count: 1 });
+
+        let res = t1.merge(&t2, &vec![0]);
+        if let Err(e) = res {
+            match e.root_cause().downcast_ref::<TestError>().unwrap() {
+                TestError::UpdateError | TestError::OptimizeError => {
+                    unreachable!();
+                }
+                TestError::MergeError => {}
+            }
+        } else {
+            unreachable!();
+        }
+        assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
     }
 }
