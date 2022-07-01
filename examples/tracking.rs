@@ -1,6 +1,15 @@
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
 use similari::track::AttributeUpdate;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+enum AppErrors {
+    #[error("Cam id passed ({0}) != id set ({1})")]
+    WrongCamID(u64, u64),
+    #[error("Time passed {0} < time set {1}")]
+    WrongTime(u64, u64),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Gender {
@@ -75,6 +84,10 @@ impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
             attrs.start_time = self.time;
         }
 
+        if attrs.end_time > self.time {
+            return Err(AppErrors::WrongTime(self.time, attrs.end_time).into());
+        }
+
         attrs.end_time = self.time;
 
         if let Some(gender) = &self.gender {
@@ -86,11 +99,52 @@ impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
         }
 
         if let Err(_r) = attrs.camera_id.set(self.camera_id) {
-            assert_eq!(self.camera_id, *attrs.camera_id.get().unwrap());
+            if self.camera_id != *attrs.camera_id.get().unwrap() {
+                return Err(
+                    AppErrors::WrongCamID(self.camera_id, *attrs.camera_id.get().unwrap()).into(),
+                );
+            }
         }
 
         Ok(())
     }
+}
+
+#[test]
+fn cam_tracking_attributes_update_test() {
+    use Gender::*;
+    let mut attrs = CamTrackingAttributes {
+        start_time: 0,
+        end_time: 0,
+        camera_id: Default::default(),
+        age: Vec::default(),
+        gender: Vec::default(),
+    };
+    let update = CamTrackingAttributesUpdate {
+        time: 10,
+        gender: Some(Female),
+        age: Some(30),
+        camera_id: 10,
+    };
+    assert!(update.apply(&mut attrs).is_ok());
+
+    // incorrect cam
+    let update = CamTrackingAttributesUpdate {
+        time: 20,
+        gender: Some(Female),
+        age: Some(10),
+        camera_id: 20,
+    };
+    assert!(update.apply(&mut attrs).is_err());
+
+    // incorrect time
+    let update = CamTrackingAttributesUpdate {
+        time: 5,
+        gender: Some(Female),
+        age: Some(10),
+        camera_id: 20,
+    };
+    assert!(update.apply(&mut attrs).is_err());
 }
 
 fn main() {}
