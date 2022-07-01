@@ -4,6 +4,7 @@ extern crate test;
 use rand::{distributions::Uniform, Rng};
 use similari::store;
 use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
+use similari::track::notify::NoopNotifier;
 use similari::track::{Feature, Track};
 use test::Bencher;
 
@@ -69,8 +70,11 @@ fn simple_2048_100k(b: &mut Bencher) {
 
 fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
     const DEFAULT_FEATURE: u64 = 0;
-    let mut db =
-        store::TrackStore::new(Some(SimpleMetric::default()), Some(SimpleAttrs::default()));
+    let mut db = store::TrackStore::new(
+        Some(SimpleMetric::default()),
+        Some(SimpleAttrs::default()),
+        None,
+    );
     let mut rng = rand::thread_rng();
     let gen = Uniform::new(0.0, 1.0);
 
@@ -89,6 +93,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             count as u64 + 1,
             Some(SimpleMetric::default()),
             Some(SimpleAttrs::default()),
+            Some(NoopNotifier::default()),
         );
 
         let _ = t.add_observation(

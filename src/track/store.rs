@@ -1,3 +1,4 @@
+use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
     AttributeMatch, AttributeUpdate, Feature, Metric, Track, TrackBakingStatus, TrackDistance,
 };
@@ -23,35 +24,39 @@ pub type TrackDistanceError = Result<Vec<(u64, Result<f32>)>>;
 /// Simple TrackStore example can be found at:
 /// [examples/simple.rs](https://github.com/insight-platform/Similari/blob/main/examples/simple.rs).
 ///
-pub struct TrackStore<A, U, M>
+pub struct TrackStore<A, U, M, N = NoopNotifier>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
-    M: Metric + Default + Send + Sync + Clone,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    U: AttributeUpdate<A>,
+    M: Metric,
 {
     attributes: A,
     metric: M,
-    tracks: HashMap<u64, Track<A, M, U>>,
+    notifier: N,
+    tracks: HashMap<u64, Track<A, M, U, N>>,
 }
 
-impl<A, U, M> Default for TrackStore<A, U, M>
+impl<A, U, M, N> Default for TrackStore<A, U, M, N>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
-    M: Metric + Default + Send + Sync + Clone,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    U: AttributeUpdate<A>,
+    M: Metric,
 {
     fn default() -> Self {
-        Self::new(None, None)
+        Self::new(None, None, None)
     }
 }
 
 /// The basic implementation should fit to most of needs.
 ///
-impl<A, U, M> TrackStore<A, U, M>
+impl<A, U, M, N> TrackStore<A, U, M, N>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
-    M: Metric + Default + Send + Sync + Clone,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    U: AttributeUpdate<A>,
+    M: Metric,
 {
     /// Constructor method
     ///
@@ -64,8 +69,13 @@ where
     ///
     /// If `None` is passed, `Default` initializers are used.
     ///
-    pub fn new(metric: Option<M>, default_attributes: Option<A>) -> Self {
+    pub fn new(metric: Option<M>, default_attributes: Option<A>, notifier: Option<N>) -> Self {
         Self {
+            notifier: if let Some(notifier) = notifier {
+                notifier
+            } else {
+                N::default()
+            },
             attributes: if let Some(a) = default_attributes {
                 a
             } else {
@@ -104,19 +114,19 @@ where
 
     /// Access track in ref mode
     ///
-    pub fn get(&self, track_id: u64) -> Option<&Track<A, M, U>> {
+    pub fn get(&self, track_id: u64) -> Option<&Track<A, M, U, N>> {
         self.tracks.get(&track_id)
     }
 
     /// Access track in mut mode
     ///
-    pub fn get_mut(&mut self, track_id: u64) -> Option<&mut Track<A, M, U>> {
+    pub fn get_mut(&mut self, track_id: u64) -> Option<&mut Track<A, M, U, N>> {
         self.tracks.get_mut(&track_id)
     }
 
     /// Pulls (and removes) requested tracks from the store.
     ///
-    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U>> {
+    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
             if let Some(t) = self.tracks.remove(track_id) {
@@ -136,7 +146,7 @@ where
     ///
     pub fn foreign_track_distances(
         &self,
-        track: &Track<A, M, U>,
+        track: &Track<A, M, U, N>,
         feature_class: u64,
         only_baked: bool,
     ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
@@ -226,7 +236,7 @@ where
     /// * `Ok(track_id)` if added
     /// * `Err(Errors::DuplicateTrackId(track_id))` if failed to add
     ///
-    pub fn add_track(&mut self, track: Track<A, M, U>) -> Result<u64> {
+    pub fn add_track(&mut self, track: Track<A, M, U, N>) -> Result<u64> {
         let track_id = track.track_id;
         if self.tracks.get(&track_id).is_none() {
             self.tracks.insert(track_id, track);
@@ -256,6 +266,7 @@ where
         match self.tracks.get_mut(&track_id) {
             None => {
                 let mut t = Track {
+                    notifier: self.notifier.clone(),
                     attributes: self.attributes.clone(),
                     track_id,
                     observations: HashMap::from([(feature_class, vec![(feature_q, feature)])]),
@@ -286,7 +297,7 @@ where
         src_id: u64,
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
-    ) -> Result<Option<Track<A, M, U>>> {
+    ) -> Result<Option<Track<A, M, U, N>>> {
         let mut src = self.fetch_tracks(&vec![src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
@@ -317,7 +328,7 @@ where
     pub fn merge_external(
         &mut self,
         dest_id: u64,
-        src: &Track<A, M, U>,
+        src: &Track<A, M, U, N>,
         classes: Option<&[u64]>,
     ) -> Result<()> {
         let dest = self.tracks.get_mut(&dest_id);
@@ -345,7 +356,7 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::{
         feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, Metric, Track, TrackBakingStatus,
+        FeatureSpec, Metric, NoopNotifier, Track, TrackBakingStatus,
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
@@ -438,6 +449,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier),
         );
         store.add(
             0,
@@ -595,6 +607,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -617,6 +630,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -666,6 +680,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -687,6 +702,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -736,6 +752,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -757,6 +774,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -785,6 +803,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -806,6 +825,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -835,6 +855,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -868,6 +889,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -905,6 +927,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
         thread::sleep(Duration::from_millis(1));
         store.add(

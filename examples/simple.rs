@@ -1,5 +1,6 @@
 use similari::store;
 use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
+use similari::track::notify::NoopNotifier;
 use similari::track::{Feature, Track};
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -10,8 +11,11 @@ fn vec2(x: f32, y: f32) -> Feature {
 
 fn main() {
     const DEFAULT_FEATURE: u64 = 0;
-    let mut db =
-        store::TrackStore::new(Some(SimpleMetric::default()), Some(SimpleAttrs::default()));
+    let mut db = store::TrackStore::new(
+        Some(SimpleMetric::default()),
+        Some(SimpleAttrs::default()),
+        None,
+    );
     let res = db.add(
         0,
         DEFAULT_FEATURE,
@@ -54,6 +58,7 @@ fn main() {
         2,
         Some(SimpleMetric::default()),
         Some(SimpleAttrs::default()),
+        Some(NoopNotifier::default()),
     );
 
     let res = ext_track.add_observation(
