@@ -17,7 +17,7 @@ impl Default for Gender {
 
 // person attributes
 #[derive(Debug, Clone, Default)]
-struct SingleCamTrackingAttributes {
+struct CamTrackingAttributes {
     start_time: u64,          // when the track observation first appeared
     end_time: u64,            // when the track observation last appeared
     camera_id: OnceCell<u64>, // identifier of camera that detected the object
@@ -25,7 +25,8 @@ struct SingleCamTrackingAttributes {
     gender: Vec<Gender>,      // gender detected during the observations
 }
 
-impl SingleCamTrackingAttributes {
+impl CamTrackingAttributes {
+    // calculate age as average over observations
     pub fn get_age(&self) -> Option<u8> {
         if self.age.len() == 0 {
             return None;
@@ -33,6 +34,7 @@ impl SingleCamTrackingAttributes {
         u8::try_from(self.age.iter().map(|e| *e as u32).sum::<u32>() / self.age.len() as u32).ok()
     }
 
+    // calculate gender as most frequent gender
     pub fn get_gender(&self) -> Gender {
         if self.gender.is_empty() {
             return Gender::Unknown;
@@ -48,7 +50,7 @@ impl SingleCamTrackingAttributes {
 #[test]
 fn test_attributes_age_gender() {
     use Gender::*;
-    let attrs = SingleCamTrackingAttributes {
+    let attrs = CamTrackingAttributes {
         start_time: 0,
         end_time: 0,
         camera_id: Default::default(),
@@ -59,15 +61,16 @@ fn test_attributes_age_gender() {
     assert_eq!(attrs.get_gender(), Female);
 }
 
-struct SingleCamTrackingAttributesUpdate {
+// update
+struct CamTrackingAttributesUpdate {
     time: u64,
     gender: Option<Gender>,
     age: Option<u8>,
     camera_id: u64,
 }
 
-impl AttributeUpdate<SingleCamTrackingAttributes> for SingleCamTrackingAttributesUpdate {
-    fn apply(&self, attrs: &mut SingleCamTrackingAttributes) -> anyhow::Result<()> {
+impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
+    fn apply(&self, attrs: &mut CamTrackingAttributes) -> anyhow::Result<()> {
         if attrs.start_time == 0 {
             attrs.start_time = self.time;
         }
