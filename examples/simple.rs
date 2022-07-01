@@ -1,7 +1,8 @@
 use similari::store;
 use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::track::{Feature, Track};
-use similari::voting::{TopNVoting, Voting};
+use similari::voting::topn::TopNVoting;
+use similari::voting::Voting;
 
 fn vec2(x: f32, y: f32) -> Feature {
     Feature::from_vec(1, 2, vec![x, y])
