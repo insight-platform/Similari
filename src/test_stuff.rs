@@ -1,7 +1,7 @@
 use crate::distance::euclidean;
 use crate::track::{
-    feat_confidence_cmp, AttributeMatch, AttributeUpdate, FeatureObservationsGroups, FeatureSpec,
-    Metric, TrackBakingStatus,
+    AttributeMatch, AttributeUpdate, FeatureObservationsGroups, FeatureSpec, Metric,
+    TrackBakingStatus,
 };
 use anyhow::Result;
 use thiserror::Error;
@@ -72,11 +72,9 @@ impl Metric for SimpleMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        features: &mut Vec<FeatureSpec>,
+        _features: &mut Vec<FeatureSpec>,
         _prev_length: usize,
     ) -> Result<()> {
-        features.sort_by(feat_confidence_cmp);
-        features.truncate(1);
         Ok(())
     }
 }
@@ -119,11 +117,9 @@ impl Metric for UnboundMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        features: &mut Vec<FeatureSpec>,
+        _features: &mut Vec<FeatureSpec>,
         _prev_length: usize,
     ) -> Result<()> {
-        features.sort_by(feat_confidence_cmp);
-        features.truncate(1);
         Ok(())
     }
 }
