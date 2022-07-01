@@ -207,8 +207,7 @@ where
     ///
     /// # Returns
     /// Returns `Result<()>` where `Ok(())` if attributes are updated without errors AND observation is added AND observations optimized without errors.
-    /// When the method returns Err, the track is likely incorrect and must be either removed from store or validated by user somehow. That's because
-    /// all operations mentioned above are not transactional to avoid memory copies.
+    ///
     ///
     pub fn add_observation(
         &mut self,
@@ -263,6 +262,7 @@ where
     /// * step 2.1: features are optimized for every class
     ///
     /// If feature class doesn't exist any of tracks it's skipped, otherwise:
+    ///
     /// * both: `{S[class]} U {OTHER[class]}`
     /// * self: `{S[class]}`
     /// * other: `{OTHER[class]}`
