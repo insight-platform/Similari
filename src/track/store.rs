@@ -27,7 +27,7 @@ pub struct TrackStore<A, U, M>
 where
     A: Default + AttributeMatch<A> + Send + Sync + Clone,
     U: AttributeUpdate<A> + Send + Sync,
-    M: Metric + Default + Send + Sync,
+    M: Metric + Default + Send + Sync + Clone,
 {
     attributes: A,
     metric: M,

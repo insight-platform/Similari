@@ -6,108 +6,6 @@ use similari::store;
 use similari::test_stuff::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
 use similari::track::{Feature, Track};
 
-mod t_30 {
-    use crate::bench_capacity_len;
-    use test::Bencher;
-
-    #[bench]
-    fn track_0512_30_001k(b: &mut Bencher) {
-        bench_capacity_len(512, 30, 1000, b);
-    }
-
-    #[bench]
-    fn track_0512_30_010k(b: &mut Bencher) {
-        bench_capacity_len(512, 30, 10000, b);
-    }
-
-    #[bench]
-    fn track_0512_30_100k(b: &mut Bencher) {
-        bench_capacity_len(512, 30, 100000, b);
-    }
-
-    #[bench]
-    fn track_1024_30_001k(b: &mut Bencher) {
-        bench_capacity_len(1024, 30, 1000, b);
-    }
-
-    #[bench]
-    fn track_1024_30_010k(b: &mut Bencher) {
-        bench_capacity_len(1024, 30, 10000, b);
-    }
-    #[bench]
-    fn track_1024_30_100k(b: &mut Bencher) {
-        bench_capacity_len(1024, 30, 100000, b);
-    }
-}
-
-mod t_60 {
-    use crate::bench_capacity_len;
-    use test::Bencher;
-
-    #[bench]
-    fn track_0512_60_001k(b: &mut Bencher) {
-        bench_capacity_len(512, 60, 1000, b);
-    }
-
-    #[bench]
-    fn track_0512_60_010k(b: &mut Bencher) {
-        bench_capacity_len(512, 60, 10000, b);
-    }
-
-    #[bench]
-    fn track_0512_60_100k(b: &mut Bencher) {
-        bench_capacity_len(512, 60, 100000, b);
-    }
-
-    #[bench]
-    fn track_1024_60_001k(b: &mut Bencher) {
-        bench_capacity_len(1024, 60, 1000, b);
-    }
-
-    #[bench]
-    fn track_1024_60_010k(b: &mut Bencher) {
-        bench_capacity_len(1024, 60, 10000, b);
-    }
-    #[bench]
-    fn track_1024_60_100k(b: &mut Bencher) {
-        bench_capacity_len(1024, 60, 100000, b);
-    }
-}
-
-mod t_120 {
-    use crate::bench_capacity_len;
-    use test::Bencher;
-
-    #[bench]
-    fn track_0512_120_001k(b: &mut Bencher) {
-        bench_capacity_len(512, 120, 1000, b);
-    }
-
-    #[bench]
-    fn track_0512_120_010k(b: &mut Bencher) {
-        bench_capacity_len(512, 120, 10000, b);
-    }
-
-    #[bench]
-    fn track_0512_120_100k(b: &mut Bencher) {
-        bench_capacity_len(512, 120, 100000, b);
-    }
-
-    #[bench]
-    fn track_1024_120_001k(b: &mut Bencher) {
-        bench_capacity_len(1024, 120, 1000, b);
-    }
-
-    #[bench]
-    fn track_1024_120_010k(b: &mut Bencher) {
-        bench_capacity_len(1024, 120, 10000, b);
-    }
-    #[bench]
-    fn track_1024_120_100k(b: &mut Bencher) {
-        bench_capacity_len(1024, 120, 100000, b);
-    }
-}
-
 use test::Bencher;
 
 fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Bencher) {
@@ -148,4 +46,24 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
 
         db.foreign_track_distances(&t, DEFAULT_FEATURE, true);
     });
+}
+
+#[bench]
+fn track_0256_030_100(b: &mut Bencher) {
+    bench_capacity_len(256, 30, 100, b);
+}
+
+#[bench]
+fn track_0512_030_100(b: &mut Bencher) {
+    bench_capacity_len(512, 30, 100, b);
+}
+
+#[bench]
+fn track_1024_030_100(b: &mut Bencher) {
+    bench_capacity_len(1024, 30, 100, b);
+}
+
+#[bench]
+fn track_0256_030_01k(b: &mut Bencher) {
+    bench_capacity_len(256, 30, 1000, b);
 }
