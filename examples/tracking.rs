@@ -3,6 +3,8 @@ use once_cell::sync::OnceCell;
 use similari::track::AttributeUpdate;
 use thiserror::Error;
 
+const FEATURE0: u64 = 0;
+
 #[derive(Debug, Error)]
 enum AppErrors {
     #[error("Cam id passed ({0}) != id set ({1})")]
@@ -11,17 +13,12 @@ enum AppErrors {
     WrongTime(u64, u64),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 enum Gender {
     Female,
     Male,
+    #[default]
     Unknown,
-}
-
-impl Default for Gender {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 // person attributes
@@ -80,24 +77,32 @@ struct CamTrackingAttributesUpdate {
 
 impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
     fn apply(&self, attrs: &mut CamTrackingAttributes) -> anyhow::Result<()> {
+        // initially, track start time is set to end time
         if attrs.start_time == 0 {
             attrs.start_time = self.time;
         }
 
+        // if future track observation is submited with older timestamp
+        // then it's incorrect situation, timestamp should increase.
         if attrs.end_time > self.time {
             return Err(AppErrors::WrongTime(self.time, attrs.end_time).into());
         }
 
         attrs.end_time = self.time;
 
+        // update may be without the gender, if observer cannot determine the
+        // gender within the observation
         if let Some(gender) = &self.gender {
             attrs.gender.push(gender.clone());
         }
 
+        // same for age
         if let Some(age) = &self.age {
             attrs.age.push(*age);
         }
 
+        // track with <id> always goes from the same camera. If camera id changed
+        // it's a wrong case.
         if let Err(_r) = attrs.camera_id.set(self.camera_id) {
             if self.camera_id != *attrs.camera_id.get().unwrap() {
                 return Err(
@@ -128,7 +133,7 @@ fn cam_tracking_attributes_update_test() {
     };
     assert!(update.apply(&mut attrs).is_ok());
 
-    // incorrect cam
+    // incorrect cam id
     let update = CamTrackingAttributesUpdate {
         time: 20,
         gender: Some(Female),
