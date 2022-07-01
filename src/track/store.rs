@@ -449,7 +449,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
-            Some(NoopNotifier),
+            Some(NoopNotifier::default()),
         );
         store.add(
             0,

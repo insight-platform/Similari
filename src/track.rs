@@ -164,7 +164,7 @@ where
         attributes: Option<A>,
         notifier: Option<N>,
     ) -> Self {
-        Self {
+        let mut v = Self {
             notifier: if let Some(notifier) = notifier {
                 notifier
             } else {
@@ -184,7 +184,9 @@ where
             },
             phantom_attribute_update: Default::default(),
             merge_history: vec![track_id],
-        }
+        };
+        v.notifier.send(track_id);
+        v
     }
 
     /// Returns track_id.
@@ -266,6 +268,7 @@ where
             res?;
             unreachable!();
         }
+        self.notifier.send(self.track_id);
         Ok(())
     }
 
@@ -333,6 +336,7 @@ where
                 }
             }
         }
+        self.notifier.send(self.track_id);
         Ok(())
     }
 

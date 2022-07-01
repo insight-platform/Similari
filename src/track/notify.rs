@@ -1,10 +1,10 @@
 pub trait ChangeNotifier: Default + Clone + Send + Sync {
-    fn send(id: u64);
+    fn send(&mut self, id: u64);
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct NoopNotifier;
 
 impl ChangeNotifier for NoopNotifier {
-    fn send(_id: u64) {}
+    fn send(&mut self, _id: u64) {}
 }
