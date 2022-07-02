@@ -1,6 +1,6 @@
 use crate::distance::euclidean;
 use crate::track::{
-    AttributeMatch, AttributeUpdate, FeatureObservationsGroups, FeatureSpec, Metric,
+    AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups, FeatureSpec, Metric,
     TrackBakingStatus,
 };
 use anyhow::Result;
@@ -122,4 +122,8 @@ impl Metric for UnboundMetric {
     ) -> Result<()> {
         Ok(())
     }
+}
+
+pub fn vec2(x: f32, y: f32) -> Feature {
+    Feature::from_vec(1, 2, vec![x, y])
 }

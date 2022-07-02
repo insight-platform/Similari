@@ -1,13 +1,9 @@
 use similari::store;
-use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
+use similari::test_stuff::{vec2, SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::track::notify::NoopNotifier;
 use similari::track::{Feature, Track};
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
-
-fn vec2(x: f32, y: f32) -> Feature {
-    Feature::from_vec(1, 2, vec![x, y])
-}
 
 fn main() {
     const DEFAULT_FEATURE: u64 = 0;

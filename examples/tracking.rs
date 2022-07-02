@@ -1,6 +1,10 @@
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
-use similari::track::AttributeUpdate;
+use rand::distributions::Uniform;
+use rand::rngs::ThreadRng;
+use rand::Rng;
+use similari::test_stuff::vec2;
+use similari::track::{AttributeUpdate, Feature};
 use thiserror::Error;
 
 const FEATURE0: u64 = 0;
@@ -24,11 +28,12 @@ enum Gender {
 // person attributes
 #[derive(Debug, Clone, Default)]
 struct CamTrackingAttributes {
-    start_time: u64,          // when the track observation first appeared
-    end_time: u64,            // when the track observation last appeared
-    camera_id: OnceCell<u64>, // identifier of camera that detected the object
-    age: Vec<u8>,             // age detected during the observations
-    gender: Vec<Gender>,      // gender detected during the observations
+    start_time: u64,             // when the track observation first appeared
+    end_time: u64,               // when the track observation last appeared
+    camera_id: OnceCell<u64>,    // identifier of camera that detected the object
+    age: Vec<u8>,                // age detected during the observations
+    gender: Vec<Gender>,         // gender detected during the observations
+    screen_pos: Vec<(u16, u16)>, // person screen position
 }
 
 impl CamTrackingAttributes {
@@ -57,6 +62,7 @@ impl CamTrackingAttributes {
 fn test_attributes_age_gender() {
     use Gender::*;
     let attrs = CamTrackingAttributes {
+        screen_pos: vec![(0, 0), (10, 15), (20, 25), (30, 35)],
         start_time: 0,
         end_time: 0,
         camera_id: Default::default(),
@@ -73,6 +79,7 @@ struct CamTrackingAttributesUpdate {
     gender: Option<Gender>,
     age: Option<u8>,
     camera_id: u64,
+    screen_pos: (u16, u16),
 }
 
 impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
@@ -111,6 +118,8 @@ impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
             }
         }
 
+        attrs.screen_pos.push(self.screen_pos);
+
         Ok(())
     }
 }
@@ -124,12 +133,14 @@ fn cam_tracking_attributes_update_test() {
         camera_id: Default::default(),
         age: Vec::default(),
         gender: Vec::default(),
+        screen_pos: Vec::default(),
     };
     let update = CamTrackingAttributesUpdate {
         time: 10,
         gender: Some(Female),
         age: Some(30),
         camera_id: 10,
+        screen_pos: (10, 10),
     };
     assert!(update.apply(&mut attrs).is_ok());
 
@@ -139,6 +150,7 @@ fn cam_tracking_attributes_update_test() {
         gender: Some(Female),
         age: Some(10),
         camera_id: 20,
+        screen_pos: (10, 15),
     };
     assert!(update.apply(&mut attrs).is_err());
 
@@ -148,8 +160,37 @@ fn cam_tracking_attributes_update_test() {
         gender: Some(Female),
         age: Some(10),
         camera_id: 20,
+        screen_pos: (20, 25),
     };
     assert!(update.apply(&mut attrs).is_err());
+}
+
+struct FeatGen2 {
+    x: f32,
+    y: f32,
+    gen: ThreadRng,
+    dist: Uniform<f32>,
+}
+
+impl FeatGen2 {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self {
+            x,
+            y,
+            gen: rand::thread_rng(),
+            dist: Uniform::new(-0.01, 0.01),
+        }
+    }
+}
+
+impl Iterator for FeatGen2 {
+    type Item = Feature;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.x += self.gen.sample(&self.dist);
+        self.y += self.gen.sample(&self.dist);
+        Some(vec2(self.x, self.y))
+    }
 }
 
 fn main() {}
