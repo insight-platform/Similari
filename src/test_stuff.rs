@@ -14,15 +14,9 @@ pub enum AppError {
     Incompatible,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SimpleAttrs {
     set: bool,
-}
-
-impl Default for SimpleAttrs {
-    fn default() -> Self {
-        Self { set: false }
-    }
 }
 
 #[derive(Default)]
@@ -44,7 +38,7 @@ impl AttributeMatch<SimpleAttrs> for SimpleAttrs {
     }
 
     fn merge(&mut self, other: &SimpleAttrs) -> Result<()> {
-        if self.compatible(&other) {
+        if self.compatible(other) {
             Ok(())
         } else {
             Err(AppError::Incompatible.into())
