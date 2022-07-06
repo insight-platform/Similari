@@ -7,6 +7,7 @@ use anyhow::Result;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 
 /// Auxiliary type to express distance calculation errors
 pub type TrackDistanceError = Result<Vec<(u64, Result<f32>)>>;
@@ -34,7 +35,8 @@ where
     attributes: A,
     metric: M,
     notifier: N,
-    tracks: HashMap<u64, Track<A, M, U, N>>,
+    shards: usize,
+    stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
 }
 
 impl<A, U, M, N> Default for TrackStore<A, U, M, N>
@@ -45,7 +47,7 @@ where
     M: Metric,
 {
     fn default() -> Self {
-        Self::new(None, None, None)
+        Self::new(None, None, None, 1)
     }
 }
 
@@ -69,8 +71,14 @@ where
     ///
     /// If `None` is passed, `Default` initializers are used.
     ///
-    pub fn new(metric: Option<M>, default_attributes: Option<A>, notifier: Option<N>) -> Self {
+    pub fn new(
+        metric: Option<M>,
+        default_attributes: Option<A>,
+        notifier: Option<N>,
+        shards: usize,
+    ) -> Self {
         Self {
+            shards,
             notifier: if let Some(notifier) = notifier {
                 notifier
             } else {
@@ -86,7 +94,12 @@ where
             } else {
                 M::default()
             },
-            tracks: HashMap::default(),
+            stores: Arc::new(
+                (0..shards)
+                    .into_iter()
+                    .map(|_| Mutex::new(HashMap::default()))
+                    .collect(),
+            ),
         }
     }
 
@@ -112,24 +125,27 @@ where
             .collect()
     }
 
-    /// Access track in ref mode
-    ///
-    pub fn get(&self, track_id: u64) -> Option<&Track<A, M, U, N>> {
-        self.tracks.get(&track_id)
-    }
-
-    /// Access track in mut mode
-    ///
-    pub fn get_mut(&mut self, track_id: u64) -> Option<&mut Track<A, M, U, N>> {
-        self.tracks.get_mut(&track_id)
-    }
+    // /// Access track in ref mode
+    // ///
+    // pub fn get(&self, track_id: u64) -> Option<&Track<A, M, U, N>> {
+    //     let tracks = self.get_store(track_id as usize);
+    //     tracks.get(&track_id)
+    // }
+    //
+    // /// Access track in mut mode
+    // ///
+    // pub fn get_mut(&mut self, track_id: u64) -> Option<&mut Track<A, M, U, N>> {
+    //     let mut tracks = self.get_store(track_id as usize);
+    //     self.tracks.get_mut(&track_id)
+    // }
 
     /// Pulls (and removes) requested tracks from the store.
     ///
     pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
-            if let Some(t) = self.tracks.remove(track_id) {
+            let mut tracks_shard = self.get_store(track_id as usize);
+            if let Some(t) = tracks_shard.remove(track_id) {
                 res.push(t);
             }
         }
@@ -227,6 +243,11 @@ where
         (distances, errors)
     }
 
+    pub fn get_store(&self, id: usize) -> MutexGuard<HashMap<u64, Track<A, M, U, N>>> {
+        let store_id = (id % self.shards) as usize;
+        self.stores.as_ref().get(id).unwrap().lock().unwrap()
+    }
+
     /// Adds external track into storage
     ///
     /// # Arguments
@@ -238,8 +259,10 @@ where
     ///
     pub fn add_track(&mut self, track: Track<A, M, U, N>) -> Result<u64> {
         let track_id = track.track_id;
-        if self.tracks.get(&track_id).is_none() {
-            self.tracks.insert(track_id, track);
+        let store_id = (track_id % self.shards) as usize;
+        let mut store = self.get_store(store_id);
+        if store.get(&track_id).is_none() {
+            store.insert(track_id, track);
             Ok(track_id)
         } else {
             Err(Errors::DuplicateTrackId(track_id).into())
@@ -263,7 +286,8 @@ where
         feature: Feature,
         attributes_update: U,
     ) -> Result<()> {
-        match self.tracks.get_mut(&track_id) {
+        let mut tracks = self.get_store(track_id as usize);
+        match tracks.get_mut(&track_id) {
             None => {
                 let mut t = Track {
                     notifier: self.notifier.clone(),
@@ -275,7 +299,7 @@ where
                     merge_history: vec![track_id],
                 };
                 t.update_attributes(attributes_update)?;
-                self.tracks.insert(track_id, t);
+                tracks.insert(track_id, t);
             }
             Some(track) => {
                 track.add_observation(feature_class, feature_q, feature, attributes_update)?;
@@ -450,6 +474,7 @@ mod tests {
                 ..Default::default()
             }),
             Some(NoopNotifier::default()),
+            1,
         );
         store.add(
             0,
@@ -608,6 +633,7 @@ mod tests {
                 ..Default::default()
             }),
             Some(NoopNotifier::default()),
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -703,6 +729,7 @@ mod tests {
                 ..Default::default()
             }),
             None,
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -775,6 +802,7 @@ mod tests {
                 ..Default::default()
             }),
             None,
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -826,6 +854,7 @@ mod tests {
                 ..Default::default()
             }),
             None,
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -890,6 +919,7 @@ mod tests {
                 ..Default::default()
             }),
             None,
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -928,6 +958,7 @@ mod tests {
                 ..Default::default()
             }),
             Some(NoopNotifier::default()),
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
