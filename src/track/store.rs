@@ -1,11 +1,35 @@
+use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
     AttributeMatch, AttributeUpdate, Feature, Metric, Track, TrackBakingStatus, TrackDistance,
 };
 use crate::Errors;
 use anyhow::Result;
-use rayon::prelude::*;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::thread::JoinHandle;
+use std::{mem, thread};
+
+#[derive(Clone)]
+enum Commands<A, M, U, N>
+where
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    M: Metric,
+    U: AttributeUpdate<A>,
+{
+    Drop,
+    FindBaked,
+    Distances(Arc<Track<A, M, U, N>>, u64, bool),
+}
+
+#[derive(Debug)]
+enum Results {
+    Distance(Vec<TrackDistance>, Vec<TrackDistanceError>),
+    BakedStatus(Vec<(u64, Result<TrackBakingStatus>)>),
+    Dropped,
+}
 
 /// Auxiliary type to express distance calculation errors
 pub type TrackDistanceError = Result<Vec<(u64, Result<f32>)>>;
@@ -23,36 +47,150 @@ pub type TrackDistanceError = Result<Vec<(u64, Result<f32>)>>;
 /// Simple TrackStore example can be found at:
 /// [examples/simple.rs](https://github.com/insight-platform/Similari/blob/main/examples/simple.rs).
 ///
-pub struct TrackStore<A, U, M>
+pub struct TrackStore<A, U, M, N = NoopNotifier>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
-    M: Metric + Default + Send + Sync + Clone,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    U: AttributeUpdate<A>,
+    M: Metric,
 {
     attributes: A,
     metric: M,
-    tracks: HashMap<u64, Track<A, M, U>>,
+    notifier: N,
+    num_shards: usize,
+    #[allow(clippy::type_complexity)]
+    stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
+    #[allow(clippy::type_complexity)]
+    executors: Vec<(
+        Sender<Commands<A, M, U, N>>,
+        Receiver<Results>,
+        JoinHandle<()>,
+    )>,
 }
 
-impl<A, U, M> Default for TrackStore<A, U, M>
+impl<A, U, M, N> Drop for TrackStore<A, U, M, N>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
-    M: Metric + Default + Send + Sync + Clone,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    U: AttributeUpdate<A>,
+    M: Metric,
+{
+    fn drop(&mut self) {
+        let executors = mem::take(&mut self.executors);
+        for (s, r, j) in executors {
+            s.send(Commands::Drop).unwrap();
+            let res = r.recv().unwrap();
+            match res {
+                Results::Dropped => {
+                    j.join().unwrap();
+                    drop(s);
+                    drop(r);
+                }
+                other => {
+                    dbg!(other);
+                    unreachable!();
+                }
+            }
+        }
+    }
+}
+
+impl<A, U, M, N> Default for TrackStore<A, U, M, N>
+where
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    U: AttributeUpdate<A>,
+    M: Metric,
 {
     fn default() -> Self {
-        Self::new(None, None)
+        Self::new(None, None, None, 1)
     }
 }
 
 /// The basic implementation should fit to most of needs.
 ///
-impl<A, U, M> TrackStore<A, U, M>
+impl<A, U, M, N> TrackStore<A, U, M, N>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
-    M: Metric + Default + Send + Sync + Clone,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    U: AttributeUpdate<A>,
+    M: Metric,
 {
+    #[allow(clippy::type_complexity)]
+    fn handle_store_ops(
+        stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
+        store_id: usize,
+        commands_receiver: Receiver<Commands<A, M, U, N>>,
+        results_sender: Sender<Results>,
+    ) {
+        let store = stores.get(store_id).unwrap();
+        while let Ok(c) = commands_receiver.recv() {
+            // if let Err(_e) = results_sender.send(Results::NotImplemented) {
+            //     break;
+            // }
+            match c {
+                Commands::Drop => {
+                    let _r = results_sender.send(Results::Dropped);
+                    return;
+                }
+                Commands::FindBaked => {
+                    let baked = store
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .flat_map(|(track_id, track)| {
+                            match track.get_attributes().baked(&track.observations) {
+                                Ok(status) => match status {
+                                    TrackBakingStatus::Pending => None,
+                                    other => Some((*track_id, Ok(other))),
+                                },
+                                Err(e) => Some((*track_id, Err(e))),
+                            }
+                        })
+                        .collect();
+                    let r = results_sender.send(Results::BakedStatus(baked));
+                    if let Err(_e) = r {
+                        return;
+                    }
+                }
+                Commands::Distances(track, feature_class, only_baked) => {
+                    let res = store
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .flat_map(|(_, other)| {
+                            if !only_baked {
+                                Some(track.distances(other, feature_class))
+                            } else {
+                                match other.get_attributes().baked(&other.observations) {
+                                    Ok(TrackBakingStatus::Ready) => {
+                                        Some(track.distances(other, feature_class))
+                                    }
+                                    _ => None,
+                                }
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    let mut distances = Vec::default();
+                    let mut errors = Vec::default();
+
+                    for r in res {
+                        match r {
+                            Ok(dists) => distances.extend(dists),
+                            e => errors.push(e),
+                        }
+                    }
+
+                    let r = results_sender.send(Results::Distance(distances, errors));
+                    if let Err(_e) = r {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     /// Constructor method
     ///
     /// When you construct track store you may pass two initializer objects:
@@ -64,8 +202,27 @@ where
     ///
     /// If `None` is passed, `Default` initializers are used.
     ///
-    pub fn new(metric: Option<M>, default_attributes: Option<A>) -> Self {
+    pub fn new(
+        metric: Option<M>,
+        default_attributes: Option<A>,
+        notifier: Option<N>,
+        shards: usize,
+    ) -> Self {
+        let stores = Arc::new(
+            (0..shards)
+                .into_iter()
+                .map(|_| Mutex::new(HashMap::default()))
+                .collect::<Vec<_>>(),
+        );
+        let my_stores = stores.clone();
+
         Self {
+            num_shards: shards,
+            notifier: if let Some(notifier) = notifier {
+                notifier
+            } else {
+                N::default()
+            },
             attributes: if let Some(a) = default_attributes {
                 a
             } else {
@@ -76,7 +233,23 @@ where
             } else {
                 M::default()
             },
-            tracks: HashMap::default(),
+            stores: my_stores,
+            executors: {
+                (0..shards)
+                    .into_iter()
+                    .map(|s| {
+                        let (commands_sender, commands_receiver) =
+                            std::sync::mpsc::channel::<Commands<A, M, U, N>>();
+                        let (results_sender, results_receiver) =
+                            std::sync::mpsc::channel::<Results>();
+                        let stores = stores.clone();
+                        let thread = thread::spawn(move || {
+                            Self::handle_store_ops(stores, s, commands_receiver, results_sender);
+                        });
+                        (commands_sender, results_receiver, thread)
+                    })
+                    .collect()
+            },
         }
     }
 
@@ -87,39 +260,40 @@ where
     /// * `TrackBakingStatus::Wasted` or
     /// * `Err(e)`
     ///
-    pub fn find_baked(&self) -> Vec<(u64, Result<TrackBakingStatus>)> {
-        self.tracks
-            .par_iter()
-            .flat_map(
-                |(track_id, track)| match track.get_attributes().baked(&track.observations) {
-                    Ok(status) => match status {
-                        TrackBakingStatus::Pending => None,
-                        other => Some((*track_id, Ok(other))),
-                    },
-                    Err(e) => Some((*track_id, Err(e))),
-                },
-            )
-            .collect()
+    pub fn find_baked(&mut self) -> Vec<(u64, Result<TrackBakingStatus>)> {
+        let mut results = Vec::new();
+        for (cmd, _, _) in &mut self.executors {
+            cmd.send(Commands::FindBaked).unwrap();
+        }
+        for (_, res, _) in &mut self.executors {
+            let res = res.recv().unwrap();
+            match res {
+                Results::BakedStatus(r) => {
+                    results.extend(r);
+                }
+                _ => {
+                    unreachable!();
+                }
+            }
+        }
+        results
     }
 
-    /// Access track in ref mode
-    ///
-    pub fn get(&self, track_id: u64) -> Option<&Track<A, M, U>> {
-        self.tracks.get(&track_id)
-    }
-
-    /// Access track in mut mode
-    ///
-    pub fn get_mut(&mut self, track_id: u64) -> Option<&mut Track<A, M, U>> {
-        self.tracks.get_mut(&track_id)
+    pub fn shard_stats(&self) -> Vec<usize> {
+        let mut result = Vec::new();
+        for s in self.stores.iter() {
+            result.push(s.lock().unwrap().len());
+        }
+        result
     }
 
     /// Pulls (and removes) requested tracks from the store.
     ///
-    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U>> {
+    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
-            if let Some(t) = self.tracks.remove(track_id) {
+            let mut tracks_shard = self.get_store(*track_id as usize);
+            if let Some(t) = tracks_shard.remove(track_id) {
                 res.push(t);
             }
         }
@@ -135,37 +309,34 @@ where
     /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
     ///
     pub fn foreign_track_distances(
-        &self,
-        track: &Track<A, M, U>,
+        &mut self,
+        track: Arc<Track<A, M, U, N>>,
         feature_class: u64,
         only_baked: bool,
     ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
-        let res: Vec<_> = self
-            .tracks
-            .par_iter()
-            .flat_map(|(_, other)| {
-                if !only_baked {
-                    Some(track.distances(other, feature_class))
-                } else {
-                    match other.get_attributes().baked(&other.observations) {
-                        Ok(TrackBakingStatus::Ready) => Some(track.distances(other, feature_class)),
-                        _ => None,
-                    }
+        let mut results = Vec::new();
+        let mut errors = Vec::new();
+        for (cmd, _, _) in &mut self.executors {
+            cmd.send(Commands::Distances(
+                track.clone(),
+                feature_class,
+                only_baked,
+            ))
+            .unwrap();
+        }
+        for (_, res, _) in &mut self.executors {
+            let res = res.recv().unwrap();
+            match res {
+                Results::Distance(r, e) => {
+                    results.extend(r);
+                    errors.extend(e);
                 }
-            })
-            .collect();
-
-        let mut distances = Vec::default();
-        let mut errors = Vec::default();
-
-        for r in res {
-            match r {
-                Ok(dists) => distances.extend(dists),
-                e => errors.push(e),
+                _ => {
+                    unreachable!();
+                }
             }
         }
-
-        (distances, errors)
+        (results, errors)
     }
 
     /// Calculates track distances for a track within the store
@@ -178,43 +349,26 @@ where
     /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
     ///
     pub fn owned_track_distances(
-        &self,
+        &mut self,
         track_id: u64,
         feature_class: u64,
         only_baked: bool,
     ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
-        let track = self.tracks.get(&track_id);
+        let track = self.fetch_tracks(&vec![track_id]).pop();
         if track.is_none() {
             return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
         }
-        let track = track.unwrap();
-        let res: Vec<_> = self
-            .tracks
-            .par_iter()
-            .filter(|(other_track_id, _)| **other_track_id != track_id)
-            .flat_map(|(_, other)| {
-                if !only_baked {
-                    Some(track.distances(other, feature_class))
-                } else {
-                    match other.get_attributes().baked(&other.observations) {
-                        Ok(TrackBakingStatus::Ready) => Some(track.distances(other, feature_class)),
-                        _ => None,
-                    }
-                }
-            })
-            .collect();
+        let track = Arc::new(track.unwrap());
 
-        let mut distances = Vec::default();
-        let mut errors = Vec::default();
+        let res = self.foreign_track_distances(track.clone(), feature_class, only_baked);
+        let track = (*track).clone();
+        self.add_track(track).unwrap();
+        res
+    }
 
-        for r in res {
-            match r {
-                Ok(dists) => distances.extend(dists),
-                e => errors.push(e),
-            }
-        }
-
-        (distances, errors)
+    pub fn get_store(&self, id: usize) -> MutexGuard<HashMap<u64, Track<A, M, U, N>>> {
+        let store_id = (id % self.num_shards) as usize;
+        self.stores.as_ref().get(store_id).unwrap().lock().unwrap()
     }
 
     /// Adds external track into storage
@@ -226,10 +380,11 @@ where
     /// * `Ok(track_id)` if added
     /// * `Err(Errors::DuplicateTrackId(track_id))` if failed to add
     ///
-    pub fn add_track(&mut self, track: Track<A, M, U>) -> Result<u64> {
+    pub fn add_track(&mut self, track: Track<A, M, U, N>) -> Result<u64> {
         let track_id = track.track_id;
-        if self.tracks.get(&track_id).is_none() {
-            self.tracks.insert(track_id, track);
+        let mut store = self.get_store(track_id as usize);
+        if store.get(&track_id).is_none() {
+            store.insert(track_id, track);
             Ok(track_id)
         } else {
             Err(Errors::DuplicateTrackId(track_id).into())
@@ -253,9 +408,12 @@ where
         feature: Feature,
         attributes_update: U,
     ) -> Result<()> {
-        match self.tracks.get_mut(&track_id) {
+        let mut tracks = self.get_store(track_id as usize);
+        #[allow(clippy::significant_drop_in_scrutinee)]
+        match tracks.get_mut(&track_id) {
             None => {
                 let mut t = Track {
+                    notifier: self.notifier.clone(),
                     attributes: self.attributes.clone(),
                     track_id,
                     observations: HashMap::from([(feature_class, vec![(feature_q, feature)])]),
@@ -264,7 +422,7 @@ where
                     merge_history: vec![track_id],
                 };
                 t.update_attributes(attributes_update)?;
-                self.tracks.insert(track_id, t);
+                tracks.insert(track_id, t);
             }
             Some(track) => {
                 track.add_observation(feature_class, feature_q, feature, attributes_update)?;
@@ -286,7 +444,7 @@ where
         src_id: u64,
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
-    ) -> Result<Option<Track<A, M, U>>> {
+    ) -> Result<Option<Track<A, M, U, N>>> {
         let mut src = self.fetch_tracks(&vec![src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
@@ -295,13 +453,13 @@ where
         match self.merge_external(dest_id, &src, classes) {
             Ok(_) => {
                 if !remove_src_if_ok {
-                    self.tracks.insert(src_id, src);
+                    self.add_track(src).unwrap();
                     return Ok(None);
                 }
                 Ok(Some(src))
             }
             err => {
-                self.tracks.insert(src_id, src);
+                self.add_track(src).unwrap();
                 err?;
                 unreachable!();
             }
@@ -317,10 +475,12 @@ where
     pub fn merge_external(
         &mut self,
         dest_id: u64,
-        src: &Track<A, M, U>,
+        src: &Track<A, M, U, N>,
         classes: Option<&[u64]>,
     ) -> Result<()> {
-        let dest = self.tracks.get_mut(&dest_id);
+        let mut tracks = self.get_store(dest_id as usize);
+        let dest = tracks.get_mut(&dest_id);
+
         match dest {
             Some(dest) => {
                 if dest_id == src.track_id {
@@ -345,10 +505,11 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::{
         feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, Metric, Track, TrackBakingStatus,
+        FeatureSpec, Metric, NoopNotifier, Track, TrackBakingStatus,
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
+    use std::sync::Arc;
     use std::thread;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -359,7 +520,7 @@ mod tests {
         baked_period: u128,
     }
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     pub struct TimeAttrUpdates {
         time: u128,
     }
@@ -427,17 +588,31 @@ mod tests {
         Feature::from_vec(1, 2, vec![x, y])
     }
 
-    #[test]
-    fn general_ops() -> Result<()> {
-        let _default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric> =
-            TrackStore::default();
+    fn current_time_ms() -> u128 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    }
 
+    #[test]
+    fn new_default_store() -> Result<()> {
+        let default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric> =
+            TrackStore::default();
+        drop(default_store);
+        Ok(())
+    }
+
+    #[test]
+    fn new_store_10_shards() -> Result<()> {
         let mut store = TrackStore::new(
             Some(TimeMetric { max_length: 20 }),
             Some(TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
+            10,
         );
         store.add(
             0,
@@ -445,10 +620,80 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
+            },
+        )?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn sharding_n_fetch() -> Result<()> {
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+            Some(NoopNotifier::default()),
+            2,
+        );
+
+        let stats = store.shard_stats();
+        assert_eq!(stats, vec![0, 0]);
+
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: current_time_ms(),
+            },
+        )?;
+
+        let stats = store.shard_stats();
+        assert_eq!(stats, vec![1, 0]);
+
+        store.add(
+            1,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: current_time_ms(),
+            },
+        )?;
+
+        let stats = store.shard_stats();
+        assert_eq!(stats, vec![1, 1]);
+
+        let tracks = store.fetch_tracks(&vec![0, 1]);
+        assert_eq!(tracks.len(), 2);
+        assert_eq!(tracks[0].track_id, 0);
+        assert_eq!(tracks[1].track_id, 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn general_ops() -> Result<()> {
+        let mut store = TrackStore::new(
+            Some(TimeMetric { max_length: 20 }),
+            Some(TimeAttrs {
+                baked_period: 10,
+                ..Default::default()
+            }),
+            Some(NoopNotifier::default()),
+            1,
+        );
+        store.add(
+            0,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: current_time_ms(),
             },
         )?;
         let baked = store.find_baked();
@@ -485,10 +730,7 @@ mod tests {
             0.7,
             vec2(1.0, 0.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -524,7 +766,8 @@ mod tests {
 
         let mut v = store.fetch_tracks(&vec![0]);
 
-        let (dists, errs) = store.foreign_track_distances(&v[0], 0, false);
+        let v = Arc::new(v.pop().unwrap());
+        let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].0, 1);
         assert!(dists[0].1.is_ok());
@@ -533,12 +776,11 @@ mod tests {
 
         // make it incompatible across the attributes
         thread::sleep(Duration::from_millis(10));
-        v[0].attributes.end_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
+        let mut v = (*v).clone();
+        v.attributes.end_time = current_time_ms();
+        let v = Arc::new(v);
 
-        let (dists, errs) = store.foreign_track_distances(&v[0], 0, false);
+        let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false);
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 1);
         match errs[0].as_ref() {
@@ -568,15 +810,14 @@ mod tests {
             0.7,
             vec2(1.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
-        v[0].attributes.end_time = store.tracks.get(&1).unwrap().attributes.start_time - 1;
-        let (dists, errs) = store.foreign_track_distances(&v[0], 0, false);
+        let mut v = (*v).clone();
+        v.attributes.end_time = store.get_store(1).get(&1).unwrap().attributes.start_time - 1;
+        let v = Arc::new(v);
+        let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false);
         assert_eq!(dists.len(), 2);
         assert_eq!(dists[0].0, 1);
         assert!(dists[0].1.is_ok());
@@ -595,18 +836,17 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
+            2,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
-            0,
+            1,
             0,
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -617,6 +857,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -625,32 +866,27 @@ mod tests {
             0.8,
             vec2(0.66, 0.33),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
-        let (dists, errs) = store.foreign_track_distances(&ext_track, 0, true);
+        let ext_track = Arc::new(ext_track);
+        let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, true);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
 
         thread::sleep(Duration::from_millis(1));
         store.add(
-            1,
+            0,
             0,
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
-        let (dists, errs) = store.owned_track_distances(1, 0, true);
+        let (dists, errs) = store.owned_track_distances(0, 0, true);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
 
@@ -666,6 +902,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -674,10 +911,7 @@ mod tests {
             0.8,
             vec2(0.66, 0.33),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -687,25 +921,9 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
+            2,
         );
-        thread::sleep(Duration::from_millis(1));
-        store.add(
-            0,
-            0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
-            },
-        )?;
-
-        let (dists, errs) = store.foreign_track_distances(&ext_track, 0, false);
-        assert_eq!(dists.len(), 1);
-        assert!(errs.is_empty());
-
         thread::sleep(Duration::from_millis(1));
         store.add(
             1,
@@ -713,14 +931,31 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
-        let (dists, errs) = store.owned_track_distances(0, 0, false);
+        let ext_track = Arc::new(ext_track);
+        let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, false);
+        assert_eq!(dists.len(), 1);
+        assert!(errs.is_empty());
+
+        let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, false);
+        assert_eq!(dists.len(), 1);
+        assert!(errs.is_empty());
+
+        thread::sleep(Duration::from_millis(1));
+        store.add(
+            3,
+            0,
+            0.9,
+            vec2(0.0, 1.0),
+            TimeAttrUpdates {
+                time: current_time_ms(),
+            },
+        )?;
+
+        let (dists, errs) = store.owned_track_distances(1, 0, false);
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
@@ -736,6 +971,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -757,6 +993,8 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -785,6 +1023,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -806,6 +1045,8 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -835,6 +1076,7 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -868,6 +1110,8 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            None,
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -885,12 +1129,12 @@ mod tests {
 
         let res = store.merge_external(0, &ext_track, Some(&[0]));
         assert!(res.is_ok());
-        let classes = store.get(0).unwrap().get_feature_classes();
+        let classes = store.get_store(0).get(&0).unwrap().get_feature_classes();
         assert_eq!(classes, vec![0]);
 
         let res = store.merge_external(0, &ext_track, None);
         assert!(res.is_ok());
-        let mut classes = store.get(0).unwrap().get_feature_classes();
+        let mut classes = store.get_store(0).get(&0).unwrap().get_feature_classes();
         classes.sort();
         assert_eq!(classes, vec![0, 1]);
 
@@ -905,6 +1149,8 @@ mod tests {
                 baked_period: 10,
                 ..Default::default()
             }),
+            Some(NoopNotifier::default()),
+            1,
         );
         thread::sleep(Duration::from_millis(1));
         store.add(
@@ -913,10 +1159,7 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -927,10 +1170,7 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 

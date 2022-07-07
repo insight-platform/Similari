@@ -16,7 +16,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - uses: icepuma/rust-action@1.62.0
+      with:
+        args: cargo fmt -- --check && cargo clippy -- -Dwarnings && cargo test

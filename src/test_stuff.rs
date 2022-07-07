@@ -1,6 +1,6 @@
 use crate::distance::euclidean;
 use crate::track::{
-    AttributeMatch, AttributeUpdate, FeatureObservationsGroups, FeatureSpec, Metric,
+    AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups, FeatureSpec, Metric,
     TrackBakingStatus,
 };
 use anyhow::Result;
@@ -14,18 +14,12 @@ pub enum AppError {
     Incompatible,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SimpleAttrs {
     set: bool,
 }
 
-impl Default for SimpleAttrs {
-    fn default() -> Self {
-        Self { set: false }
-    }
-}
-
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SimpleAttributeUpdate;
 
 impl AttributeUpdate<SimpleAttrs> for SimpleAttributeUpdate {
@@ -44,7 +38,7 @@ impl AttributeMatch<SimpleAttrs> for SimpleAttrs {
     }
 
     fn merge(&mut self, other: &SimpleAttrs) -> Result<()> {
-        if self.compatible(&other) {
+        if self.compatible(other) {
             Ok(())
         } else {
             Err(AppError::Incompatible.into())
@@ -82,7 +76,7 @@ impl Metric for SimpleMetric {
 #[derive(Debug, Clone, Default)]
 pub struct UnboundAttrs;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct UnboundAttributeUpdate;
 
 impl AttributeUpdate<UnboundAttrs> for UnboundAttributeUpdate {
@@ -122,4 +116,8 @@ impl Metric for UnboundMetric {
     ) -> Result<()> {
         Ok(())
     }
+}
+
+pub fn vec2(x: f32, y: f32) -> Feature {
+    Feature::from_vec(1, 2, vec![x, y])
 }

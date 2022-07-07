@@ -1,11 +1,14 @@
 #![feature(test)]
 
 extern crate test;
+
 use rand::{distributions::Uniform, Rng};
 use similari::store;
 use similari::test_stuff::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
 use similari::track::{Feature, Track};
+use std::sync::Arc;
 
+use similari::track::notify::NoopNotifier;
 use test::Bencher;
 
 fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Bencher) {
@@ -13,6 +16,8 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
     let mut db = store::TrackStore::new(
         Some(UnboundMetric::default()),
         Some(UnboundAttrs::default()),
+        None,
+        num_cpus::get(),
     );
     let mut rng = rand::thread_rng();
     let gen = Uniform::new(0.0, 1.0);
@@ -34,6 +39,7 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
             count as u64 + 1,
             Some(UnboundMetric::default()),
             Some(UnboundAttrs::default()),
+            Some(NoopNotifier::default()),
         );
         for _j in 0..track_len {
             let _ = t.add_observation(
@@ -44,7 +50,7 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
             );
         }
 
-        db.foreign_track_distances(&t, DEFAULT_FEATURE, true);
+        db.foreign_track_distances(Arc::new(t), DEFAULT_FEATURE, true);
     });
 }
 

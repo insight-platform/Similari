@@ -1,17 +1,19 @@
 use similari::store;
-use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
-use similari::track::{Feature, Track};
+use similari::test_stuff::{vec2, SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
+use similari::track::notify::NoopNotifier;
+use similari::track::Track;
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
-
-fn vec2(x: f32, y: f32) -> Feature {
-    Feature::from_vec(1, 2, vec![x, y])
-}
+use std::sync::Arc;
 
 fn main() {
     const DEFAULT_FEATURE: u64 = 0;
-    let mut db =
-        store::TrackStore::new(Some(SimpleMetric::default()), Some(SimpleAttrs::default()));
+    let mut db = store::TrackStore::new(
+        Some(SimpleMetric::default()),
+        Some(SimpleAttrs::default()),
+        None,
+        num_cpus::get(),
+    );
     let res = db.add(
         0,
         DEFAULT_FEATURE,
@@ -54,6 +56,7 @@ fn main() {
         2,
         Some(SimpleMetric::default()),
         Some(SimpleAttrs::default()),
+        Some(NoopNotifier::default()),
     );
 
     let res = ext_track.add_observation(
@@ -65,7 +68,7 @@ fn main() {
 
     assert!(res.is_ok());
 
-    let (dists, errs) = db.foreign_track_distances(&ext_track, 0, true);
+    let (dists, errs) = db.foreign_track_distances(Arc::new(ext_track), 0, true);
 
     assert_eq!(dists.len(), 2);
     assert_eq!(errs.len(), 0);

@@ -1,3 +1,4 @@
+use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::Errors;
 use anyhow::Result;
 use itertools::Itertools;
@@ -6,6 +7,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+pub mod notify;
 pub mod store;
 pub mod voting;
 
@@ -23,7 +25,7 @@ pub type FeatureSpec = (f32, Feature);
 pub type FeatureObservationsGroups = HashMap<u64, Vec<FeatureSpec>>;
 
 /// The trait that implements the methods for features comparison and filtering
-pub trait Metric {
+pub trait Metric: Default + Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
     /// The output is `Result<f32>` because the method may return distance calculation error if the distance
     /// cannot be computed for two features. E.g. when one of them has low confidence.
@@ -56,7 +58,7 @@ pub trait Metric {
 /// eventually the track must be complete so it can be used for
 /// database search and later merge operations.
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TrackBakingStatus {
     /// The track is ready and can be used to find similar tracks for merge.
     Ready,
@@ -71,7 +73,7 @@ pub enum TrackBakingStatus {
 ///
 /// When the user implements attributes they has to implement this trait to create a valid attributes object.
 ///
-pub trait AttributeMatch<A> {
+pub trait AttributeMatch<A>: Default + Send + Sync + Clone + 'static {
     /// The method is used to evaluate attributes of two tracks to determine whether tracks are compatible
     /// for distance calculation. When the attributes are compatible, the method returns `true`.
     ///
@@ -105,7 +107,7 @@ pub trait AttributeMatch<A> {
 ///
 /// The trait must be implemented for update struct for specific attributes struct implementation.
 ///
-pub trait AttributeUpdate<A> {
+pub trait AttributeUpdate<A>: Clone + Send + Sync + 'static {
     /// Method is used to update track attributes from update structure.
     ///
     fn apply(&self, attrs: &mut A) -> Result<()>;
@@ -127,11 +129,12 @@ pub fn feat_confidence_cmp(e1: &FeatureSpec, e2: &FeatureSpec) -> Ordering {
 /// * AttributeUpdate specifies how attributes are update from external sources.
 ///
 #[derive(Default, Clone)]
-pub struct Track<A, M, U>
+pub struct Track<A, M, U, N = NoopNotifier>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    M: Metric + Default + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    M: Metric,
+    U: AttributeUpdate<A>,
 {
     attributes: A,
     track_id: u64,
@@ -139,22 +142,34 @@ where
     metric: M,
     phantom_attribute_update: PhantomData<U>,
     merge_history: Vec<u64>,
+    notifier: N,
 }
 
 /// One and only parametrized track implementation.
 ///
-impl<A, M, U> Track<A, M, U>
+impl<A, M, U, N> Track<A, M, U, N>
 where
-    A: Default + AttributeMatch<A> + Send + Sync + Clone,
-    M: Metric + Default + Send + Sync + Clone,
-    U: AttributeUpdate<A> + Send + Sync,
+    N: ChangeNotifier,
+    A: AttributeMatch<A>,
+    M: Metric,
+    U: AttributeUpdate<A>,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
     ///
     /// The `metric` and `attributes` are optional, if `None` is specified, then `Default` initializer is used.
     ///
-    pub fn new(track_id: u64, metric: Option<M>, attributes: Option<A>) -> Self {
-        Self {
+    pub fn new(
+        track_id: u64,
+        metric: Option<M>,
+        attributes: Option<A>,
+        notifier: Option<N>,
+    ) -> Self {
+        let mut v = Self {
+            notifier: if let Some(notifier) = notifier {
+                notifier
+            } else {
+                N::default()
+            },
             attributes: if let Some(attributes) = attributes {
                 attributes
             } else {
@@ -169,7 +184,9 @@ where
             },
             phantom_attribute_update: Default::default(),
             merge_history: vec![track_id],
-        }
+        };
+        v.notifier.send(track_id);
+        v
     }
 
     /// Returns track_id.
@@ -251,6 +268,7 @@ where
             res?;
             unreachable!();
         }
+        self.notifier.send(self.track_id);
         Ok(())
     }
 
@@ -318,6 +336,7 @@ where
                 }
             }
         }
+        self.notifier.send(self.track_id);
         Ok(())
     }
 
@@ -369,7 +388,7 @@ mod tests {
     #[derive(Default, Clone)]
     pub struct DefaultAttrs;
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     pub struct DefaultAttrUpdates;
 
     impl AttributeUpdate<DefaultAttrs> for DefaultAttrUpdates {
@@ -414,7 +433,8 @@ mod tests {
 
     #[test]
     fn init() {
-        let t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::new(3, None, None);
+        let t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> =
+            Track::new(3, None, None, None);
         assert_eq!(t1.get_track_id(), 3);
     }
 
@@ -518,7 +538,7 @@ mod tests {
             end_time: u64,
         }
 
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         pub struct TimeAttrUpdates {
             time: u64,
         }
@@ -662,7 +682,7 @@ mod tests {
             pub count: u32,
         }
 
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         pub struct DefaultAttrUpdates {
             ignore: bool,
         }
