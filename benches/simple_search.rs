@@ -1,11 +1,13 @@
 #![feature(test)]
 
 extern crate test;
+
 use rand::{distributions::Uniform, Rng};
 use similari::store;
 use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::track::notify::NoopNotifier;
 use similari::track::{Feature, Track};
+use std::sync::Arc;
 use test::Bencher;
 
 #[bench]
@@ -74,6 +76,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
         Some(SimpleMetric::default()),
         Some(SimpleAttrs::default()),
         None,
+        num_cpus::get(),
     );
     let mut rng = rand::thread_rng();
     let gen = Uniform::new(0.0, 1.0);
@@ -103,6 +106,6 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             SimpleAttributeUpdate {},
         );
 
-        db.foreign_track_distances(&t, DEFAULT_FEATURE, true);
+        db.foreign_track_distances(Arc::new(t), DEFAULT_FEATURE, true);
     });
 }

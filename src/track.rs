@@ -107,7 +107,7 @@ pub trait AttributeMatch<A>: Default + Send + Sync + Clone + 'static {
 ///
 /// The trait must be implemented for update struct for specific attributes struct implementation.
 ///
-pub trait AttributeUpdate<A>: Send + Sync + 'static {
+pub trait AttributeUpdate<A>: Clone + Send + Sync + 'static {
     /// Method is used to update track attributes from update structure.
     ///
     fn apply(&self, attrs: &mut A) -> Result<()>;
@@ -388,7 +388,7 @@ mod tests {
     #[derive(Default, Clone)]
     pub struct DefaultAttrs;
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     pub struct DefaultAttrUpdates;
 
     impl AttributeUpdate<DefaultAttrs> for DefaultAttrUpdates {
@@ -538,7 +538,7 @@ mod tests {
             end_time: u64,
         }
 
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         pub struct TimeAttrUpdates {
             time: u64,
         }
@@ -682,7 +682,7 @@ mod tests {
             pub count: u32,
         }
 
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         pub struct DefaultAttrUpdates {
             ignore: bool,
         }

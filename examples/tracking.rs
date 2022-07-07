@@ -74,6 +74,7 @@ fn test_attributes_age_gender() {
 }
 
 // update
+#[derive(Clone)]
 struct CamTrackingAttributesUpdate {
     time: u64,
     gender: Option<Gender>,

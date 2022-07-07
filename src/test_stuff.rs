@@ -19,7 +19,7 @@ pub struct SimpleAttrs {
     set: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SimpleAttributeUpdate;
 
 impl AttributeUpdate<SimpleAttrs> for SimpleAttributeUpdate {
@@ -76,7 +76,7 @@ impl Metric for SimpleMetric {
 #[derive(Debug, Clone, Default)]
 pub struct UnboundAttrs;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct UnboundAttributeUpdate;
 
 impl AttributeUpdate<UnboundAttrs> for UnboundAttributeUpdate {
