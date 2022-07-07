@@ -1,7 +1,7 @@
 use similari::store;
 use similari::test_stuff::{vec2, SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::track::notify::NoopNotifier;
-use similari::track::{Feature, Track};
+use similari::track::Track;
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
 use std::sync::Arc;
