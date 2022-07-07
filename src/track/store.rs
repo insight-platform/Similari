@@ -117,7 +117,7 @@ where
     M: Metric,
 {
     #[allow(clippy::type_complexity)]
-    fn handle_store(
+    fn handle_store_ops(
         stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
         store_id: usize,
         commands_receiver: Receiver<Commands<A, M, U, N>>,
@@ -244,7 +244,7 @@ where
                             std::sync::mpsc::channel::<Results>();
                         let stores = stores.clone();
                         let thread = thread::spawn(move || {
-                            Self::handle_store(stores, s, commands_receiver, results_sender);
+                            Self::handle_store_ops(stores, s, commands_receiver, results_sender);
                         });
                         (commands_sender, results_receiver, thread)
                     })
