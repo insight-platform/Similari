@@ -36,7 +36,7 @@ impl TopNVoting {
 
 /// Return type fot TopN voting engine
 ///
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct TopNVotingElt {
     /// winning track
     pub track_id: u64,

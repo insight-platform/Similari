@@ -29,7 +29,6 @@ enum Results {
     Distance(Vec<TrackDistance>, Vec<TrackDistanceError>),
     BakedStatus(Vec<(u64, Result<TrackBakingStatus>)>),
     Dropped,
-    NotImplemented,
 }
 
 /// Auxiliary type to express distance calculation errors
@@ -59,7 +58,9 @@ where
     metric: M,
     notifier: N,
     num_shards: usize,
+    #[allow(clippy::type_complexity)]
     stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
+    #[allow(clippy::type_complexity)]
     executors: Vec<(
         Sender<Commands<A, M, U, N>>,
         Receiver<Results>,
@@ -115,6 +116,7 @@ where
     U: AttributeUpdate<A>,
     M: Metric,
 {
+    #[allow(clippy::type_complexity)]
     fn handle_store(
         stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
         store_id: usize,
@@ -407,6 +409,7 @@ where
         attributes_update: U,
     ) -> Result<()> {
         let mut tracks = self.get_store(track_id as usize);
+        #[allow(clippy::significant_drop_in_scrutinee)]
         match tracks.get_mut(&track_id) {
             None => {
                 let mut t = Track {
