@@ -14,7 +14,6 @@ rust-version = "1.62"
 
 [dependencies]
 nalgebra = "0.31.0"
-rayon = "1.5.3"
 itertools = "0.10.3"
 anyhow = "1.0.58"
 thiserror = "1.0.31"

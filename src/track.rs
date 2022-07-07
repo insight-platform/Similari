@@ -25,7 +25,7 @@ pub type FeatureSpec = (f32, Feature);
 pub type FeatureObservationsGroups = HashMap<u64, Vec<FeatureSpec>>;
 
 /// The trait that implements the methods for features comparison and filtering
-pub trait Metric: Default + Send + Sync + Clone {
+pub trait Metric: Default + Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
     /// The output is `Result<f32>` because the method may return distance calculation error if the distance
     /// cannot be computed for two features. E.g. when one of them has low confidence.
@@ -58,7 +58,7 @@ pub trait Metric: Default + Send + Sync + Clone {
 /// eventually the track must be complete so it can be used for
 /// database search and later merge operations.
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TrackBakingStatus {
     /// The track is ready and can be used to find similar tracks for merge.
     Ready,
@@ -73,7 +73,7 @@ pub enum TrackBakingStatus {
 ///
 /// When the user implements attributes they has to implement this trait to create a valid attributes object.
 ///
-pub trait AttributeMatch<A>: Default + Send + Sync + Clone {
+pub trait AttributeMatch<A>: Default + Send + Sync + Clone + 'static {
     /// The method is used to evaluate attributes of two tracks to determine whether tracks are compatible
     /// for distance calculation. When the attributes are compatible, the method returns `true`.
     ///
@@ -107,7 +107,7 @@ pub trait AttributeMatch<A>: Default + Send + Sync + Clone {
 ///
 /// The trait must be implemented for update struct for specific attributes struct implementation.
 ///
-pub trait AttributeUpdate<A>: Send + Sync {
+pub trait AttributeUpdate<A>: Send + Sync + 'static {
     /// Method is used to update track attributes from update structure.
     ///
     fn apply(&self, attrs: &mut A) -> Result<()>;

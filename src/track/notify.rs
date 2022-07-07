@@ -1,4 +1,4 @@
-pub trait ChangeNotifier: Default + Clone + Send + Sync {
+pub trait ChangeNotifier: Default + Clone + Sync + Send + 'static {
     fn send(&mut self, id: u64);
 }
 
