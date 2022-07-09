@@ -65,7 +65,7 @@ space. If the attributes of two tracks are not compatible, their distance calcul
 ## Performance
 
 To keep the calculations performant the crate uses:
-* [nalgebra](https://nalgebra.org/) - fast linear algebra library.
+* [ultraviolet](https://crates.io/crates/ultraviolet) - fast SIMD computations.
 
 The vector operations performance depends a lot on the optimization level defined for the build. On low or default 
 optimization levels Rust may not use f32 vectorization, so when running benchmarks take care of proper 
