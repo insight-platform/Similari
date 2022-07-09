@@ -1,13 +1,12 @@
 use crate::track::Feature;
 use std::ops::{Mul, Sub};
-use ultraviolet::f32x8;
 
 /// Euclidian distance between two vectors
 pub fn euclidean(f1: &Feature, f2: &Feature) -> f32 {
     let mut acc = 0.0;
-    for i in 0..f1.len().max(f2.len()) {
-        let block1 = if f1.len() > i { f1[i] } else { f32x8::ZERO };
-        let block2 = if f2.len() > i { f2[i] } else { f32x8::ZERO };
+    for i in 0..f1.len().min(f2.len()) {
+        let block1 = &f1[i]; //if f1.len() > i { f1[i] } else { f32x8::ZERO };
+        let block2 = &f2[i]; //if f2.len() > i { f2[i] } else { f32x8::ZERO };
         let res = block1.sub(block2);
         let res = res.mul(res);
         acc += res.reduce_add();
@@ -18,9 +17,9 @@ pub fn euclidean(f1: &Feature, f2: &Feature) -> f32 {
 /// Cosine distance between two vectors
 pub fn cosine(f1: &Feature, f2: &Feature) -> f32 {
     let mut divided = 0.0;
-    for i in 0..f1.len().max(f2.len()) {
-        let block1 = if f1.len() > i { f1[i] } else { f32x8::ZERO };
-        let block2 = if f2.len() > i { f2[i] } else { f32x8::ZERO };
+    for i in 0..f1.len().min(f2.len()) {
+        let block1 = &f1[i]; //if f1.len() > i { f1[i] } else { f32x8::ZERO };
+        let block2 = &f2[i]; //if f2.len() > i { f2[i] } else { f32x8::ZERO };
         let res = block1.mul(block2);
         divided += res.reduce_add();
     }
