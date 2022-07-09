@@ -46,8 +46,8 @@ mod tests {
 
     #[test]
     fn euclidean_distances() {
-        let v1 = Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]);
-        let v2 = Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]);
+        let v1 = dbg!(Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]));
+        let v2 = dbg!(Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]));
         let d = euclidean(&v1, &v1);
         assert!(d.abs() < EPS);
 
@@ -57,9 +57,9 @@ mod tests {
 
     #[test]
     fn cosine_distances() {
-        let v1 = Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]);
-        let v2 = Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]);
-        let v3 = Feature::from_vec(1, 3, vec![-1.0f32, 0.0, 0.0]);
+        let v1 = dbg!(Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]));
+        let v2 = dbg!(Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]));
+        let v3 = dbg!(Feature::from_vec(1, 3, vec![-1.0f32, 0.0, 0.0]));
         let d = cosine(&v1, &v1);
         assert!((d - 1.0).abs() < EPS);
         let d = cosine(&v1, &v3);

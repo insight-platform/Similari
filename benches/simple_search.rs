@@ -91,21 +91,24 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
         );
         assert!(res.is_ok());
     }
+
+    let mut t = Track::new(
+        count as u64 + 1,
+        Some(SimpleMetric::default()),
+        Some(SimpleAttrs::default()),
+        Some(NoopNotifier::default()),
+    );
+
+    let _ = t.add_observation(
+        DEFAULT_FEATURE,
+        1.0,
+        Feature::from_vec(1, vec_len, (0..vec_len).map(|_| rng.sample(&gen)).collect()),
+        SimpleAttributeUpdate {},
+    );
+
+    let t = Arc::new(t);
+
     b.iter(|| {
-        let mut t = Track::new(
-            count as u64 + 1,
-            Some(SimpleMetric::default()),
-            Some(SimpleAttrs::default()),
-            Some(NoopNotifier::default()),
-        );
-
-        let _ = t.add_observation(
-            DEFAULT_FEATURE,
-            1.0,
-            Feature::from_vec(1, vec_len, (0..vec_len).map(|_| rng.sample(&gen)).collect()),
-            SimpleAttributeUpdate {},
-        );
-
-        db.foreign_track_distances(Arc::new(t), DEFAULT_FEATURE, true);
+        db.foreign_track_distances(t.clone(), DEFAULT_FEATURE, true);
     });
 }

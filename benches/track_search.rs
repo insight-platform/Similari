@@ -34,23 +34,25 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
             assert!(res.is_ok());
         }
     }
-    b.iter(|| {
-        let mut t = Track::new(
-            count as u64 + 1,
-            Some(UnboundMetric::default()),
-            Some(UnboundAttrs::default()),
-            Some(NoopNotifier::default()),
-        );
-        for _j in 0..track_len {
-            let _ = t.add_observation(
-                DEFAULT_FEATURE,
-                1.0,
-                Feature::from_vec(1, vec_len, (0..vec_len).map(|_| rng.sample(&gen)).collect()),
-                UnboundAttributeUpdate {},
-            );
-        }
 
-        db.foreign_track_distances(Arc::new(t), DEFAULT_FEATURE, true);
+    let mut t = Track::new(
+        count as u64 + 1,
+        Some(UnboundMetric::default()),
+        Some(UnboundAttrs::default()),
+        Some(NoopNotifier::default()),
+    );
+    for _j in 0..track_len {
+        let _ = t.add_observation(
+            DEFAULT_FEATURE,
+            1.0,
+            Feature::from_vec(1, vec_len, (0..vec_len).map(|_| rng.sample(&gen)).collect()),
+            UnboundAttributeUpdate {},
+        );
+    }
+
+    let t = Arc::new(t);
+    b.iter(move || {
+        db.foreign_track_distances(t.clone(), DEFAULT_FEATURE, true);
     });
 }
 
