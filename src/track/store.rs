@@ -154,17 +154,26 @@ where
                     }
                 }
                 Commands::Distances(track, feature_class, only_baked) => {
+                    let mut capacity = 0;
                     let res = store
                         .lock()
                         .unwrap()
                         .iter()
                         .flat_map(|(_, other)| {
                             if !only_baked {
-                                Some(track.distances(other, feature_class))
+                                let dists = track.distances(other, feature_class);
+                                if let Ok(d) = &dists {
+                                    capacity += d.len()
+                                }
+                                Some(dists)
                             } else {
                                 match other.get_attributes().baked(&other.observations) {
                                     Ok(TrackBakingStatus::Ready) => {
-                                        Some(track.distances(other, feature_class))
+                                        let dists = track.distances(other, feature_class);
+                                        if let Ok(d) = &dists {
+                                            capacity += d.len()
+                                        }
+                                        Some(dists)
                                     }
                                     _ => None,
                                 }
@@ -172,8 +181,8 @@ where
                         })
                         .collect::<Vec<_>>();
 
-                    let mut distances = Vec::default();
-                    let mut errors = Vec::default();
+                    let mut distances = Vec::with_capacity(capacity);
+                    let mut errors = Vec::new();
 
                     for r in res {
                         match r {
@@ -261,7 +270,7 @@ where
     /// * `Err(e)`
     ///
     pub fn find_baked(&mut self) -> Vec<(u64, Result<TrackBakingStatus>)> {
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         for (cmd, _, _) in &mut self.executors {
             cmd.send(Commands::FindBaked).unwrap();
         }
@@ -314,7 +323,7 @@ where
         feature_class: u64,
         only_baked: bool,
     ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let mut errors = Vec::new();
         for (cmd, _, _) in &mut self.executors {
             cmd.send(Commands::Distances(
