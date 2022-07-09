@@ -1,7 +1,7 @@
 use crate::distance::euclidean;
 use crate::track::{
-    AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups, FeatureSpec, Metric,
-    TrackBakingStatus,
+    AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups, FeatureSpec, FromVec,
+    Metric, TrackBakingStatus,
 };
 use anyhow::Result;
 use thiserror::Error;

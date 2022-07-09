@@ -7,18 +7,18 @@ repository = "https://github.com/insight-platform/Similari"
 readme = "README.md"
 keywords = ["machine-learning", "similarity"]
 categories = ["algorithms", "data-structures", "database", "mathematics", "science"]
-version = "0.3.1"
+version = "0.4.1"
 edition = "2021"
 license="Apache-2.0"
 rust-version = "1.62"
 
 [dependencies]
-nalgebra = "0.31.0"
 itertools = "0.10.3"
 anyhow = "1.0.58"
 thiserror = "1.0.31"
 once_cell = "1.12.0"
 num_cpus = "1.13.1"
+ultraviolet = "0.9.0"
 
 [dev-dependencies]
 rand = "0.8.5"
@@ -29,3 +29,5 @@ opt-level = 3
 [profile.release]
 opt-level = 3
 
+[profile.bench]
+opt-level = 3
