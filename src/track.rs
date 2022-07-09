@@ -2,10 +2,10 @@ use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::Errors;
 use anyhow::Result;
 use itertools::Itertools;
-use nalgebra::{Dynamic, OMatrix};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use ultraviolet::f32x8;
 
 pub mod notify;
 pub mod store;
@@ -14,7 +14,51 @@ pub mod voting;
 pub type TrackDistance = (u64, Result<f32>);
 
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
-pub type Feature = OMatrix<f32, Dynamic, Dynamic>;
+pub type Feature = Vec<f32x8>;
+
+pub trait FromVec<V> {
+    fn from_vec(_unused1: usize, _unused2: usize, vec: V) -> Feature;
+}
+
+impl FromVec<Vec<f32>> for Feature {
+    fn from_vec(_unused1: usize, _unused2: usize, vec: Vec<f32>) -> Feature {
+        let mut feature = {
+            let one_more = if vec.len() % INT_FEATURE_SIZE > 0 {
+                1
+            } else {
+                0
+            };
+            Feature::with_capacity(vec.len() / INT_FEATURE_SIZE + one_more)
+        };
+
+        let mut counter = 0;
+        let mut acc: [f32; 8] = [0.0; 8];
+        let mut part = 0;
+        for i in vec {
+            part = counter % INT_FEATURE_SIZE;
+            counter += 1;
+            if part == 0 {
+                acc = [0.0; 8];
+            }
+            acc[part] = i;
+            if part == INT_FEATURE_SIZE - 1 {
+                feature.push(f32x8::new(acc));
+                part = 8;
+            }
+        }
+
+        if part < 8 {
+            feature.push(f32x8::new(acc));
+        }
+        feature
+    }
+}
+
+//impl From<> for Feature {
+//    fn from(f: OMatrix<f32, Dynamic, Dynamic>) -> Self {}
+//}
+
+const INT_FEATURE_SIZE: usize = 8;
 
 /// Feature specification. It is a tuple of confidence (f32) and Feature itself. Such a representation
 /// is used to filter low quality features during the collecting. If the model doesn't provide the confidence
@@ -243,6 +287,7 @@ where
             res?;
             unreachable!();
         }
+
         match self.observations.get_mut(&feature_class) {
             None => {
                 self.observations
@@ -379,7 +424,7 @@ mod tests {
     use crate::distance::euclidean;
     use crate::track::{
         feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, Metric, Track, TrackBakingStatus,
+        FeatureSpec, FromVec, Metric, Track, TrackBakingStatus,
     };
     use crate::EPS;
     use anyhow::Result;

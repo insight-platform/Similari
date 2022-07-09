@@ -5,7 +5,7 @@ extern crate test;
 use rand::{distributions::Uniform, Rng};
 use similari::store;
 use similari::test_stuff::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
-use similari::track::{Feature, Track};
+use similari::track::{Feature, FromVec, Track};
 use std::sync::Arc;
 
 use similari::track::notify::NoopNotifier;

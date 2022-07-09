@@ -505,7 +505,7 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::{
         feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, Metric, NoopNotifier, Track, TrackBakingStatus,
+        FeatureSpec, FromVec, Metric, NoopNotifier, Track, TrackBakingStatus,
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
