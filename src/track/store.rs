@@ -596,7 +596,7 @@ mod tests {
     }
 
     fn vec2(x: f32, y: f32) -> Feature {
-        Feature::from_vec(1, 2, vec![x, y])
+        Feature::from_vec(vec![x, y])
     }
 
     fn current_time_ms() -> u128 {
