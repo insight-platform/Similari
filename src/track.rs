@@ -31,12 +31,10 @@ impl FromVec<Vec<f32>> for Feature {
             Feature::with_capacity(vec.len() / INT_FEATURE_SIZE + one_more)
         };
 
-        let mut counter = 0;
         let mut acc: [f32; 8] = [0.0; 8];
         let mut part = 0;
-        for i in vec {
+        for (counter, i) in vec.into_iter().enumerate() {
             part = counter % INT_FEATURE_SIZE;
-            counter += 1;
             if part == 0 {
                 acc = [0.0; 8];
             }

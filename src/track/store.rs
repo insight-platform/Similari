@@ -60,12 +60,9 @@ where
     num_shards: usize,
     #[allow(clippy::type_complexity)]
     stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
+    receiver: Receiver<Results>,
     #[allow(clippy::type_complexity)]
-    executors: Vec<(
-        Sender<Commands<A, M, U, N>>,
-        Receiver<Results>,
-        JoinHandle<()>,
-    )>,
+    executors: Vec<(Sender<Commands<A, M, U, N>>, JoinHandle<()>)>,
 }
 
 impl<A, U, M, N> Drop for TrackStore<A, U, M, N>
@@ -77,14 +74,13 @@ where
 {
     fn drop(&mut self) {
         let executors = mem::take(&mut self.executors);
-        for (s, r, j) in executors {
+        for (s, j) in executors {
             s.send(Commands::Drop).unwrap();
-            let res = r.recv().unwrap();
+            let res = self.receiver.recv().unwrap();
             match res {
                 Results::Dropped => {
                     j.join().unwrap();
                     drop(s);
-                    drop(r);
                 }
                 other => {
                     dbg!(other);
@@ -224,8 +220,10 @@ where
                 .collect::<Vec<_>>(),
         );
         let my_stores = stores.clone();
+        let (results_sender, results_receiver) = std::sync::mpsc::channel::<Results>();
 
         Self {
+            receiver: results_receiver,
             num_shards: shards,
             notifier: if let Some(notifier) = notifier {
                 notifier
@@ -249,13 +247,17 @@ where
                     .map(|s| {
                         let (commands_sender, commands_receiver) =
                             std::sync::mpsc::channel::<Commands<A, M, U, N>>();
-                        let (results_sender, results_receiver) =
-                            std::sync::mpsc::channel::<Results>();
                         let stores = stores.clone();
+                        let thread_results_sender = results_sender.clone();
                         let thread = thread::spawn(move || {
-                            Self::handle_store_ops(stores, s, commands_receiver, results_sender);
+                            Self::handle_store_ops(
+                                stores,
+                                s,
+                                commands_receiver,
+                                thread_results_sender,
+                            );
                         });
-                        (commands_sender, results_receiver, thread)
+                        (commands_sender, thread)
                     })
                     .collect()
             },
@@ -271,11 +273,11 @@ where
     ///
     pub fn find_baked(&mut self) -> Vec<(u64, Result<TrackBakingStatus>)> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
-        for (cmd, _, _) in &mut self.executors {
+        for (cmd, _) in &mut self.executors {
             cmd.send(Commands::FindBaked).unwrap();
         }
-        for (_, res, _) in &mut self.executors {
-            let res = res.recv().unwrap();
+        for (_, _) in &mut self.executors {
+            let res = self.receiver.recv().unwrap();
             match res {
                 Results::BakedStatus(r) => {
                     results.extend(r);
@@ -325,7 +327,7 @@ where
     ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let mut errors = Vec::new();
-        for (cmd, _, _) in &mut self.executors {
+        for (cmd, _) in &mut self.executors {
             cmd.send(Commands::Distances(
                 track.clone(),
                 feature_class,
@@ -333,8 +335,8 @@ where
             ))
             .unwrap();
         }
-        for (_, res, _) in &mut self.executors {
-            let res = res.recv().unwrap();
+        for (_, _) in &mut self.executors {
+            let res = self.receiver.recv().unwrap();
             match res {
                 Results::Distance(r, e) => {
                     results.extend(r);
