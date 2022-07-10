@@ -11,18 +11,23 @@ use std::sync::Arc;
 use test::Bencher;
 
 #[bench]
-fn simple_0512_001k(b: &mut Bencher) {
+fn simple_0512_0001k(b: &mut Bencher) {
     bench_capacity_len(512, 1000, b);
 }
 
 #[bench]
-fn simple_0512_010k(b: &mut Bencher) {
+fn simple_0512_0010k(b: &mut Bencher) {
     bench_capacity_len(512, 10000, b);
 }
 
 #[bench]
-fn simple_0512_100k(b: &mut Bencher) {
+fn simple_0512_0100k(b: &mut Bencher) {
     bench_capacity_len(512, 100000, b);
+}
+
+#[bench]
+fn simple_0512_1000k(b: &mut Bencher) {
+    bench_capacity_len(512, 1000000, b);
 }
 
 #[bench]
@@ -86,7 +91,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             i as u64,
             DEFAULT_FEATURE,
             1.0,
-            Feature::from_vec(1, vec_len, (0..vec_len).map(|_| rng.sample(&gen)).collect()),
+            Feature::from_vec((0..vec_len).map(|_| rng.sample(&gen)).collect()),
             SimpleAttributeUpdate {},
         );
         assert!(res.is_ok());
@@ -102,7 +107,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
     let _ = t.add_observation(
         DEFAULT_FEATURE,
         1.0,
-        Feature::from_vec(1, vec_len, (0..vec_len).map(|_| rng.sample(&gen)).collect()),
+        Feature::from_vec((0..vec_len).map(|_| rng.sample(&gen)).collect()),
         SimpleAttributeUpdate {},
     );
 

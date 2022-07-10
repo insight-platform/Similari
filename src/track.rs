@@ -17,11 +17,11 @@ pub type TrackDistance = (u64, Result<f32>);
 pub type Feature = Vec<f32x8>;
 
 pub trait FromVec<V> {
-    fn from_vec(_unused1: usize, _unused2: usize, vec: V) -> Feature;
+    fn from_vec(vec: V) -> Feature;
 }
 
 impl FromVec<Vec<f32>> for Feature {
-    fn from_vec(_unused1: usize, _unused2: usize, vec: Vec<f32>) -> Feature {
+    fn from_vec(vec: Vec<f32>) -> Feature {
         let mut feature = {
             let one_more = if vec.len() % INT_FEATURE_SIZE > 0 {
                 1
@@ -487,7 +487,7 @@ mod tests {
         t1.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates {},
         )?;
 
@@ -495,7 +495,7 @@ mod tests {
         t2.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         )?;
 
@@ -512,7 +512,7 @@ mod tests {
         t2.add_observation(
             0,
             0.2,
-            Feature::from_vec(1, 3, vec![1f32, 1.0f32, 0.0]),
+            Feature::from_vec(vec![1f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         )?;
 
@@ -532,7 +532,7 @@ mod tests {
         t1.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates {},
         )?;
 
@@ -540,7 +540,7 @@ mod tests {
         t2.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         )?;
         let r = t1.merge(&t2, &vec![0]);
@@ -555,7 +555,7 @@ mod tests {
         t1.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates {},
         )?;
 
@@ -563,7 +563,7 @@ mod tests {
         t2.add_observation(
             1,
             0.3,
-            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         )?;
         let r = t1.merge(&t2, &vec![1]);
@@ -650,7 +650,7 @@ mod tests {
         t1.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             TimeAttrUpdates { time: 2 },
         )?;
 
@@ -658,7 +658,7 @@ mod tests {
         t2.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             TimeAttrUpdates { time: 3 },
         )?;
         t2.track_id = 2;
@@ -673,7 +673,7 @@ mod tests {
         t3.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             TimeAttrUpdates { time: 1 },
         )?;
 
@@ -688,14 +688,14 @@ mod tests {
         t1.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates {},
         )?;
 
         t1.add_observation(
             1,
             0.3,
-            Feature::from_vec(1, 3, vec![0f32, 1.0f32, 0.0]),
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         )?;
         let mut classes = t1.get_feature_classes();
@@ -789,7 +789,7 @@ mod tests {
         let res = t1.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates { ignore: false },
         );
         assert!(res.is_ok());
@@ -798,7 +798,7 @@ mod tests {
         let res = t1.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates { ignore: true },
         );
         assert!(res.is_err());
@@ -820,7 +820,7 @@ mod tests {
         let res = t2.add_observation(
             0,
             0.3,
-            Feature::from_vec(1, 3, vec![1f32, 0.0, 0.0]),
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
             DefaultAttrUpdates { ignore: false },
         );
         assert!(res.is_ok());
