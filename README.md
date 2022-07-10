@@ -43,7 +43,7 @@ Objects in Similari index support following features:
 * **Track lifecycle** - object is represented in Similarity by its lifetime (track) - it appears, evolves and 
   disappears. During the lifetime object evolves according to its behavioral properties (attributes, and feature 
   observations).
-**Feature Observation** - Similari assumes that track is observed by external observer entity that monitors its 
+* **Feature Observation** - Similari assumes that track is observed by external observer entity that monitors its 
   features multiple times. Those features are presented by vectors or matrices of float numbers. When the 
   observation happened, the track is updated with gathered features. Later feature observations are used to find 
   similar tracks in the index.
@@ -67,9 +67,23 @@ space. If the attributes of two tracks are not compatible, their distance calcul
 To keep the calculations performant the crate uses:
 * [ultraviolet](https://crates.io/crates/ultraviolet) - fast SIMD computations.
 
+Parallel computations are implemented with index sharding and parallel computations based on dedicated thread workers 
+pool.
+
 The vector operations performance depends a lot on the optimization level defined for the build. On low or default 
 optimization levels Rust may not use f32 vectorization, so when running benchmarks take care of proper 
 optimization levels configured.
+
+### Rust optimizations
+
+Use `RUSTFLAGS="-C target-cpu=native"` to enable all cpu features like AVX, AVX2, etc. It is beneficial to ultraviolet.
+
+Alternatively you can add build instructions to `./cargo/config`:
+
+```
+[build]
+rustflags = "-C target-cpu=native"
+```
 
 Take a look at [benchmarks](benches) for numbers.
 
