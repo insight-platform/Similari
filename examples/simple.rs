@@ -7,6 +7,10 @@ use similari::voting::Voting;
 use std::sync::Arc;
 
 fn main() {
+    if cfg!(target_feature = "avx2") {
+        eprintln!("AVX2 is on");
+    }
+
     const DEFAULT_FEATURE: u64 = 0;
     let mut db = store::TrackStore::new(
         Some(SimpleMetric::default()),

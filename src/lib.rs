@@ -1,7 +1,7 @@
 //!
 //! # Similari
 //!
-//! The purpose of the crate is to provide tools to build in-memory vector (feature) similarity engines.
+//! The purpose of the crate is to provide tools to config in-memory vector (feature) similarity engines.
 //! Similarity calculation is an important resource demanding task broadly used in machine learning and AI systems.
 //!
 //! Vectors (or features) in similarity engines are compared by calculation of n-dimensional distances - Euclidian, Cosine or another one.
@@ -12,7 +12,7 @@
 //! same feature kinds collected during the object or phenomenon lifecycle. Such kind of systems are often used in video processing or other
 //! systems where observer receives fuzzy, unstable or time-changing observation results.
 //!
-//! The crate provides the necessary primitives to gather tracks, build track storages, find similar tracks, and merge them. The crate doesn't provide
+//! The crate provides the necessary primitives to gather tracks, config track storages, find similar tracks, and merge them. The crate doesn't provide
 //! any persistence layer yet.
 //!
 //! ## Performance
@@ -21,7 +21,7 @@
 //! * [rayon](https://docs.rs/rayon/latest/rayon/) - most of track storage operations are parallelized calculations;
 //! * [nalgebra](https://nalgebra.org/) - fast linear algebra library that uses simd optimization (and GPU acceleration, which is not used in Similari right now).
 //!
-//! The performance of `nalgebra` depends a lot of the optimization level defined for the build. When lower or default optimization levels in use
+//! The performance of `nalgebra` depends a lot of the optimization level defined for the config. When lower or default optimization levels in use
 //! Rust may not use f32 vectorization, so the performance may be far from the perfect.
 //!
 //! When running benchmarks take care of proper optimization levels configured. Levels 2 and 3 will lead to best results.

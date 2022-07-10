@@ -136,7 +136,7 @@ pub trait AttributeMatch<A>: Default + Send + Sync + Clone + 'static {
 
     /// The method is used by storage to determine when track is ready/not ready/wasted. Look at [TrackBakingStatus](TrackBakingStatus).
     ///
-    /// It uses attribute information collected across the track build and features information.
+    /// It uses attribute information collected across the track config and features information.
     ///
     /// E.g.
     ///     track is ready when
