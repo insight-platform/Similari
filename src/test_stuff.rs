@@ -58,8 +58,8 @@ impl AttributeMatch<SimpleAttrs> for SimpleAttrs {
 pub struct SimpleMetric;
 
 impl Metric for SimpleMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-        Ok(euclidean(&e1.1, &e2.1))
+    fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+        Some(euclidean(&e1.1, &e2.1))
     }
 
     fn optimize(
@@ -103,8 +103,8 @@ impl AttributeMatch<UnboundAttrs> for UnboundAttrs {
 pub struct UnboundMetric;
 
 impl Metric for UnboundMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-        Ok(euclidean(&e1.1, &e2.1))
+    fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+        Some(euclidean(&e1.1, &e2.1))
     }
 
     fn optimize(

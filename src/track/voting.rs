@@ -1,5 +1,6 @@
 pub mod topn;
 
+use crate::track::FeatureDistance;
 use anyhow::Result;
 
 /// Trait to implement distance voting engines.
@@ -16,5 +17,5 @@ pub trait Voting<R> {
     ///   * `.0` is the track_id
     ///   * `.1` is the distance
     ///
-    fn winners(&self, distances: &[(u64, Result<f32>)]) -> Vec<R>;
+    fn winners(&self, distances: &[FeatureDistance]) -> Vec<R>;
 }

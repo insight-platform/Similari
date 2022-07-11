@@ -11,7 +11,7 @@ pub mod notify;
 pub mod store;
 pub mod voting;
 
-pub type TrackDistance = (u64, Result<f32>);
+pub type FeatureDistance = (u64, Option<f32>);
 
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
 pub type Feature = Vec<f32x8>;
@@ -71,7 +71,7 @@ pub trait Metric: Default + Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
     /// The output is `Result<f32>` because the method may return distance calculation error if the distance
     /// cannot be computed for two features. E.g. when one of them has low confidence.
-    fn distance(feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32>;
+    fn distance(feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32>;
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
     /// two tracks are merged.
@@ -393,7 +393,7 @@ where
     /// the same for all results and used in higher level operations. `Result<f32>` is `Ok(f32)` when
     /// the distance calculated by `Metric` well, `Err(e)` when `Metric` is unable to calculate the distance.
     ///
-    pub fn distances(&self, other: &Self, feature_class: u64) -> Result<Vec<TrackDistance>> {
+    pub fn distances(&self, other: &Self, feature_class: u64) -> Result<Vec<FeatureDistance>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {
@@ -457,8 +457,8 @@ mod tests {
     #[derive(Default, Clone)]
     struct DefaultMetric;
     impl Metric for DefaultMetric {
-        fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-            Ok(euclidean(&e1.1, &e2.1))
+        fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+            Some(euclidean(&e1.1, &e2.1))
         }
 
         fn optimize(
@@ -628,8 +628,8 @@ mod tests {
         #[derive(Default, Clone)]
         struct TimeMetric;
         impl Metric for TimeMetric {
-            fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-                Ok(euclidean(&e1.1, &e2.1))
+            fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+                Some(euclidean(&e1.1, &e2.1))
             }
 
             fn optimize(
@@ -765,8 +765,8 @@ mod tests {
         #[derive(Default, Clone)]
         struct DefaultMetric;
         impl Metric for DefaultMetric {
-            fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-                Ok(euclidean(&e1.1, &e2.1))
+            fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+                Some(euclidean(&e1.1, &e2.1))
             }
 
             fn optimize(
