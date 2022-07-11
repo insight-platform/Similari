@@ -1,6 +1,6 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    AttributeMatch, AttributeUpdate, Feature, Metric, Track, TrackBakingStatus, TrackDistance,
+    AttributeMatch, AttributeUpdate, Feature, FeatureDistance, Metric, Track, TrackBakingStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -26,13 +26,13 @@ where
 
 #[derive(Debug)]
 enum Results {
-    Distance(Vec<TrackDistance>, Vec<TrackDistanceError>),
+    Distance(Vec<FeatureDistance>, Vec<TrackDistanceError>),
     BakedStatus(Vec<(u64, Result<TrackBakingStatus>)>),
     Dropped,
 }
 
 /// Auxiliary type to express distance calculation errors
-pub type TrackDistanceError = Result<Vec<(u64, Result<f32>)>>;
+pub type TrackDistanceError = Result<Vec<(u64, Option<f32>)>>;
 
 /// Track store container with accelerated similarity operations.
 ///
@@ -82,8 +82,7 @@ where
                     j.join().unwrap();
                     drop(s);
                 }
-                other => {
-                    dbg!(other);
+                _ => {
                     unreachable!();
                 }
             }
@@ -323,7 +322,7 @@ where
         track: Arc<Track<A, M, U, N>>,
         feature_class: u64,
         only_baked: bool,
-    ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
+    ) -> (Vec<FeatureDistance>, Vec<TrackDistanceError>) {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let mut errors = Vec::new();
         for (cmd, _) in &mut self.executors {
@@ -334,11 +333,19 @@ where
             ))
             .unwrap();
         }
+
+        //let mut index = 0;
         for (_, _) in &mut self.executors {
             let res = self.receiver.recv().unwrap();
             match res {
                 Results::Distance(r, e) => {
-                    results.extend(r);
+                    // let len = r.len();
+                    // if results.len() - index < len {
+                    //     results.resize(index + len, Default::default());
+                    //     results[index..].clone_from_slice(&r);
+                    //     index += len;
+                    // }
+                    results.extend_from_slice(&r);
                     errors.extend(e);
                 }
                 _ => {
@@ -347,6 +354,7 @@ where
             }
         }
         (results, errors)
+        //(results.into_iter().flatten().collect(), errors)
     }
 
     /// Calculates track distances for a track within the store
@@ -363,7 +371,7 @@ where
         track_id: u64,
         feature_class: u64,
         only_baked: bool,
-    ) -> (Vec<TrackDistance>, Vec<TrackDistanceError>) {
+    ) -> (Vec<FeatureDistance>, Vec<TrackDistanceError>) {
         let track = self.fetch_tracks(&vec![track_id]).pop();
         if track.is_none() {
             return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
@@ -577,8 +585,8 @@ mod tests {
     }
 
     impl Metric for TimeMetric {
-        fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Result<f32> {
-            Ok(euclidean(&e1.1, &e2.1))
+        fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+            Some(euclidean(&e1.1, &e2.1))
         }
 
         fn optimize(
@@ -747,7 +755,7 @@ mod tests {
         let (dists, errs) = store.owned_track_distances(0, 0, false);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].0, 1);
-        assert!(dists[0].1.is_ok());
+        assert!(dists[0].1.is_some());
         assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
@@ -780,7 +788,7 @@ mod tests {
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].0, 1);
-        assert!(dists[0].1.is_ok());
+        assert!(dists[0].1.is_some());
         assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
@@ -830,7 +838,7 @@ mod tests {
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false);
         assert_eq!(dists.len(), 2);
         assert_eq!(dists[0].0, 1);
-        assert!(dists[0].1.is_ok());
+        assert!(dists[0].1.is_some());
         assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!((dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
         assert!(errs.is_empty());

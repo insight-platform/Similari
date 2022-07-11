@@ -1,3 +1,4 @@
+use crate::track::FeatureDistance;
 use crate::voting::Voting;
 use anyhow::Result;
 use itertools::Itertools;
@@ -51,11 +52,11 @@ impl TopNVotingElt {
 }
 
 impl Voting<TopNVotingElt> for TopNVoting {
-    fn winners(&self, distances: &[(u64, Result<f32>)]) -> Vec<TopNVotingElt> {
+    fn winners(&self, distances: &[FeatureDistance]) -> Vec<TopNVotingElt> {
         let mut tracks: Vec<_> = distances
             .iter()
             .filter(|(_, e)| match e {
-                Ok(e) => *e <= self.max_distance,
+                Some(e) => *e <= self.max_distance,
                 _ => false,
             })
             .map(|(track, _)| track)
@@ -89,16 +90,16 @@ mod tests {
             min_votes: 1,
         };
 
-        let candidates = v.winners(&vec![(1, Ok(0.2))]);
+        let candidates = v.winners(&vec![(1, Some(0.2))]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
-        let candidates = v.winners(&vec![(1, Ok(0.2)), (1, Ok(0.3))]);
+        let candidates = v.winners(&vec![(1, Some(0.2)), (1, Some(0.3))]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 2)]);
 
-        let candidates = v.winners(&vec![(1, Ok(0.2)), (1, Ok(0.4))]);
+        let candidates = v.winners(&vec![(1, Some(0.2)), (1, Some(0.4))]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
-        let mut candidates = v.winners(&vec![(1, Ok(0.2)), (2, Ok(0.2))]);
+        let mut candidates = v.winners(&vec![(1, Some(0.2)), (2, Some(0.2))]);
         candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
         assert_eq!(
             candidates,
@@ -106,18 +107,18 @@ mod tests {
         );
 
         let mut candidates = v.winners(&vec![
-            (1, Ok(0.2)),
-            (1, Ok(0.22)),
-            (2, Ok(0.21)),
-            (2, Ok(0.2)),
-            (3, Ok(0.22)),
-            (3, Ok(0.2)),
-            (4, Ok(0.23)),
-            (4, Ok(0.3)),
-            (5, Ok(0.24)),
-            (5, Ok(0.3)),
-            (6, Ok(0.25)),
-            (6, Ok(0.5)),
+            (1, Some(0.2)),
+            (1, Some(0.22)),
+            (2, Some(0.21)),
+            (2, Some(0.2)),
+            (3, Some(0.22)),
+            (3, Some(0.2)),
+            (4, Some(0.23)),
+            (4, Some(0.3)),
+            (5, Some(0.24)),
+            (5, Some(0.3)),
+            (6, Some(0.25)),
+            (6, Some(0.5)),
         ]);
         candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
         assert_eq!(
