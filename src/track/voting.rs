@@ -1,7 +1,6 @@
 pub mod topn;
 
 use crate::track::FeatureDistance;
-use anyhow::Result;
 
 /// Trait to implement distance voting engines.
 ///
