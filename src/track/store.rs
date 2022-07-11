@@ -181,7 +181,7 @@ where
 
                     for r in res {
                         match r {
-                            Ok(dists) => distances.extend(dists),
+                            Ok(dists) => distances.extend_from_slice(&dists),
                             e => errors.push(e),
                         }
                     }
