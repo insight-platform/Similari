@@ -4,9 +4,9 @@ use crate::track::{
 };
 use crate::Errors;
 use anyhow::Result;
+use crossbeam::channel::{Receiver, Sender};
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::{mem, thread};
@@ -220,7 +220,7 @@ where
                 .collect::<Vec<_>>(),
         );
         let my_stores = stores.clone();
-        let (results_sender, results_receiver) = std::sync::mpsc::channel::<Results>();
+        let (results_sender, results_receiver) = crossbeam::channel::unbounded();
 
         Self {
             receiver: results_receiver,
@@ -245,8 +245,7 @@ where
                 (0..shards)
                     .into_iter()
                     .map(|s| {
-                        let (commands_sender, commands_receiver) =
-                            std::sync::mpsc::channel::<Commands<A, M, U, N>>();
+                        let (commands_sender, commands_receiver) = crossbeam::channel::bounded(1);
                         let stores = stores.clone();
                         let thread_results_sender = results_sender.clone();
                         let thread = thread::spawn(move || {
