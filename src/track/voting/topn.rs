@@ -1,6 +1,5 @@
 use crate::track::FeatureDistance;
 use crate::voting::Voting;
-use anyhow::Result;
 use itertools::Itertools;
 
 /// TopN winners voting engine that selects Top N vectors with most close distances.
