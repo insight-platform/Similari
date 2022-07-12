@@ -118,7 +118,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             t.clone(),
             DEFAULT_FEATURE,
             true,
-            Some(DistanceFilter::LE(0.5)),
+            None),
         );
     });
 }
