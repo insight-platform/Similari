@@ -114,11 +114,6 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
     let t = Arc::new(t);
 
     b.iter(|| {
-        db.foreign_track_distances(
-            t.clone(),
-            DEFAULT_FEATURE,
-            true,
-            None),
-        );
+        db.foreign_track_distances(t.clone(), DEFAULT_FEATURE, true, None);
     });
 }
