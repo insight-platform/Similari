@@ -339,12 +339,6 @@ where
             let res = self.receiver.recv().unwrap();
             match res {
                 Results::Distance(r, e) => {
-                    // let len = r.len();
-                    // if results.len() - index < len {
-                    //     results.resize(index + len, Default::default());
-                    //     results[index..].clone_from_slice(&r);
-                    //     index += len;
-                    // }
                     results.extend_from_slice(&r);
                     errors.extend(e);
                 }
