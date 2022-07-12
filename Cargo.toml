@@ -18,7 +18,7 @@ anyhow = "1.0.58"
 thiserror = "1.0.31"
 once_cell = "1.12.0"
 num_cpus = "1.13.1"
-ultraviolet = "0.9.0"
+packed_simd = { version = "0.3.8", package = "packed_simd_2" }
 crossbeam = "0.8.1"
 
 [dev-dependencies]

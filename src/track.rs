@@ -2,10 +2,10 @@ use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::Errors;
 use anyhow::Result;
 use itertools::Itertools;
+use packed_simd::f32x16 as SimdF32;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use ultraviolet::f32x8;
 
 pub mod notify;
 pub mod store;
@@ -20,7 +20,7 @@ pub enum DistanceFilter {
 }
 
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
-pub type Feature = Vec<f32x8>;
+pub type Feature = Vec<SimdF32>;
 
 pub trait FromVec<V> {
     fn from_vec(vec: V) -> Feature;
@@ -46,23 +46,25 @@ impl FromVec<Vec<f32>> for Feature {
             }
             acc[part] = i;
             if part == INT_FEATURE_SIZE - 1 {
-                feature.push(f32x8::new(acc));
-                part = 8;
+                feature.push(SimdF32::new(
+                    acc[0], acc[1], acc[2], acc[3], acc[4], acc[5], acc[6], acc[7], acc[8], acc[9],
+                    acc[10], acc[11], acc[12], acc[13], acc[14], acc[15],
+                ));
+                part = INT_FEATURE_SIZE;
             }
         }
 
-        if part < 8 {
-            feature.push(f32x8::new(acc));
+        if part < INT_FEATURE_SIZE {
+            feature.push(SimdF32::new(
+                acc[0], acc[1], acc[2], acc[3], acc[4], acc[5], acc[6], acc[7], acc[8], acc[9],
+                acc[10], acc[11], acc[12], acc[13], acc[14], acc[15],
+            ));
         }
         feature
     }
 }
 
-//impl From<> for Feature {
-//    fn from(f: OMatrix<f32, Dynamic, Dynamic>) -> Self {}
-//}
-
-const INT_FEATURE_SIZE: usize = 8;
+const INT_FEATURE_SIZE: usize = 16;
 
 /// Feature specification. It is a tuple of confidence (f32) and Feature itself. Such a representation
 /// is used to filter low quality features during the collecting. If the model doesn't provide the confidence
