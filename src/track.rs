@@ -5,7 +5,7 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use ultraviolet::f32x4;
+use ultraviolet::f32x8;
 
 pub mod notify;
 pub mod store;
@@ -20,7 +20,7 @@ pub enum DistanceFilter {
 }
 
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
-pub type Feature = Vec<f32x4>;
+pub type Feature = Vec<f32x8>;
 
 pub trait FromVec<V> {
     fn from_vec(vec: V) -> Feature;
@@ -46,13 +46,13 @@ impl FromVec<Vec<f32>> for Feature {
             }
             acc[part] = i;
             if part == INT_FEATURE_SIZE - 1 {
-                feature.push(f32x4::new(acc));
+                feature.push(f32x8::new(acc));
                 part = 8;
             }
         }
 
         if part < 8 {
-            feature.push(f32x4::new(acc));
+            feature.push(f32x8::new(acc));
         }
         feature
     }
@@ -62,7 +62,7 @@ impl FromVec<Vec<f32>> for Feature {
 //    fn from(f: OMatrix<f32, Dynamic, Dynamic>) -> Self {}
 //}
 
-const INT_FEATURE_SIZE: usize = 4;
+const INT_FEATURE_SIZE: usize = 8;
 
 /// Feature specification. It is a tuple of confidence (f32) and Feature itself. Such a representation
 /// is used to filter low quality features during the collecting. If the model doesn't provide the confidence
