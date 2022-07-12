@@ -6,7 +6,7 @@ use rand::{distributions::Uniform, Rng};
 use similari::store;
 use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::track::notify::NoopNotifier;
-use similari::track::{DistanceFilter, Feature, FromVec, Track};
+use similari::track::{Feature, FromVec, Track};
 use std::sync::Arc;
 use test::Bencher;
 
