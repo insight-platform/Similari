@@ -72,9 +72,7 @@ fn main() {
 
     assert!(res.is_ok());
 
-    let (dists, errs) = db.foreign_track_distances(Arc::new(ext_track), 0, true);
-
-    assert_eq!(dists.len(), 2);
+    let (dists, errs) = db.foreign_track_distances(Arc::new(ext_track), 0, true, None);
     assert_eq!(errs.len(), 0);
 
     eprintln!("Distances: {:?}", &dists);

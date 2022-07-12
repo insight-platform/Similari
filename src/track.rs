@@ -13,6 +13,12 @@ pub mod voting;
 
 pub type FeatureDistance = (u64, Option<f32>);
 
+#[derive(Clone)]
+pub enum DistanceFilter {
+    LE(f32),
+    GE(f32),
+}
+
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
 pub type Feature = Vec<f32x8>;
 
@@ -393,7 +399,12 @@ where
     /// the same for all results and used in higher level operations. `Result<f32>` is `Ok(f32)` when
     /// the distance calculated by `Metric` well, `Err(e)` when `Metric` is unable to calculate the distance.
     ///
-    pub fn distances(&self, other: &Self, feature_class: u64) -> Result<Vec<FeatureDistance>> {
+    pub fn distances(
+        &self,
+        other: &Self,
+        feature_class: u64,
+        filter: &Option<DistanceFilter>,
+    ) -> Result<Vec<FeatureDistance>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {
@@ -405,6 +416,17 @@ where
                     .iter()
                     .cartesian_product(right.iter())
                     .map(|(l, r)| (other.track_id, M::distance(feature_class, l, r)))
+                    .filter(|(_, d)| {
+                        if d.is_none() {
+                            true
+                        } else {
+                            match filter {
+                                Some(DistanceFilter::LE(max_dist)) => d.unwrap() <= *max_dist,
+                                Some(DistanceFilter::GE(min_dist)) => d.unwrap() >= *min_dist,
+                                None => true,
+                            }
+                        }
+                    })
                     .collect()),
                 _ => Err(Errors::ObservationForClassNotFound(
                     self.track_id,
@@ -499,12 +521,12 @@ mod tests {
             DefaultAttrUpdates {},
         )?;
 
-        let dists = t1.distances(&t1, 0);
+        let dists = t1.distances(&t1, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
         assert!(*dists[0].1.as_ref().unwrap() < EPS);
 
-        let dists = t1.distances(&t2, 0);
+        let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
         assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
@@ -518,7 +540,7 @@ mod tests {
 
         assert_eq!(t2.observations.get(&0).unwrap().len(), 2);
 
-        let dists = t1.distances(&t2, 0);
+        let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 2);
         assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
@@ -663,7 +685,7 @@ mod tests {
         )?;
         t2.track_id = 2;
 
-        let dists = t1.distances(&t2, 0);
+        let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
         assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
@@ -677,7 +699,7 @@ mod tests {
             TimeAttrUpdates { time: 1 },
         )?;
 
-        let dists = t1.distances(&t3, 0);
+        let dists = t1.distances(&t3, 0, &None);
         assert!(dists.is_err());
         Ok(())
     }
