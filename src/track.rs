@@ -5,7 +5,7 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use ultraviolet::f32x8;
+use ultraviolet::f32x4;
 
 pub mod notify;
 pub mod store;
@@ -20,7 +20,7 @@ pub enum DistanceFilter {
 }
 
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
-pub type Feature = Vec<f32x8>;
+pub type Feature = Vec<f32x4>;
 
 pub trait FromVec<V> {
     fn from_vec(vec: V) -> Feature;
@@ -37,22 +37,22 @@ impl FromVec<Vec<f32>> for Feature {
             Feature::with_capacity(vec.len() / INT_FEATURE_SIZE + one_more)
         };
 
-        let mut acc: [f32; 8] = [0.0; 8];
+        let mut acc: [f32; INT_FEATURE_SIZE] = [0.0; INT_FEATURE_SIZE];
         let mut part = 0;
         for (counter, i) in vec.into_iter().enumerate() {
             part = counter % INT_FEATURE_SIZE;
             if part == 0 {
-                acc = [0.0; 8];
+                acc = [0.0; INT_FEATURE_SIZE];
             }
             acc[part] = i;
             if part == INT_FEATURE_SIZE - 1 {
-                feature.push(f32x8::new(acc));
+                feature.push(f32x4::new(acc));
                 part = 8;
             }
         }
 
         if part < 8 {
-            feature.push(f32x8::new(acc));
+            feature.push(f32x4::new(acc));
         }
         feature
     }
@@ -62,7 +62,7 @@ impl FromVec<Vec<f32>> for Feature {
 //    fn from(f: OMatrix<f32, Dynamic, Dynamic>) -> Self {}
 //}
 
-const INT_FEATURE_SIZE: usize = 8;
+const INT_FEATURE_SIZE: usize = 4;
 
 /// Feature specification. It is a tuple of confidence (f32) and Feature itself. Such a representation
 /// is used to filter low quality features during the collecting. If the model doesn't provide the confidence
@@ -443,8 +443,8 @@ where
 mod tests {
     use crate::distance::euclidean;
     use crate::track::{
-        feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, FromVec, Metric, Track, TrackBakingStatus,
+        feat_confidence_cmp, AttributeMatch, AttributeUpdate, DistanceFilter, Feature,
+        FeatureObservationsGroups, FeatureSpec, FromVec, Metric, Track, TrackBakingStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -527,6 +527,15 @@ mod tests {
         assert!(*dists[0].1.as_ref().unwrap() < EPS);
 
         let dists = t1.distances(&t2, 0, &None);
+        let dists = dists.unwrap();
+        assert_eq!(dists.len(), 1);
+        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+
+        let dists = t1.distances(&t2, 0, &Some(DistanceFilter::LE(0.5)));
+        let dists = dists.unwrap();
+        assert_eq!(dists.len(), 0);
+
+        let dists = t1.distances(&t2, 0, &Some(DistanceFilter::GE(1.0)));
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
         assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
