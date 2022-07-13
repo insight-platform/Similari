@@ -1,7 +1,7 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    AttributeMatch, AttributeUpdate, DistanceFilter, Feature, FeatureAttribute, FeatureDistance,
-    FeatureSpec, Metric, Track, TrackBakingStatus,
+    DistanceFilter, Feature, FeatureAttribute, FeatureDistance, FeatureSpec, Metric, Track,
+    TrackAttributes, TrackAttributesUpdate, TrackBakingStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -17,9 +17,9 @@ enum Commands<A, M, U, FA, N>
 where
     FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A, FA>,
+    A: TrackAttributes<A, FA>,
     M: Metric<FA>,
-    U: AttributeUpdate<A>,
+    U: TrackAttributesUpdate<A>,
 {
     Drop,
     FindBaked,
@@ -61,8 +61,8 @@ pub struct TrackStore<A, U, M, FA, N = NoopNotifier>
 where
     FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A, FA>,
-    U: AttributeUpdate<A>,
+    A: TrackAttributes<A, FA>,
+    U: TrackAttributesUpdate<A>,
     M: Metric<FA>,
 {
     attributes: A,
@@ -80,8 +80,8 @@ impl<A, U, M, FA, N> Drop for TrackStore<A, U, M, FA, N>
 where
     FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A, FA>,
-    U: AttributeUpdate<A>,
+    A: TrackAttributes<A, FA>,
+    U: TrackAttributesUpdate<A>,
     M: Metric<FA>,
 {
     fn drop(&mut self) {
@@ -106,8 +106,8 @@ impl<A, U, M, FA, N> Default for TrackStore<A, U, M, FA, N>
 where
     FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A, FA>,
-    U: AttributeUpdate<A>,
+    A: TrackAttributes<A, FA>,
+    U: TrackAttributesUpdate<A>,
     M: Metric<FA>,
 {
     fn default() -> Self {
@@ -121,8 +121,8 @@ impl<A, U, M, FA, N> TrackStore<A, U, M, FA, N>
 where
     FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A, FA>,
-    U: AttributeUpdate<A>,
+    A: TrackAttributes<A, FA>,
+    U: TrackAttributesUpdate<A>,
     M: Metric<FA>,
 {
     #[allow(clippy::type_complexity)]
@@ -550,8 +550,8 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::DistanceFilter::{GE, LE};
     use crate::track::{
-        feat_confidence_cmp, AttributeMatch, AttributeUpdate, FeatureObservationsGroups,
-        FeatureSpec, Metric, NoopNotifier, Track, TrackBakingStatus,
+        feat_confidence_cmp, FeatureObservationsGroups, FeatureSpec, Metric, NoopNotifier, Track,
+        TrackAttributes, TrackAttributesUpdate, TrackBakingStatus,
     };
     use crate::{current_time_ms, Errors, EPS};
     use anyhow::Result;
@@ -571,7 +571,7 @@ mod tests {
         time: u128,
     }
 
-    impl AttributeUpdate<TimeAttrs> for TimeAttrUpdates {
+    impl TrackAttributesUpdate<TimeAttrs> for TimeAttrUpdates {
         fn apply(&self, attrs: &mut TimeAttrs) -> Result<()> {
             attrs.end_time = self.time;
             if attrs.start_time == 0 {
@@ -581,7 +581,7 @@ mod tests {
         }
     }
 
-    impl AttributeMatch<TimeAttrs, f32> for TimeAttrs {
+    impl TrackAttributes<TimeAttrs, f32> for TimeAttrs {
         fn compatible(&self, other: &TimeAttrs) -> bool {
             self.end_time <= other.start_time
         }

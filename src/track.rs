@@ -129,7 +129,9 @@ pub enum TrackBakingStatus {
 ///
 /// When the user implements attributes they has to implement this trait to create a valid attributes object.
 ///
-pub trait AttributeMatch<A, FA: FeatureAttribute>: Default + Send + Sync + Clone + 'static {
+pub trait TrackAttributes<A, FA: FeatureAttribute>:
+    Default + Send + Sync + Clone + 'static
+{
     /// The method is used to evaluate attributes of two tracks to determine whether tracks are compatible
     /// for distance calculation. When the attributes are compatible, the method returns `true`.
     ///
@@ -163,7 +165,7 @@ pub trait AttributeMatch<A, FA: FeatureAttribute>: Default + Send + Sync + Clone
 ///
 /// The trait must be implemented for update struct for specific attributes struct implementation.
 ///
-pub trait AttributeUpdate<A>: Clone + Send + Sync + 'static {
+pub trait TrackAttributesUpdate<A>: Clone + Send + Sync + 'static {
     /// Method is used to update track attributes from update structure.
     ///
     fn apply(&self, attrs: &mut A) -> Result<()>;
@@ -192,9 +194,9 @@ pub struct Track<A, M, U, FA, N = NoopNotifier>
 where
     FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A, FA>,
+    A: TrackAttributes<A, FA>,
     M: Metric<FA>,
-    U: AttributeUpdate<A>,
+    U: TrackAttributesUpdate<A>,
 {
     attributes: A,
     track_id: u64,
@@ -211,9 +213,9 @@ impl<A, M, U, FA, N> Track<A, M, U, FA, N>
 where
     FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A, FA>,
+    A: TrackAttributes<A, FA>,
     M: Metric<FA>,
-    U: AttributeUpdate<A>,
+    U: TrackAttributesUpdate<A>,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
     ///
@@ -475,8 +477,8 @@ where
 mod tests {
     use crate::distance::euclidean;
     use crate::track::{
-        feat_confidence_cmp, AttributeMatch, AttributeUpdate, DistanceFilter, Feature,
-        FeatureObservationsGroups, FeatureSpec, FromVec, Metric, Track, TrackBakingStatus,
+        feat_confidence_cmp, DistanceFilter, Feature, FeatureObservationsGroups, FeatureSpec,
+        FromVec, Metric, Track, TrackAttributes, TrackAttributesUpdate, TrackBakingStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -488,13 +490,13 @@ mod tests {
     #[derive(Default, Clone)]
     pub struct DefaultAttrUpdates;
 
-    impl AttributeUpdate<DefaultAttrs> for DefaultAttrUpdates {
+    impl TrackAttributesUpdate<DefaultAttrs> for DefaultAttrUpdates {
         fn apply(&self, _attrs: &mut DefaultAttrs) -> Result<()> {
             Ok(())
         }
     }
 
-    impl AttributeMatch<DefaultAttrs, f32> for DefaultAttrs {
+    impl TrackAttributes<DefaultAttrs, f32> for DefaultAttrs {
         fn compatible(&self, _other: &DefaultAttrs) -> bool {
             true
         }
@@ -656,7 +658,7 @@ mod tests {
             time: u64,
         }
 
-        impl AttributeUpdate<TimeAttrs> for TimeAttrUpdates {
+        impl TrackAttributesUpdate<TimeAttrs> for TimeAttrUpdates {
             fn apply(&self, attrs: &mut TimeAttrs) -> Result<()> {
                 attrs.end_time = self.time;
                 if attrs.start_time == 0 {
@@ -666,7 +668,7 @@ mod tests {
             }
         }
 
-        impl AttributeMatch<TimeAttrs, f32> for TimeAttrs {
+        impl TrackAttributes<TimeAttrs, f32> for TimeAttrs {
             fn compatible(&self, other: &TimeAttrs) -> bool {
                 self.end_time <= other.start_time
             }
@@ -804,7 +806,7 @@ mod tests {
             ignore: bool,
         }
 
-        impl AttributeUpdate<DefaultAttrs> for DefaultAttrUpdates {
+        impl TrackAttributesUpdate<DefaultAttrs> for DefaultAttrUpdates {
             fn apply(&self, attrs: &mut DefaultAttrs) -> Result<()> {
                 if !self.ignore {
                     attrs.count += 1;
@@ -819,7 +821,7 @@ mod tests {
             }
         }
 
-        impl AttributeMatch<DefaultAttrs, f32> for DefaultAttrs {
+        impl TrackAttributes<DefaultAttrs, f32> for DefaultAttrs {
             fn compatible(&self, _other: &DefaultAttrs) -> bool {
                 true
             }
@@ -971,5 +973,64 @@ mod tests {
         assert_eq!(t1.merge_history, vec![0]);
 
         Ok(())
+    }
+
+    #[test]
+    fn unit_track() {
+        #[derive(Default, Clone)]
+        pub struct UnitAttrs;
+
+        #[derive(Default, Clone)]
+        pub struct UnitAttrUpdates;
+
+        impl TrackAttributesUpdate<UnitAttrs> for UnitAttrUpdates {
+            fn apply(&self, _attrs: &mut UnitAttrs) -> Result<()> {
+                Ok(())
+            }
+        }
+
+        impl TrackAttributes<UnitAttrs, ()> for UnitAttrs {
+            fn compatible(&self, _other: &UnitAttrs) -> bool {
+                true
+            }
+
+            fn merge(&mut self, _other: &UnitAttrs) -> Result<()> {
+                Ok(())
+            }
+
+            fn baked(
+                &self,
+                _observations: &FeatureObservationsGroups<()>,
+            ) -> Result<TrackBakingStatus> {
+                Ok(TrackBakingStatus::Pending)
+            }
+        }
+
+        #[derive(Default, Clone)]
+        struct UnitMetric;
+        impl Metric<()> for UnitMetric {
+            fn distance(
+                _feature_class: u64,
+                e1: &FeatureSpec<()>,
+                e2: &FeatureSpec<()>,
+            ) -> Option<f32> {
+                Some(euclidean(&e1.1, &e2.1))
+            }
+
+            fn optimize(
+                &mut self,
+                _feature_class: &u64,
+                _merge_history: &[u64],
+                features: &mut Vec<FeatureSpec<()>>,
+                _prev_length: usize,
+            ) -> Result<()> {
+                features.sort_by(feat_confidence_cmp);
+                features.truncate(20);
+                Ok(())
+            }
+        }
+
+        let _t1: Track<UnitAttrs, UnitMetric, UnitAttrUpdates, ()> =
+            Track::new(0, None, None, None);
     }
 }

@@ -11,7 +11,7 @@ use similari::store::TrackStore;
 use similari::test_stuff::vec2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
-    AttributeMatch, AttributeUpdate, FeatureObservationsGroups, FeatureSpec, Metric,
+    FeatureObservationsGroups, FeatureSpec, Metric, TrackAttributes, TrackAttributesUpdate,
     TrackBakingStatus,
 };
 use similari::voting::topn::TopNVoting;
@@ -103,7 +103,7 @@ struct CamTrackingAttributesUpdate {
     screen_pos: (u16, u16),
 }
 
-impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
+impl TrackAttributesUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
     fn apply(&self, attrs: &mut CamTrackingAttributes) -> Result<()> {
         // initially, track start time is set to end time
         if attrs.start_time == 0 {
@@ -230,7 +230,7 @@ fn feat_gen() {
     assert!(v1.sub(v2).abs().reduce_add() <= 2.0 * f32x8::splat(drift).reduce_add());
 }
 
-impl AttributeMatch<CamTrackingAttributes, f32> for CamTrackingAttributes {
+impl TrackAttributes<CamTrackingAttributes, f32> for CamTrackingAttributes {
     fn compatible(&self, other: &CamTrackingAttributes) -> bool {
         (self.start_time >= other.end_time || self.end_time <= other.start_time)
             && self.camera_id.get().unwrap() == other.camera_id.get().unwrap()

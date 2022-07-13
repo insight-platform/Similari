@@ -1,7 +1,7 @@
 use crate::distance::euclidean;
 use crate::track::{
-    AttributeMatch, AttributeUpdate, Feature, FeatureAttribute, FeatureObservationsGroups,
-    FeatureSpec, FromVec, Metric, TrackBakingStatus,
+    Feature, FeatureAttribute, FeatureObservationsGroups, FeatureSpec, FromVec, Metric,
+    TrackAttributes, TrackAttributesUpdate, TrackBakingStatus,
 };
 use anyhow::Result;
 use thiserror::Error;
@@ -22,7 +22,7 @@ pub struct SimpleAttrs {
 #[derive(Default, Clone)]
 pub struct SimpleAttributeUpdate;
 
-impl AttributeUpdate<SimpleAttrs> for SimpleAttributeUpdate {
+impl TrackAttributesUpdate<SimpleAttrs> for SimpleAttributeUpdate {
     fn apply(&self, attrs: &mut SimpleAttrs) -> Result<()> {
         if attrs.set {
             return Err(AppError::SetError.into());
@@ -32,7 +32,7 @@ impl AttributeUpdate<SimpleAttrs> for SimpleAttributeUpdate {
     }
 }
 
-impl AttributeMatch<SimpleAttrs, f32> for SimpleAttrs {
+impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
     fn compatible(&self, other: &SimpleAttrs) -> bool {
         self.set && other.set
     }
@@ -79,13 +79,13 @@ pub struct UnboundAttrs;
 #[derive(Default, Clone)]
 pub struct UnboundAttributeUpdate;
 
-impl AttributeUpdate<UnboundAttrs> for UnboundAttributeUpdate {
+impl TrackAttributesUpdate<UnboundAttrs> for UnboundAttributeUpdate {
     fn apply(&self, _attrs: &mut UnboundAttrs) -> Result<()> {
         Ok(())
     }
 }
 
-impl AttributeMatch<UnboundAttrs, f32> for UnboundAttrs {
+impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
     fn compatible(&self, _other: &UnboundAttrs) -> bool {
         true
     }
@@ -123,3 +123,4 @@ pub fn vec2(x: f32, y: f32) -> Feature {
 }
 
 impl FeatureAttribute for f32 {}
+impl FeatureAttribute for () {}
