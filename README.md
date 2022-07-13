@@ -1,9 +1,9 @@
 # Similari
 
+[![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
+
 Similari is a framework that helps build sophisticated tracking systems that collect observable object features and 
 merge them into tracks based on feature vectors.
-
-[![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
 
 The purpose of crate is to provide tools to build sophisticated in-memory objects similarity engines.
 
