@@ -1,4 +1,4 @@
-# Similari - a framework to gather and merge tracks based on features similarity
+# Similari
 
 Similari is a framework that helps build sophisticated tracking systems that collect observable object features and 
 merge them into tracks based on feature vectors.
