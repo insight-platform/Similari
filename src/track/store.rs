@@ -427,7 +427,7 @@ where
     /// # Arguments
     /// * `track_id` - unique Id of the track within the store
     /// * `feature_class` - where the observation will be placed within the track
-    /// * `feature_q` - feature quality parameter
+    /// * `feature_attribute` - feature quality parameter
     /// * `feature` - feature observation
     /// * `attributes_update` - the update to be applied to attributes upon the feature insert
     ///
@@ -435,7 +435,7 @@ where
         &mut self,
         track_id: u64,
         feature_class: u64,
-        feature_q: FA,
+        feature_attribute: FA,
         feature: Feature,
         attributes_update: U,
     ) -> Result<()> {
@@ -449,7 +449,7 @@ where
                     track_id,
                     observations: HashMap::from([(
                         feature_class,
-                        vec![FeatureSpec(feature_q, feature)],
+                        vec![FeatureSpec(feature_attribute, feature)],
                     )]),
                     metric: self.metric.clone(),
                     phantom_attribute_update: PhantomData,
@@ -459,7 +459,12 @@ where
                 tracks.insert(track_id, t);
             }
             Some(track) => {
-                track.add_observation(feature_class, feature_q, feature, attributes_update)?;
+                track.add_observation(
+                    feature_class,
+                    feature_attribute,
+                    feature,
+                    attributes_update,
+                )?;
             }
         }
         Ok(())

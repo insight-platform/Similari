@@ -287,7 +287,7 @@ where
     ///
     /// # Arguments
     /// * `feature_class` - class of observation
-    /// * `feature_q` - quality of the feature (confidence, or another parameter that defines how the observation is valuable across the observations).
+    /// * `feature_attribute` - quality of the feature (confidence, or another parameter that defines how the observation is valuable across the observations).
     /// * `feature` - observation to add to the track for specified `feature_class`.
     /// * `attribute_update` - attribute update message
     ///
@@ -298,7 +298,7 @@ where
     pub fn add_observation(
         &mut self,
         feature_class: u64,
-        feature_q: FA,
+        feature_attribute: FA,
         feature: Feature,
         attribute_update: U,
     ) -> Result<()> {
@@ -316,10 +316,10 @@ where
         match self.observations.get_mut(&feature_class) {
             None => {
                 self.observations
-                    .insert(feature_class, vec![FeatureSpec(feature_q, feature)]);
+                    .insert(feature_class, vec![FeatureSpec(feature_attribute, feature)]);
             }
             Some(observations) => {
-                observations.push(FeatureSpec(feature_q, feature));
+                observations.push(FeatureSpec(feature_attribute, feature));
             }
         }
         let observations = self.observations.get_mut(&feature_class).unwrap();
