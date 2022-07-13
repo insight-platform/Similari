@@ -38,6 +38,7 @@ pub mod test_stuff;
 ///
 pub mod track;
 
+use std::time::{SystemTime, UNIX_EPOCH};
 pub use track::store;
 pub use track::voting;
 
@@ -68,5 +69,11 @@ pub enum Errors {
     DuplicateTrackId(u64),
 }
 
-#[cfg(test)]
-const EPS: f32 = 0.00001;
+pub const EPS: f32 = 0.00001;
+
+pub fn current_time_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+}

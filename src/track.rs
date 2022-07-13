@@ -47,11 +47,11 @@ impl FromVec<Vec<f32>> for Feature {
             acc[part] = i;
             if part == INT_FEATURE_SIZE - 1 {
                 feature.push(f32x8::new(acc));
-                part = 8;
+                part = INT_FEATURE_SIZE;
             }
         }
 
-        if part < 8 {
+        if part < INT_FEATURE_SIZE {
             feature.push(f32x8::new(acc));
         }
         feature
@@ -249,6 +249,14 @@ where
         &self.attributes
     }
 
+    pub fn get_attributes_mut(&mut self) -> &mut A {
+        &mut self.attributes
+    }
+
+    pub fn get_merge_history(&self) -> &Vec<u64> {
+        &self.merge_history
+    }
+
     /// Returns all classes
     ///
     pub fn get_feature_classes(&self) -> Vec<u64> {
@@ -368,10 +376,15 @@ where
                 _ => None,
             };
 
+            let merge_history = vec![self.merge_history.clone(), other.merge_history.clone()]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+
             if let Some(prev_length) = prev_length {
                 let res = self.metric.optimize(
                     cls,
-                    &self.merge_history,
+                    &merge_history,
                     self.observations.get_mut(cls).unwrap(),
                     prev_length,
                 );
@@ -383,8 +396,10 @@ where
                     res?;
                     unreachable!();
                 }
+                self.merge_history = merge_history;
             }
         }
+
         self.notifier.send(self.track_id);
         Ok(())
     }
