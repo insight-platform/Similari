@@ -31,6 +31,9 @@ where
     ),
 }
 
+pub type StoreMutexGuard<'a, A, M, U, FA, N> = MutexGuard<'a, HashMap<u64, Track<A, M, U, FA, N>>>;
+pub type OwnedMergeResult<A, M, U, FA, N> = Result<Option<Track<A, M, U, FA, N>>>;
+
 #[derive(Debug)]
 enum Results {
     Distance(Vec<FeatureDistance>, Vec<TrackDistanceError>),
@@ -397,7 +400,7 @@ where
         res
     }
 
-    pub fn get_store(&self, id: usize) -> MutexGuard<HashMap<u64, Track<A, M, U, FA, N>>> {
+    pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, A, M, U, FA, N> {
         let store_id = (id % self.num_shards) as usize;
         self.stores.as_ref().get(store_id).unwrap().lock().unwrap()
     }
@@ -484,7 +487,7 @@ where
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
         merge_history: bool,
-    ) -> Result<Option<Track<A, M, U, FA, N>>> {
+    ) -> OwnedMergeResult<A, M, U, FA, N> {
         let mut src = self.fetch_tracks(&vec![src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
