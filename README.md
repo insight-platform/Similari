@@ -1,4 +1,7 @@
-# Similari
+# Similari - a framework to gather and merge tracks based on features similarity
+
+Similari is a framework that helps build sophisticated tracking systems that collect observable object features and 
+merge them into tracks based on feature vectors.
 
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
 
