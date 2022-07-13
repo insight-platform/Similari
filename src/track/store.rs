@@ -523,12 +523,13 @@ where
 #[cfg(test)]
 mod tests {
     use crate::distance::euclidean;
+    use crate::test_stuff::vec2;
     use crate::track::store::TrackStore;
     use crate::track::{
-        feat_confidence_cmp, AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups,
-        FeatureSpec, FromVec, Metric, NoopNotifier, Track, TrackBakingStatus,
+        feat_confidence_cmp, AttributeMatch, AttributeUpdate, FeatureObservationsGroups,
+        FeatureSpec, Metric, NoopNotifier, Track, TrackBakingStatus,
     };
-    use crate::{Errors, EPS};
+    use crate::{current_time_ms, Errors, EPS};
     use anyhow::Result;
     use std::sync::Arc;
     use std::thread;
@@ -597,17 +598,6 @@ mod tests {
             features.truncate(self.max_length);
             Ok(())
         }
-    }
-
-    fn vec2(x: f32, y: f32) -> Feature {
-        Feature::from_vec(vec![x, y])
-    }
-
-    fn current_time_ms() -> u128 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis()
     }
 
     #[test]

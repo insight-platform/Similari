@@ -23,6 +23,7 @@ crossbeam = "0.8.1"
 
 [dev-dependencies]
 rand = "0.8.5"
+wide = "0.7.4"
 
 [profile.dev]
 opt-level = 3
