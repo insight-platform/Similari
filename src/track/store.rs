@@ -465,13 +465,14 @@ where
         src_id: u64,
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
+        merge_history: bool,
     ) -> Result<Option<Track<A, M, U, N>>> {
         let mut src = self.fetch_tracks(&vec![src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
         }
         let src = src.pop().unwrap();
-        match self.merge_external(dest_id, &src, classes) {
+        match self.merge_external(dest_id, &src, classes, merge_history) {
             Ok(_) => {
                 if !remove_src_if_ok {
                     self.add_track(src).unwrap();
@@ -498,6 +499,7 @@ where
         dest_id: u64,
         src: &Track<A, M, U, N>,
         classes: Option<&[u64]>,
+        merge_history: bool,
     ) -> Result<()> {
         let mut tracks = self.get_store(dest_id as usize);
         let dest = tracks.get_mut(&dest_id);
@@ -508,9 +510,9 @@ where
                     return Err(Errors::SameTrackCalculation(dest_id).into());
                 }
                 let res = if let Some(classes) = classes {
-                    dest.merge(src, classes)
+                    dest.merge(src, classes, merge_history)
                 } else {
-                    dest.merge(src, &src.get_feature_classes())
+                    dest.merge(src, &src.get_feature_classes(), merge_history)
                 };
                 res?;
                 Ok(())
@@ -525,6 +527,7 @@ mod tests {
     use crate::distance::euclidean;
     use crate::test_stuff::vec2;
     use crate::track::store::TrackStore;
+    use crate::track::DistanceFilter::{GE, LE};
     use crate::track::{
         feat_confidence_cmp, AttributeMatch, AttributeUpdate, FeatureObservationsGroups,
         FeatureSpec, Metric, NoopNotifier, Track, TrackBakingStatus,
@@ -831,7 +834,7 @@ mod tests {
     }
 
     #[test]
-    fn only_baked_similarity() -> Result<()> {
+    fn baked_similarity() -> Result<()> {
         let mut store = TrackStore::new(
             Some(TimeMetric { max_length: 20 }),
             Some(TimeAttrs {
@@ -942,7 +945,12 @@ mod tests {
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
-        let (_dists, _errs) = store.foreign_track_distances(ext_track.clone(), 0, false, None);
+        // with distance_filter
+        let (dists, errs) =
+            store.foreign_track_distances(ext_track.clone(), 0, false, Some(LE(0.1)));
+        assert!(dists.is_empty());
+        assert!(errs.is_empty());
+
         thread::sleep(Duration::from_millis(1));
         store.add(
             3,
@@ -956,6 +964,10 @@ mod tests {
 
         let (dists, errs) = store.owned_track_distances(1, 0, false, None);
         assert_eq!(dists.len(), 1);
+        assert!(errs.is_empty());
+
+        let (dists, errs) = store.owned_track_distances(1, 0, false, Some(GE(0.1)));
+        assert_eq!(dists.len(), 0);
         assert!(errs.is_empty());
 
         Ok(())
@@ -1117,12 +1129,12 @@ mod tests {
             },
         )?;
 
-        let res = store.merge_external(0, &ext_track, Some(&[0]));
+        let res = store.merge_external(0, &ext_track, Some(&[0]), true);
         assert!(res.is_ok());
         let classes = store.get_store(0).get(&0).unwrap().get_feature_classes();
         assert_eq!(classes, vec![0]);
 
-        let res = store.merge_external(0, &ext_track, None);
+        let res = store.merge_external(0, &ext_track, None, true);
         assert!(res.is_ok());
         let mut classes = store.get_store(0).get(&0).unwrap().get_feature_classes();
         classes.sort();
@@ -1164,14 +1176,14 @@ mod tests {
             },
         )?;
 
-        let res = store.merge_owned(0, 1, None, false);
+        let res = store.merge_owned(0, 1, None, false, true);
         if let Ok(None) = res {
             ();
         } else {
             unreachable!();
         }
 
-        let res = store.merge_owned(0, 1, None, true);
+        let res = store.merge_owned(0, 1, None, true, true);
         if let Ok(Some(t)) = res {
             assert_eq!(t.track_id, 1);
         } else {

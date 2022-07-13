@@ -5,6 +5,7 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::mem::take;
 use ultraviolet::f32x8;
 
 pub mod notify;
@@ -342,7 +343,7 @@ where
     /// * self: `{S[class]}`
     /// * other: `{OTHER[class]}`
     ///
-    pub fn merge(&mut self, other: &Self, classes: &[u64]) -> Result<()> {
+    pub fn merge(&mut self, other: &Self, classes: &[u64], merge_history: bool) -> Result<()> {
         let last_attributes = self.attributes.clone();
         let res = self.attributes.merge(&other.attributes);
         if res.is_err() {
@@ -376,10 +377,14 @@ where
                 _ => None,
             };
 
-            let merge_history = vec![self.merge_history.clone(), other.merge_history.clone()]
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
+            let merge_history = if merge_history {
+                vec![self.merge_history.clone(), other.merge_history.clone()]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+            } else {
+                take(&mut self.merge_history)
+            };
 
             if let Some(prev_length) = prev_length {
                 let res = self.metric.optimize(
@@ -589,7 +594,7 @@ mod tests {
             Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         )?;
-        let r = t1.merge(&t2, &vec![0]);
+        let r = t1.merge(&t2, &vec![0], true);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 2);
         Ok(())
@@ -612,7 +617,7 @@ mod tests {
             Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
             DefaultAttrUpdates {},
         )?;
-        let r = t1.merge(&t2, &vec![1]);
+        let r = t1.merge(&t2, &vec![1], true);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 1);
         assert_eq!(t1.observations.get(&1).unwrap().len(), 1);
@@ -872,7 +877,7 @@ mod tests {
         assert!(res.is_ok());
         assert_eq!(t2.attributes, DefaultAttrs { count: 1 });
 
-        let res = t1.merge(&t2, &vec![0]);
+        let res = t1.merge(&t2, &vec![0], true);
         if let Err(e) = res {
             match e.root_cause().downcast_ref::<TestError>().unwrap() {
                 TestError::UpdateError | TestError::OptimizeError => {
@@ -884,5 +889,60 @@ mod tests {
             unreachable!();
         }
         assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
+    }
+
+    #[test]
+    fn distance_filter() -> Result<()> {
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> =
+            Track::new(0, None, None, None);
+        t1.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+
+        let mut t2 = Track::new(1, None, None, None);
+        t2.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+        let dists = t1
+            .distances(&t2, 0, &Some(DistanceFilter::LE(0.5)))
+            .unwrap();
+        assert!(dists.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn merge_history() -> Result<()> {
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> =
+            Track::new(0, None, None, None);
+        let mut t2 = Track::new(1, None, None, None);
+
+        t1.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(vec![1f32, 0.0, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+
+        t2.add_observation(
+            0,
+            0.3,
+            Feature::from_vec(vec![0f32, 1.0f32, 0.0]),
+            DefaultAttrUpdates {},
+        )?;
+
+        let mut track_with_merge_history = t1.clone();
+        let _r = track_with_merge_history.merge(&t2, &vec![0], true);
+        assert_eq!(track_with_merge_history.merge_history, vec![0, 1]);
+
+        let _r = t1.merge(&t2, &vec![0], false);
+        assert_eq!(t1.merge_history, vec![0]);
+
+        Ok(())
     }
 }

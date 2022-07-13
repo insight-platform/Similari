@@ -104,7 +104,7 @@ struct CamTrackingAttributesUpdate {
 }
 
 impl AttributeUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
-    fn apply(&self, attrs: &mut CamTrackingAttributes) -> anyhow::Result<()> {
+    fn apply(&self, attrs: &mut CamTrackingAttributes) -> Result<()> {
         // initially, track start time is set to end time
         if attrs.start_time == 0 {
             attrs.start_time = self.time;
@@ -437,7 +437,7 @@ fn main() {
                 } else {
                     let winner = winners.pop().unwrap();
                     merge_store
-                        .merge_external(winner.track_id, &track, Some(&[FEATURE0]))
+                        .merge_external(winner.track_id, &track, Some(&[FEATURE0]), true)
                         .unwrap();
                 }
             }
