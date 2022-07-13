@@ -1,3 +1,4 @@
+use crate::simd::{F32x16, SIMD_LANES_SIZE};
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::Errors;
 use anyhow::Result;
@@ -5,7 +6,6 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use ultraviolet::f32x8;
 
 pub mod notify;
 pub mod store;
@@ -20,7 +20,7 @@ pub enum DistanceFilter {
 }
 
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
-pub type Feature = Vec<f32x8>;
+pub type Feature = Vec<F32x16>;
 
 pub trait FromVec<V> {
     fn from_vec(vec: V) -> Feature;
@@ -29,30 +29,30 @@ pub trait FromVec<V> {
 impl FromVec<Vec<f32>> for Feature {
     fn from_vec(vec: Vec<f32>) -> Feature {
         let mut feature = {
-            let one_more = if vec.len() % INT_FEATURE_SIZE > 0 {
+            let one_more = if vec.len() % SIMD_LANES_SIZE > 0 {
                 1
             } else {
                 0
             };
-            Feature::with_capacity(vec.len() / INT_FEATURE_SIZE + one_more)
+            Feature::with_capacity(vec.len() / SIMD_LANES_SIZE + one_more)
         };
 
-        let mut acc: [f32; INT_FEATURE_SIZE] = [0.0; INT_FEATURE_SIZE];
+        let mut acc: [f32; SIMD_LANES_SIZE] = [0.0; SIMD_LANES_SIZE];
         let mut part = 0;
         for (counter, i) in vec.into_iter().enumerate() {
-            part = counter % INT_FEATURE_SIZE;
+            part = counter % SIMD_LANES_SIZE;
             if part == 0 {
-                acc = [0.0; INT_FEATURE_SIZE];
+                acc = [0.0; SIMD_LANES_SIZE];
             }
             acc[part] = i;
-            if part == INT_FEATURE_SIZE - 1 {
-                feature.push(f32x8::new(acc));
+            if part == SIMD_LANES_SIZE - 1 {
+                feature.push(F32x16::new(&acc));
                 part = 8;
             }
         }
 
         if part < 8 {
-            feature.push(f32x8::new(acc));
+            feature.push(F32x16::new(&acc));
         }
         feature
     }
@@ -61,8 +61,6 @@ impl FromVec<Vec<f32>> for Feature {
 //impl From<> for Feature {
 //    fn from(f: OMatrix<f32, Dynamic, Dynamic>) -> Self {}
 //}
-
-const INT_FEATURE_SIZE: usize = 8;
 
 /// Feature specification. It is a tuple of confidence (f32) and Feature itself. Such a representation
 /// is used to filter low quality features during the collecting. If the model doesn't provide the confidence

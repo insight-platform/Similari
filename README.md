@@ -64,9 +64,6 @@ space. If the attributes of two tracks are not compatible, their distance calcul
 
 ## Performance
 
-To keep the calculations performant the crate uses:
-* [ultraviolet](https://crates.io/crates/ultraviolet) - fast SIMD computations.
-
 Parallel computations are implemented with index sharding and parallel computations based on dedicated thread workers 
 pool.
 

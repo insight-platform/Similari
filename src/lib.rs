@@ -32,6 +32,7 @@ pub mod distance;
 
 pub mod test_stuff;
 
+pub mod simd;
 /// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions. It defines the track's
 /// look and feel, provides `Track` structure that holds track attributes and features, can accumulate track features and
 /// calculate feature distances between pair of tracks.
@@ -68,5 +69,4 @@ pub enum Errors {
     DuplicateTrackId(u64),
 }
 
-#[cfg(test)]
-const EPS: f32 = 0.00001;
+const EPS: f32 = 0.0000001;

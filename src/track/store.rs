@@ -881,7 +881,7 @@ mod tests {
             None,
         );
 
-        thread::sleep(Duration::from_millis(1));
+        thread::sleep(Duration::from_millis(10));
         ext_track.add_observation(
             0,
             0.8,
@@ -893,18 +893,15 @@ mod tests {
 
         let ext_track = Arc::new(ext_track);
         let (_dists, _errs) = store.foreign_track_distances(ext_track.clone(), 0, true, None);
-
-        thread::sleep(Duration::from_millis(1));
         store.add(
             0,
             0,
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: current_time_ms(),
+                time: current_time_ms() - 5,
             },
         )?;
-
         let (dists, errs) = store.owned_track_distances(0, 0, true, None);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
