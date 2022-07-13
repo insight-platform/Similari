@@ -568,13 +568,7 @@ mod tests {
         }
 
         fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus> {
-            if SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis()
-                - self.end_time
-                > self.baked_period
-            {
+            if current_time_ms() >= self.baked_period + self.end_time {
                 Ok(TrackBakingStatus::Ready)
             } else {
                 Ok(TrackBakingStatus::Pending)
@@ -735,10 +729,7 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
         let (dists, errs) = store.owned_track_distances(0, 0, false, None);
@@ -881,7 +872,7 @@ mod tests {
             None,
         );
 
-        thread::sleep(Duration::from_millis(1));
+        //thread::sleep(Duration::from_millis(10));
         ext_track.add_observation(
             0,
             0.8,
@@ -892,9 +883,10 @@ mod tests {
         )?;
 
         let ext_track = Arc::new(ext_track);
-        let (_dists, _errs) = store.foreign_track_distances(ext_track.clone(), 0, true, None);
-
-        thread::sleep(Duration::from_millis(1));
+        let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, true, None);
+        assert!(dists.is_empty());
+        assert!(errs.is_empty());
+        thread::sleep(Duration::from_millis(10));
         store.add(
             0,
             0,
@@ -905,8 +897,9 @@ mod tests {
             },
         )?;
 
-        let (dists, errs) = store.owned_track_distances(0, 0, true, None);
+        let (dists, errs) = store.owned_track_distances(1, 0, true, None);
         assert!(dists.is_empty());
+        dbg!(&errs);
         assert!(errs.is_empty());
 
         Ok(())
@@ -996,10 +989,7 @@ mod tests {
             0.8,
             vec2(0.66, 0.33),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -1019,10 +1009,7 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -1071,10 +1058,7 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
