@@ -1,7 +1,7 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    AttributeMatch, AttributeUpdate, DistanceFilter, Feature, FeatureDistance, Metric, Track,
-    TrackBakingStatus,
+    AttributeMatch, AttributeUpdate, DistanceFilter, Feature, FeatureAttribute, FeatureDistance,
+    FeatureSpec, Metric, Track, TrackBakingStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -13,16 +13,22 @@ use std::thread::JoinHandle;
 use std::{mem, thread};
 
 #[derive(Clone)]
-enum Commands<A, M, U, N>
+enum Commands<A, M, U, FA, N>
 where
+    FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A>,
-    M: Metric,
+    A: AttributeMatch<A, FA>,
+    M: Metric<FA>,
     U: AttributeUpdate<A>,
 {
     Drop,
     FindBaked,
-    Distances(Arc<Track<A, M, U, N>>, u64, bool, Option<DistanceFilter>),
+    Distances(
+        Arc<Track<A, M, U, FA, N>>,
+        u64,
+        bool,
+        Option<DistanceFilter>,
+    ),
 }
 
 #[derive(Debug)]
@@ -48,30 +54,32 @@ pub type TrackDistanceError = Result<Vec<(u64, Option<f32>)>>;
 /// Simple TrackStore example can be found at:
 /// [examples/simple.rs](https://github.com/insight-platform/Similari/blob/main/examples/simple.rs).
 ///
-pub struct TrackStore<A, U, M, N = NoopNotifier>
+pub struct TrackStore<A, U, M, FA, N = NoopNotifier>
 where
+    FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A>,
+    A: AttributeMatch<A, FA>,
     U: AttributeUpdate<A>,
-    M: Metric,
+    M: Metric<FA>,
 {
     attributes: A,
     metric: M,
     notifier: N,
     num_shards: usize,
     #[allow(clippy::type_complexity)]
-    stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
+    stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, FA, N>>>>>,
     receiver: Receiver<Results>,
     #[allow(clippy::type_complexity)]
-    executors: Vec<(Sender<Commands<A, M, U, N>>, JoinHandle<()>)>,
+    executors: Vec<(Sender<Commands<A, M, U, FA, N>>, JoinHandle<()>)>,
 }
 
-impl<A, U, M, N> Drop for TrackStore<A, U, M, N>
+impl<A, U, M, FA, N> Drop for TrackStore<A, U, M, FA, N>
 where
+    FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A>,
+    A: AttributeMatch<A, FA>,
     U: AttributeUpdate<A>,
-    M: Metric,
+    M: Metric<FA>,
 {
     fn drop(&mut self) {
         let executors = mem::take(&mut self.executors);
@@ -91,12 +99,13 @@ where
     }
 }
 
-impl<A, U, M, N> Default for TrackStore<A, U, M, N>
+impl<A, U, M, FA, N> Default for TrackStore<A, U, M, FA, N>
 where
+    FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A>,
+    A: AttributeMatch<A, FA>,
     U: AttributeUpdate<A>,
-    M: Metric,
+    M: Metric<FA>,
 {
     fn default() -> Self {
         Self::new(None, None, None, 1)
@@ -105,18 +114,19 @@ where
 
 /// The basic implementation should fit to most of needs.
 ///
-impl<A, U, M, N> TrackStore<A, U, M, N>
+impl<A, U, M, FA, N> TrackStore<A, U, M, FA, N>
 where
+    FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A>,
+    A: AttributeMatch<A, FA>,
     U: AttributeUpdate<A>,
-    M: Metric,
+    M: Metric<FA>,
 {
     #[allow(clippy::type_complexity)]
     fn handle_store_ops(
-        stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, N>>>>>,
+        stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, FA, N>>>>>,
         store_id: usize,
-        commands_receiver: Receiver<Commands<A, M, U, N>>,
+        commands_receiver: Receiver<Commands<A, M, U, FA, N>>,
         results_sender: Sender<Results>,
     ) {
         let store = stores.get(store_id).unwrap();
@@ -301,7 +311,7 @@ where
 
     /// Pulls (and removes) requested tracks from the store.
     ///
-    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U, N>> {
+    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U, FA, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
             let mut tracks_shard = self.get_store(*track_id as usize);
@@ -323,7 +333,7 @@ where
     ///
     pub fn foreign_track_distances(
         &mut self,
-        track: Arc<Track<A, M, U, N>>,
+        track: Arc<Track<A, M, U, FA, N>>,
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
@@ -387,7 +397,7 @@ where
         res
     }
 
-    pub fn get_store(&self, id: usize) -> MutexGuard<HashMap<u64, Track<A, M, U, N>>> {
+    pub fn get_store(&self, id: usize) -> MutexGuard<HashMap<u64, Track<A, M, U, FA, N>>> {
         let store_id = (id % self.num_shards) as usize;
         self.stores.as_ref().get(store_id).unwrap().lock().unwrap()
     }
@@ -401,7 +411,7 @@ where
     /// * `Ok(track_id)` if added
     /// * `Err(Errors::DuplicateTrackId(track_id))` if failed to add
     ///
-    pub fn add_track(&mut self, track: Track<A, M, U, N>) -> Result<u64> {
+    pub fn add_track(&mut self, track: Track<A, M, U, FA, N>) -> Result<u64> {
         let track_id = track.track_id;
         let mut store = self.get_store(track_id as usize);
         if store.get(&track_id).is_none() {
@@ -425,7 +435,7 @@ where
         &mut self,
         track_id: u64,
         feature_class: u64,
-        feature_q: f32,
+        feature_q: FA,
         feature: Feature,
         attributes_update: U,
     ) -> Result<()> {
@@ -437,7 +447,10 @@ where
                     notifier: self.notifier.clone(),
                     attributes: self.attributes.clone(),
                     track_id,
-                    observations: HashMap::from([(feature_class, vec![(feature_q, feature)])]),
+                    observations: HashMap::from([(
+                        feature_class,
+                        vec![FeatureSpec(feature_q, feature)],
+                    )]),
                     metric: self.metric.clone(),
                     phantom_attribute_update: PhantomData,
                     merge_history: vec![track_id],
@@ -466,7 +479,7 @@ where
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
         merge_history: bool,
-    ) -> Result<Option<Track<A, M, U, N>>> {
+    ) -> Result<Option<Track<A, M, U, FA, N>>> {
         let mut src = self.fetch_tracks(&vec![src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
@@ -497,7 +510,7 @@ where
     pub fn merge_external(
         &mut self,
         dest_id: u64,
-        src: &Track<A, M, U, N>,
+        src: &Track<A, M, U, FA, N>,
         classes: Option<&[u64]>,
         merge_history: bool,
     ) -> Result<()> {
@@ -560,7 +573,7 @@ mod tests {
         }
     }
 
-    impl AttributeMatch<TimeAttrs> for TimeAttrs {
+    impl AttributeMatch<TimeAttrs, f32> for TimeAttrs {
         fn compatible(&self, other: &TimeAttrs) -> bool {
             self.end_time <= other.start_time
         }
@@ -571,7 +584,10 @@ mod tests {
             Ok(())
         }
 
-        fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus> {
+        fn baked(
+            &self,
+            _observations: &FeatureObservationsGroups<f32>,
+        ) -> Result<TrackBakingStatus> {
             if current_time_ms() >= self.baked_period + self.end_time {
                 Ok(TrackBakingStatus::Ready)
             } else {
@@ -585,8 +601,12 @@ mod tests {
         max_length: usize,
     }
 
-    impl Metric for TimeMetric {
-        fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+    impl Metric<f32> for TimeMetric {
+        fn distance(
+            _feature_class: u64,
+            e1: &FeatureSpec<f32>,
+            e2: &FeatureSpec<f32>,
+        ) -> Option<f32> {
             Some(euclidean(&e1.1, &e2.1))
         }
 
@@ -594,7 +614,7 @@ mod tests {
             &mut self,
             _feature_class: &u64,
             _merge_history: &[u64],
-            features: &mut Vec<FeatureSpec>,
+            features: &mut Vec<FeatureSpec<f32>>,
             _prev_length: usize,
         ) -> Result<()> {
             features.sort_by(feat_confidence_cmp);
@@ -605,7 +625,7 @@ mod tests {
 
     #[test]
     fn new_default_store() -> Result<()> {
-        let default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric> =
+        let default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric, f32> =
             TrackStore::default();
         drop(default_store);
         Ok(())

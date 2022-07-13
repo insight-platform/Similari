@@ -68,17 +68,24 @@ const INT_FEATURE_SIZE: usize = 8;
 /// Feature specification. It is a tuple of confidence (f32) and Feature itself. Such a representation
 /// is used to filter low quality features during the collecting. If the model doesn't provide the confidence
 /// arbitrary confidence may be used and filtering implemented accordingly.
-pub type FeatureSpec = (f32, Feature);
+//pub type FeatureSpec = (f32, Feature);
+
+#[derive(Default, Clone)]
+pub struct FeatureSpec<T>(pub T, pub Feature)
+where
+    T: Default + Send + Sync + Clone + 'static + PartialOrd;
 
 /// Table that accumulates observed features across the tracks (or objects)
-pub type FeatureObservationsGroups = HashMap<u64, Vec<FeatureSpec>>;
+pub type FeatureObservationsGroups<T> = HashMap<u64, Vec<FeatureSpec<T>>>;
+
+pub trait FeatureAttribute: Default + Send + Sync + Clone + PartialOrd + 'static {}
 
 /// The trait that implements the methods for features comparison and filtering
-pub trait Metric: Default + Send + Sync + Clone + 'static {
+pub trait Metric<FA: FeatureAttribute>: Default + Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
     /// The output is `Result<f32>` because the method may return distance calculation error if the distance
     /// cannot be computed for two features. E.g. when one of them has low confidence.
-    fn distance(feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32>;
+    fn distance(feature_class: u64, e1: &FeatureSpec<FA>, e2: &FeatureSpec<FA>) -> Option<f32>;
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
     /// two tracks are merged.
@@ -98,7 +105,7 @@ pub trait Metric: Default + Send + Sync + Clone + 'static {
         &mut self,
         feature_class: &u64,
         merge_history: &[u64],
-        observations: &mut Vec<FeatureSpec>,
+        observations: &mut Vec<FeatureSpec<FA>>,
         prev_length: usize,
     ) -> Result<()>;
 }
@@ -122,7 +129,7 @@ pub enum TrackBakingStatus {
 ///
 /// When the user implements attributes they has to implement this trait to create a valid attributes object.
 ///
-pub trait AttributeMatch<A>: Default + Send + Sync + Clone + 'static {
+pub trait AttributeMatch<A, FA: FeatureAttribute>: Default + Send + Sync + Clone + 'static {
     /// The method is used to evaluate attributes of two tracks to determine whether tracks are compatible
     /// for distance calculation. When the attributes are compatible, the method returns `true`.
     ///
@@ -149,7 +156,7 @@ pub trait AttributeMatch<A>: Default + Send + Sync + Clone + 'static {
     ///     track is ready when
     ///          `now - end_timestamp > 30s` (no features collected during the last 30 seconds).
     ///
-    fn baked(&self, observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus>;
+    fn baked(&self, observations: &FeatureObservationsGroups<FA>) -> Result<TrackBakingStatus>;
 }
 
 /// The attribute update information that is sent with new features to the track is represented by the trait.
@@ -165,7 +172,10 @@ pub trait AttributeUpdate<A>: Clone + Send + Sync + 'static {
 /// Utility function that can be used by [Metric](Metric::optimize) implementors to sort
 /// features by confidence parameter decreasingly to purge low confidence features.
 ///
-pub fn feat_confidence_cmp(e1: &FeatureSpec, e2: &FeatureSpec) -> Ordering {
+pub fn feat_confidence_cmp<FA: FeatureAttribute>(
+    e1: &FeatureSpec<FA>,
+    e2: &FeatureSpec<FA>,
+) -> Ordering {
     e2.0.partial_cmp(&e1.0).unwrap()
 }
 
@@ -178,16 +188,17 @@ pub fn feat_confidence_cmp(e1: &FeatureSpec, e2: &FeatureSpec) -> Ordering {
 /// * AttributeUpdate specifies how attributes are update from external sources.
 ///
 #[derive(Default, Clone)]
-pub struct Track<A, M, U, N = NoopNotifier>
+pub struct Track<A, M, U, FA, N = NoopNotifier>
 where
+    FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A>,
-    M: Metric,
+    A: AttributeMatch<A, FA>,
+    M: Metric<FA>,
     U: AttributeUpdate<A>,
 {
     attributes: A,
     track_id: u64,
-    observations: FeatureObservationsGroups,
+    observations: FeatureObservationsGroups<FA>,
     metric: M,
     phantom_attribute_update: PhantomData<U>,
     merge_history: Vec<u64>,
@@ -196,11 +207,12 @@ where
 
 /// One and only parametrized track implementation.
 ///
-impl<A, M, U, N> Track<A, M, U, N>
+impl<A, M, U, FA, N> Track<A, M, U, FA, N>
 where
+    FA: FeatureAttribute,
     N: ChangeNotifier,
-    A: AttributeMatch<A>,
-    M: Metric,
+    A: AttributeMatch<A, FA>,
+    M: Metric<FA>,
     U: AttributeUpdate<A>,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
@@ -286,7 +298,7 @@ where
     pub fn add_observation(
         &mut self,
         feature_class: u64,
-        feature_q: f32,
+        feature_q: FA,
         feature: Feature,
         attribute_update: U,
     ) -> Result<()> {
@@ -304,10 +316,10 @@ where
         match self.observations.get_mut(&feature_class) {
             None => {
                 self.observations
-                    .insert(feature_class, vec![(feature_q, feature)]);
+                    .insert(feature_class, vec![FeatureSpec(feature_q, feature)]);
             }
             Some(observations) => {
-                observations.push((feature_q, feature));
+                observations.push(FeatureSpec(feature_q, feature));
             }
         }
         let observations = self.observations.get_mut(&feature_class).unwrap();
@@ -482,7 +494,7 @@ mod tests {
         }
     }
 
-    impl AttributeMatch<DefaultAttrs> for DefaultAttrs {
+    impl AttributeMatch<DefaultAttrs, f32> for DefaultAttrs {
         fn compatible(&self, _other: &DefaultAttrs) -> bool {
             true
         }
@@ -491,15 +503,22 @@ mod tests {
             Ok(())
         }
 
-        fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus> {
+        fn baked(
+            &self,
+            _observations: &FeatureObservationsGroups<f32>,
+        ) -> Result<TrackBakingStatus> {
             Ok(TrackBakingStatus::Pending)
         }
     }
 
     #[derive(Default, Clone)]
     struct DefaultMetric;
-    impl Metric for DefaultMetric {
-        fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+    impl Metric<f32> for DefaultMetric {
+        fn distance(
+            _feature_class: u64,
+            e1: &FeatureSpec<f32>,
+            e2: &FeatureSpec<f32>,
+        ) -> Option<f32> {
             Some(euclidean(&e1.1, &e2.1))
         }
 
@@ -507,7 +526,7 @@ mod tests {
             &mut self,
             _feature_class: &u64,
             _merge_history: &[u64],
-            features: &mut Vec<FeatureSpec>,
+            features: &mut Vec<FeatureSpec<f32>>,
             _prev_length: usize,
         ) -> Result<()> {
             features.sort_by(feat_confidence_cmp);
@@ -518,14 +537,14 @@ mod tests {
 
     #[test]
     fn init() {
-        let t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> =
+        let t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> =
             Track::new(3, None, None, None);
         assert_eq!(t1.get_track_id(), 3);
     }
 
     #[test]
     fn track_distances() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
             0.3,
@@ -579,7 +598,7 @@ mod tests {
 
     #[test]
     fn merge_same() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
             0.3,
@@ -602,7 +621,7 @@ mod tests {
 
     #[test]
     fn merge_other_feature_class() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
             0.3,
@@ -647,7 +666,7 @@ mod tests {
             }
         }
 
-        impl AttributeMatch<TimeAttrs> for TimeAttrs {
+        impl AttributeMatch<TimeAttrs, f32> for TimeAttrs {
             fn compatible(&self, other: &TimeAttrs) -> bool {
                 self.end_time <= other.start_time
             }
@@ -660,7 +679,7 @@ mod tests {
 
             fn baked(
                 &self,
-                _observations: &FeatureObservationsGroups,
+                _observations: &FeatureObservationsGroups<f32>,
             ) -> Result<TrackBakingStatus> {
                 if SystemTime::now()
                     .duration_since(UNIX_EPOCH)
@@ -678,8 +697,12 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct TimeMetric;
-        impl Metric for TimeMetric {
-            fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+        impl Metric<f32> for TimeMetric {
+            fn distance(
+                _feature_class: u64,
+                e1: &FeatureSpec<f32>,
+                e2: &FeatureSpec<f32>,
+            ) -> Option<f32> {
                 Some(euclidean(&e1.1, &e2.1))
             }
 
@@ -687,7 +710,7 @@ mod tests {
                 &mut self,
                 _feature_class: &u64,
                 _merge_history: &[u64],
-                features: &mut Vec<FeatureSpec>,
+                features: &mut Vec<FeatureSpec<f32>>,
                 _prev_length: usize,
             ) -> Result<()> {
                 features.sort_by(feat_confidence_cmp);
@@ -696,7 +719,7 @@ mod tests {
             }
         }
 
-        let mut t1: Track<TimeAttrs, TimeMetric, TimeAttrUpdates> = Track::default();
+        let mut t1: Track<TimeAttrs, TimeMetric, TimeAttrUpdates, f32> = Track::default();
         t1.track_id = 1;
         t1.add_observation(
             0,
@@ -735,7 +758,7 @@ mod tests {
 
     #[test]
     fn get_classes() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
             0.3,
@@ -796,7 +819,7 @@ mod tests {
             }
         }
 
-        impl AttributeMatch<DefaultAttrs> for DefaultAttrs {
+        impl AttributeMatch<DefaultAttrs, f32> for DefaultAttrs {
             fn compatible(&self, _other: &DefaultAttrs) -> bool {
                 true
             }
@@ -807,7 +830,7 @@ mod tests {
 
             fn baked(
                 &self,
-                _observations: &FeatureObservationsGroups,
+                _observations: &FeatureObservationsGroups<f32>,
             ) -> Result<TrackBakingStatus> {
                 Ok(TrackBakingStatus::Pending)
             }
@@ -815,8 +838,12 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct DefaultMetric;
-        impl Metric for DefaultMetric {
-            fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+        impl Metric<f32> for DefaultMetric {
+            fn distance(
+                _feature_class: u64,
+                e1: &FeatureSpec<f32>,
+                e2: &FeatureSpec<f32>,
+            ) -> Option<f32> {
                 Some(euclidean(&e1.1, &e2.1))
             }
 
@@ -824,7 +851,7 @@ mod tests {
                 &mut self,
                 _feature_class: &u64,
                 _merge_history: &[u64],
-                _features: &mut Vec<FeatureSpec>,
+                _features: &mut Vec<FeatureSpec<f32>>,
                 prev_length: usize,
             ) -> Result<()> {
                 if prev_length == 1 {
@@ -835,7 +862,7 @@ mod tests {
             }
         }
 
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         assert_eq!(t1.attributes, DefaultAttrs { count: 0 });
         let res = t1.add_observation(
             0,
@@ -866,7 +893,7 @@ mod tests {
 
         assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
 
-        let mut t2: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> = Track::default();
+        let mut t2: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         assert_eq!(t2.attributes, DefaultAttrs { count: 0 });
         let res = t2.add_observation(
             0,
@@ -893,7 +920,7 @@ mod tests {
 
     #[test]
     fn distance_filter() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> =
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> =
             Track::new(0, None, None, None);
         t1.add_observation(
             0,
@@ -918,7 +945,7 @@ mod tests {
 
     #[test]
     fn merge_history() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates> =
+        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> =
             Track::new(0, None, None, None);
         let mut t2 = Track::new(1, None, None, None);
 

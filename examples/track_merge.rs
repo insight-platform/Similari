@@ -206,12 +206,15 @@ impl FeatGen2 {
 }
 
 impl Iterator for FeatGen2 {
-    type Item = FeatureSpec;
+    type Item = FeatureSpec<f32>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist);
         self.y += self.gen.sample(&self.dist);
-        Some((self.gen.sample(&self.dist) + 0.7, vec2(self.x, self.y)))
+        Some(FeatureSpec(
+            self.gen.sample(&self.dist) + 0.7,
+            vec2(self.x, self.y),
+        ))
     }
 }
 
@@ -227,7 +230,7 @@ fn feat_gen() {
     assert!(v1.sub(v2).abs().reduce_add() <= 2.0 * f32x8::splat(drift).reduce_add());
 }
 
-impl AttributeMatch<CamTrackingAttributes> for CamTrackingAttributes {
+impl AttributeMatch<CamTrackingAttributes, f32> for CamTrackingAttributes {
     fn compatible(&self, other: &CamTrackingAttributes) -> bool {
         (self.start_time >= other.end_time || self.end_time <= other.start_time)
             && self.camera_id.get().unwrap() == other.camera_id.get().unwrap()
@@ -246,7 +249,7 @@ impl AttributeMatch<CamTrackingAttributes> for CamTrackingAttributes {
         }
     }
 
-    fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus> {
+    fn baked(&self, _observations: &FeatureObservationsGroups<f32>) -> Result<TrackBakingStatus> {
         let now = current_time_ms();
         if now > self.end_time + self.baked_period_ms {
             Ok(TrackBakingStatus::Ready)
@@ -273,8 +276,8 @@ impl Default for CamTrackingAttributesMetric {
     }
 }
 
-impl Metric for CamTrackingAttributesMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+impl Metric<f32> for CamTrackingAttributesMetric {
+    fn distance(_feature_class: u64, e1: &FeatureSpec<f32>, e2: &FeatureSpec<f32>) -> Option<f32> {
         Some(euclidean(&e1.1, &e2.1))
     }
 
@@ -282,7 +285,7 @@ impl Metric for CamTrackingAttributesMetric {
         &mut self,
         _feature_class: &u64,
         merge_history: &[u64],
-        features: &mut Vec<FeatureSpec>,
+        features: &mut Vec<FeatureSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {
         let merges = merge_history.len();
@@ -291,7 +294,7 @@ impl Metric for CamTrackingAttributesMetric {
         if current_capacity > self.max_capacity {
             current_capacity = self.max_capacity
         }
-        features.sort_by(|(l, _), (r, _)| r.partial_cmp(l).unwrap());
+        features.sort_by(|l, r| r.0.partial_cmp(&l.0).unwrap());
         features.truncate(current_capacity as usize);
         Ok(())
     }
@@ -304,7 +307,7 @@ struct Observation {
     pub camera_id: u64,
     pub screen_pos: (u16, u16),
     pub class: u64,
-    pub feature: FeatureSpec,
+    pub feature: FeatureSpec<f32>,
 }
 
 impl Observation {
@@ -314,7 +317,7 @@ impl Observation {
         gender: Option<Gender>,
         camera_id: u64,
         screen_pos: (u16, u16),
-        feature: FeatureSpec,
+        feature: FeatureSpec<f32>,
     ) -> Self {
         Self {
             track_id,
@@ -385,6 +388,7 @@ fn main() {
         CamTrackingAttributes,
         CamTrackingAttributesUpdate,
         CamTrackingAttributesMetric,
+        f32,
     > = TrackStore::new(
         Some(CamTrackingAttributesMetric::default()),
         Some(CamTrackingAttributes {
