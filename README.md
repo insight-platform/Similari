@@ -5,7 +5,9 @@
 Similari is a framework that helps build sophisticated tracking systems that collect observable object features and 
 merge them into tracks based on feature vectors.
 
-The purpose of crate is to provide tools to build sophisticated in-memory objects similarity engines.
+## Introduction
+
+The purpose of Similari is to provide tools to build sophisticated in-memory objects similarity engines.
 
 Similarity calculation is the important resource demanding task in machine learning and AI systems. Vectors in 
 similarity engines are compared by calculating of n-dimensional distance - Euclidian, cosine or another one.
