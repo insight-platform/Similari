@@ -424,8 +424,8 @@ fn main() {
         thread::sleep(Duration::from_millis(1));
         let baked = temp_store.find_baked();
         for (id, s) in baked {
+            let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
             if let Ok(TrackBakingStatus::Ready) = s {
-                let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
                 let search_track = Arc::new(track.clone());
                 track.get_attributes_mut().baked_period_ms = 0;
 
@@ -443,7 +443,7 @@ fn main() {
             }
         }
 
-        if idx > 700 {
+        if idx > 100 {
             break;
         }
     }
