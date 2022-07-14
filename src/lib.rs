@@ -3,33 +3,13 @@
 //!
 //! The purpose of the crate is to provide tools to config in-memory vector (feature) similarity engines.
 //! Similarity calculation is an important resource demanding task broadly used in machine learning and AI systems.
-//!
-//! Vectors (or features) in similarity engines are compared by calculation of n-dimensional distances - Euclidian, Cosine or another one.
-//! The distance is used to estimate how the vectors are close between each other.
-//!
-//! The library helps building various kinds of similarity engines - the simplest one is that holds single vectors and supports comparing
-//! a received vector versus the ones kept in the database. More sophisticated engines may operate with tracks - series of observations for the
-//! same feature kinds collected during the object or phenomenon lifecycle. Such kind of systems are often used in video processing or other
-//! systems where observer receives fuzzy, unstable or time-changing observation results.
-//!
-//! The crate provides the necessary primitives to gather tracks, config track storages, find similar tracks, and merge them. The crate doesn't provide
-//! any persistence layer yet.
-//!
-//! ## Performance
-//!
-//! To provide state-of-art performance the crate stands on:
-//! * [rayon](https://docs.rs/rayon/latest/rayon/) - most of track storage operations are parallelized calculations;
-//! * [nalgebra](https://nalgebra.org/) - fast linear algebra library that uses simd optimization (and GPU acceleration, which is not used in Similari right now).
-//!
-//! The performance of `nalgebra` depends a lot of the optimization level defined for the config. When lower or default optimization levels in use
-//! Rust may not use f32 vectorization, so the performance may be far from the perfect.
-//!
-//! When running benchmarks take care of proper optimization levels configured. Levels 2 and 3 will lead to best results.
 
 /// Holds auxiliary functions that calculate distances between two features.
 ///
 pub mod distance;
 
+/// Various auxiliary testing and example components
+///
 pub mod test_stuff;
 
 /// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions. It defines the track's
@@ -38,7 +18,6 @@ pub mod test_stuff;
 ///
 pub mod track;
 
-use std::time::{SystemTime, UNIX_EPOCH};
 pub use track::store;
 pub use track::voting;
 
@@ -70,10 +49,3 @@ pub enum Errors {
 }
 
 pub const EPS: f32 = 0.00001;
-
-pub fn current_time_ms() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis()
-}

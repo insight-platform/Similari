@@ -12,8 +12,17 @@ pub mod store;
 pub mod utils;
 pub mod voting;
 
+/// Return type item for distances between the current track and other track.
+///
+/// # Parameters
+/// * `.0` - other track ID
+/// * `.1` - distance
+///
 pub type ObservationDistance = (u64, Option<f32>);
 
+/// Filter enum that is used in distance operations to early drop large or small distances
+/// out of the output.
+///
 #[derive(Clone)]
 pub enum DistanceFilter {
     LE(f32),
@@ -255,9 +264,9 @@ where
     ///
     /// # Arguments
     /// * `feature_class` - class of observation
-    /// * `feature_attribute` - quality of the feature (confidence, or another parameter that defines how the observation is valuable across the observations).
+    /// * `feature_attributes` - quality of the feature (confidence, or another parameter that defines how the observation is valuable across the observations).
     /// * `feature` - observation to add to the track for specified `feature_class`.
-    /// * `attribute_update` - attribute update message
+    /// * `track_attributes_update` - attribute update message
     ///
     /// # Returns
     /// Returns `Result<()>` where `Ok(())` if attributes are updated without errors AND observation is added AND observations optimized without errors.
@@ -324,6 +333,10 @@ where
     /// * both: `{S[class]} U {OTHER[class]}`
     /// * self: `{S[class]}`
     /// * other: `{OTHER[class]}`
+    ///
+    /// # Parameters
+    /// * `other` - track to merge into self
+    /// * `merge_history` - defines add merged track id into self merge history or not
     ///
     pub fn merge(&mut self, other: &Self, classes: &[u64], merge_history: bool) -> Result<()> {
         let last_attributes = self.attributes.clone();
@@ -401,6 +414,10 @@ where
     /// the same for all results and used in higher level operations. `Result<f32>` is `Ok(f32)` when
     /// the distance calculated by `Metric` well, `Err(e)` when `Metric` is unable to calculate the distance.
     ///
+    /// # Parameters
+    /// * `other` - track to find distances to
+    /// * `feature_class` - what feature class to use to calculate distances
+    /// * `filter` - defines either results are filtered by distance before the output or not
     pub fn distances(
         &self,
         other: &Self,
@@ -444,6 +461,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::distance::euclidean;
+    use crate::test_stuff::current_time_sec;
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
         DistanceFilter, Metric, Observation, ObservationSpec, ObservationsDb, Track,
@@ -451,7 +469,6 @@ mod tests {
     };
     use crate::EPS;
     use anyhow::Result;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[derive(Default, Clone)]
     pub struct DefaultAttrs;
@@ -646,13 +663,7 @@ mod tests {
             }
 
             fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
-                if SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-                    - self.end_time
-                    > 30
-                {
+                if current_time_sec() - self.end_time > 30 {
                     Ok(TrackStatus::Ready)
                 } else {
                     Ok(TrackStatus::Pending)

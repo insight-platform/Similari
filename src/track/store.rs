@@ -31,8 +31,14 @@ where
     ),
 }
 
+/// The type that provides lock-ed access to certain shard store
+///
 pub type StoreMutexGuard<'a, TA, M, TAU, FA, N> =
     MutexGuard<'a, HashMap<u64, Track<TA, M, TAU, FA, N>>>;
+
+/// The type that provides the initial track that was in the store before it was merged into
+/// target track
+///
 pub type OwnedMergeResult<TA, M, TAU, FA, N> = Result<Option<Track<TA, M, TAU, FA, N>>>;
 
 #[derive(Debug)]
@@ -52,11 +58,14 @@ pub type TrackDistanceError = Result<Vec<(u64, Option<f32>)>>;
 /// TrackStore.
 ///
 /// The metric is also defined for TrackStore, however Metric implementation may have various metric
-/// calculation options for concrete feature classes. E.g. FEAT1 may be calculated with Euclide distance,
+/// calculation options for concrete feature classes. E.g. FEAT1 may be calculated with Euclid distance,
 /// while FEAT2 may be calculated with cosine. It is up to Metric implementor how the metric works.
 ///
 /// Simple TrackStore example can be found at:
 /// [examples/simple.rs](https://github.com/insight-platform/Similari/blob/main/examples/simple.rs).
+///
+/// Advanced TrackStore example can be found at:
+/// [examples/track_merging.rs](https://github.com/insight-platform/Similari/blob/main/examples/track_merging.rs).
 ///
 pub struct TrackStore<TA, TAU, M, FA, N = NoopNotifier>
 where
@@ -547,7 +556,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::distance::euclidean;
-    use crate::test_stuff::vec2;
+    use crate::test_stuff::{current_time_ms, vec2};
     use crate::track::store::TrackStore;
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::DistanceFilter::{GE, LE};
@@ -555,11 +564,11 @@ mod tests {
         Metric, NoopNotifier, ObservationSpec, ObservationsDb, Track, TrackAttributes,
         TrackAttributesUpdate, TrackStatus,
     };
-    use crate::{current_time_ms, Errors, EPS};
+    use crate::{Errors, EPS};
     use anyhow::Result;
     use std::sync::Arc;
     use std::thread;
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use std::time::Duration;
 
     #[derive(Default, Debug, Clone)]
     pub struct TimeAttrs {
@@ -1064,10 +1073,7 @@ mod tests {
             0.8,
             vec2(0.66, 0.33),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -1114,10 +1120,7 @@ mod tests {
             0.8,
             vec2(0.66, 0.33),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -1126,10 +1129,7 @@ mod tests {
             0.8,
             vec2(0.65, 0.33),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 
@@ -1149,10 +1149,7 @@ mod tests {
             0.9,
             vec2(0.0, 1.0),
             TimeAttrUpdates {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
+                time: current_time_ms(),
             },
         )?;
 

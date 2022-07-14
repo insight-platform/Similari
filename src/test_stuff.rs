@@ -8,6 +8,7 @@ use anyhow::Result;
 use rand::distributions::Uniform;
 use rand::prelude::ThreadRng;
 use rand::Rng;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -166,4 +167,16 @@ impl Iterator for FeatGen2 {
             vec2(self.x, self.y),
         ))
     }
+}
+
+pub fn current_time_span() -> Duration {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
+}
+
+pub fn current_time_ms() -> u128 {
+    current_time_span().as_millis()
+}
+
+pub fn current_time_sec() -> u64 {
+    current_time_span().as_secs()
 }

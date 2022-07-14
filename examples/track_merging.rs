@@ -2,9 +2,9 @@ use crate::Gender::{Female, Male};
 use anyhow::Result;
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
-use similari::current_time_ms;
 use similari::distance::euclidean;
 use similari::store::TrackStore;
+use similari::test_stuff::current_time_ms;
 use similari::test_stuff::FeatGen2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
