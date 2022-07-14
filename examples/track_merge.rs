@@ -11,8 +11,7 @@ use similari::store::TrackStore;
 use similari::test_stuff::vec2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
-    FeatureObservationsGroups, FeatureSpec, Metric, TrackAttributes, TrackAttributesUpdate,
-    TrackBakingStatus,
+    Metric, ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -206,12 +205,12 @@ impl FeatGen2 {
 }
 
 impl Iterator for FeatGen2 {
-    type Item = FeatureSpec<f32>;
+    type Item = ObservationSpec<f32>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist);
         self.y += self.gen.sample(&self.dist);
-        Some(FeatureSpec(
+        Some(ObservationSpec(
             self.gen.sample(&self.dist) + 0.7,
             vec2(self.x, self.y),
         ))
@@ -249,12 +248,12 @@ impl TrackAttributes<CamTrackingAttributes, f32> for CamTrackingAttributes {
         }
     }
 
-    fn baked(&self, _observations: &FeatureObservationsGroups<f32>) -> Result<TrackBakingStatus> {
+    fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
         let now = current_time_ms();
         if now > self.end_time + self.baked_period_ms {
-            Ok(TrackBakingStatus::Ready)
+            Ok(TrackStatus::Ready)
         } else {
-            Ok(TrackBakingStatus::Pending)
+            Ok(TrackStatus::Pending)
         }
     }
 }
@@ -277,7 +276,11 @@ impl Default for CamTrackingAttributesMetric {
 }
 
 impl Metric<f32> for CamTrackingAttributesMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec<f32>, e2: &FeatureSpec<f32>) -> Option<f32> {
+    fn distance(
+        _feature_class: u64,
+        e1: &ObservationSpec<f32>,
+        e2: &ObservationSpec<f32>,
+    ) -> Option<f32> {
         Some(euclidean(&e1.1, &e2.1))
     }
 
@@ -285,7 +288,7 @@ impl Metric<f32> for CamTrackingAttributesMetric {
         &mut self,
         _feature_class: &u64,
         merge_history: &[u64],
-        features: &mut Vec<FeatureSpec<f32>>,
+        features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {
         let merges = merge_history.len();
@@ -307,7 +310,7 @@ struct Observation {
     pub camera_id: u64,
     pub screen_pos: (u16, u16),
     pub class: u64,
-    pub feature: FeatureSpec<f32>,
+    pub feature: ObservationSpec<f32>,
 }
 
 impl Observation {
@@ -317,7 +320,7 @@ impl Observation {
         gender: Option<Gender>,
         camera_id: u64,
         screen_pos: (u16, u16),
-        feature: FeatureSpec<f32>,
+        feature: ObservationSpec<f32>,
     ) -> Self {
         Self {
             track_id,
@@ -429,7 +432,7 @@ fn main() {
         let baked = temp_store.find_baked();
         for (id, s) in baked {
             let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
-            if let Ok(TrackBakingStatus::Ready) = s {
+            if let Ok(TrackStatus::Ready) = s {
                 let search_track = Arc::new(track.clone());
                 track.get_attributes_mut().baked_period_ms = 0;
 
@@ -454,7 +457,7 @@ fn main() {
 
     let baked = merge_store.find_baked();
     for (id, s) in baked {
-        if let Ok(TrackBakingStatus::Ready) = s {
+        if let Ok(TrackStatus::Ready) = s {
             let track = merge_store.fetch_tracks(&vec![id]).pop().unwrap();
             eprintln!(
                 "Composite Track is ready: {}, age: {:?}, gender: {:?}\nCoordinates: {:?}",

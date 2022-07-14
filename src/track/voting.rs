@@ -1,6 +1,6 @@
 pub mod topn;
 
-use crate::track::FeatureDistance;
+use crate::track::ObservationDistance;
 
 /// Trait to implement distance voting engines.
 ///
@@ -16,5 +16,5 @@ pub trait Voting<R> {
     ///   * `.0` is the track_id
     ///   * `.1` is the distance
     ///
-    fn winners(&self, distances: &[FeatureDistance]) -> Vec<R>;
+    fn winners(&self, distances: &[ObservationDistance]) -> Vec<R>;
 }

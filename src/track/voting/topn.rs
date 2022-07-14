@@ -1,4 +1,4 @@
-use crate::track::FeatureDistance;
+use crate::track::ObservationDistance;
 use crate::voting::Voting;
 use itertools::Itertools;
 
@@ -51,7 +51,7 @@ impl TopNVotingElt {
 }
 
 impl Voting<TopNVotingElt> for TopNVoting {
-    fn winners(&self, distances: &[FeatureDistance]) -> Vec<TopNVotingElt> {
+    fn winners(&self, distances: &[ObservationDistance]) -> Vec<TopNVotingElt> {
         let mut tracks: Vec<_> = distances
             .iter()
             .filter(|(_, e)| match e {

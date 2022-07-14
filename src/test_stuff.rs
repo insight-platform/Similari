@@ -1,7 +1,8 @@
 use crate::distance::euclidean;
+use crate::track::utils::FromVec;
 use crate::track::{
-    Feature, FeatureAttribute, FeatureObservationsGroups, FeatureSpec, FromVec, Metric,
-    TrackAttributes, TrackAttributesUpdate, TrackBakingStatus,
+    Metric, Observation, ObservationAttributes, ObservationSpec, ObservationsDb, TrackAttributes,
+    TrackAttributesUpdate, TrackStatus,
 };
 use anyhow::Result;
 use thiserror::Error;
@@ -45,11 +46,11 @@ impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
         }
     }
 
-    fn baked(&self, _observations: &FeatureObservationsGroups<f32>) -> Result<TrackBakingStatus> {
+    fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
         if self.set {
-            Ok(TrackBakingStatus::Ready)
+            Ok(TrackStatus::Ready)
         } else {
-            Ok(TrackBakingStatus::Pending)
+            Ok(TrackStatus::Pending)
         }
     }
 }
@@ -58,7 +59,11 @@ impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
 pub struct SimpleMetric;
 
 impl Metric<f32> for SimpleMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec<f32>, e2: &FeatureSpec<f32>) -> Option<f32> {
+    fn distance(
+        _feature_class: u64,
+        e1: &ObservationSpec<f32>,
+        e2: &ObservationSpec<f32>,
+    ) -> Option<f32> {
         Some(euclidean(&e1.1, &e2.1))
     }
 
@@ -66,7 +71,7 @@ impl Metric<f32> for SimpleMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        _features: &mut Vec<FeatureSpec<f32>>,
+        _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {
         Ok(())
@@ -94,8 +99,8 @@ impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
         Ok(())
     }
 
-    fn baked(&self, _observations: &FeatureObservationsGroups<f32>) -> Result<TrackBakingStatus> {
-        Ok(TrackBakingStatus::Ready)
+    fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
+        Ok(TrackStatus::Ready)
     }
 }
 
@@ -103,7 +108,11 @@ impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
 pub struct UnboundMetric;
 
 impl Metric<f32> for UnboundMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec<f32>, e2: &FeatureSpec<f32>) -> Option<f32> {
+    fn distance(
+        _feature_class: u64,
+        e1: &ObservationSpec<f32>,
+        e2: &ObservationSpec<f32>,
+    ) -> Option<f32> {
         Some(euclidean(&e1.1, &e2.1))
     }
 
@@ -111,16 +120,16 @@ impl Metric<f32> for UnboundMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        _features: &mut Vec<FeatureSpec<f32>>,
+        _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {
         Ok(())
     }
 }
 
-pub fn vec2(x: f32, y: f32) -> Feature {
-    Feature::from_vec(vec![x, y])
+pub fn vec2(x: f32, y: f32) -> Observation {
+    Observation::from_vec(vec![x, y])
 }
 
-impl FeatureAttribute for f32 {}
-impl FeatureAttribute for () {}
+impl ObservationAttributes for f32 {}
+impl ObservationAttributes for () {}

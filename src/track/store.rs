@@ -1,7 +1,7 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    DistanceFilter, Feature, FeatureAttribute, FeatureDistance, FeatureSpec, Metric, Track,
-    TrackAttributes, TrackAttributesUpdate, TrackBakingStatus,
+    DistanceFilter, Metric, Observation, ObservationAttributes, ObservationDistance,
+    ObservationSpec, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -13,31 +13,32 @@ use std::thread::JoinHandle;
 use std::{mem, thread};
 
 #[derive(Clone)]
-enum Commands<A, M, U, FA, N>
+enum Commands<TA, M, TAU, FA, N>
 where
-    FA: FeatureAttribute,
+    FA: ObservationAttributes,
     N: ChangeNotifier,
-    A: TrackAttributes<A, FA>,
+    TA: TrackAttributes<TA, FA>,
     M: Metric<FA>,
-    U: TrackAttributesUpdate<A>,
+    TAU: TrackAttributesUpdate<TA>,
 {
     Drop,
     FindBaked,
     Distances(
-        Arc<Track<A, M, U, FA, N>>,
+        Arc<Track<TA, M, TAU, FA, N>>,
         u64,
         bool,
         Option<DistanceFilter>,
     ),
 }
 
-pub type StoreMutexGuard<'a, A, M, U, FA, N> = MutexGuard<'a, HashMap<u64, Track<A, M, U, FA, N>>>;
-pub type OwnedMergeResult<A, M, U, FA, N> = Result<Option<Track<A, M, U, FA, N>>>;
+pub type StoreMutexGuard<'a, TA, M, TAU, FA, N> =
+    MutexGuard<'a, HashMap<u64, Track<TA, M, TAU, FA, N>>>;
+pub type OwnedMergeResult<TA, M, TAU, FA, N> = Result<Option<Track<TA, M, TAU, FA, N>>>;
 
 #[derive(Debug)]
 enum Results {
-    Distance(Vec<FeatureDistance>, Vec<TrackDistanceError>),
-    BakedStatus(Vec<(u64, Result<TrackBakingStatus>)>),
+    Distance(Vec<ObservationDistance>, Vec<TrackDistanceError>),
+    BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
 }
 
@@ -57,31 +58,31 @@ pub type TrackDistanceError = Result<Vec<(u64, Option<f32>)>>;
 /// Simple TrackStore example can be found at:
 /// [examples/simple.rs](https://github.com/insight-platform/Similari/blob/main/examples/simple.rs).
 ///
-pub struct TrackStore<A, U, M, FA, N = NoopNotifier>
+pub struct TrackStore<TA, TAU, M, FA, N = NoopNotifier>
 where
-    FA: FeatureAttribute,
+    FA: ObservationAttributes,
     N: ChangeNotifier,
-    A: TrackAttributes<A, FA>,
-    U: TrackAttributesUpdate<A>,
+    TA: TrackAttributes<TA, FA>,
+    TAU: TrackAttributesUpdate<TA>,
     M: Metric<FA>,
 {
-    attributes: A,
+    attributes: TA,
     metric: M,
     notifier: N,
     num_shards: usize,
     #[allow(clippy::type_complexity)]
-    stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, FA, N>>>>>,
+    stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
     receiver: Receiver<Results>,
     #[allow(clippy::type_complexity)]
-    executors: Vec<(Sender<Commands<A, M, U, FA, N>>, JoinHandle<()>)>,
+    executors: Vec<(Sender<Commands<TA, M, TAU, FA, N>>, JoinHandle<()>)>,
 }
 
-impl<A, U, M, FA, N> Drop for TrackStore<A, U, M, FA, N>
+impl<TA, TAU, M, FA, N> Drop for TrackStore<TA, TAU, M, FA, N>
 where
-    FA: FeatureAttribute,
+    FA: ObservationAttributes,
     N: ChangeNotifier,
-    A: TrackAttributes<A, FA>,
-    U: TrackAttributesUpdate<A>,
+    TA: TrackAttributes<TA, FA>,
+    TAU: TrackAttributesUpdate<TA>,
     M: Metric<FA>,
 {
     fn drop(&mut self) {
@@ -102,12 +103,12 @@ where
     }
 }
 
-impl<A, U, M, FA, N> Default for TrackStore<A, U, M, FA, N>
+impl<TA, TAU, M, FA, N> Default for TrackStore<TA, TAU, M, FA, N>
 where
-    FA: FeatureAttribute,
+    FA: ObservationAttributes,
     N: ChangeNotifier,
-    A: TrackAttributes<A, FA>,
-    U: TrackAttributesUpdate<A>,
+    TA: TrackAttributes<TA, FA>,
+    TAU: TrackAttributesUpdate<TA>,
     M: Metric<FA>,
 {
     fn default() -> Self {
@@ -117,19 +118,19 @@ where
 
 /// The basic implementation should fit to most of needs.
 ///
-impl<A, U, M, FA, N> TrackStore<A, U, M, FA, N>
+impl<TA, TAU, M, FA, N> TrackStore<TA, TAU, M, FA, N>
 where
-    FA: FeatureAttribute,
+    FA: ObservationAttributes,
     N: ChangeNotifier,
-    A: TrackAttributes<A, FA>,
-    U: TrackAttributesUpdate<A>,
+    TA: TrackAttributes<TA, FA>,
+    TAU: TrackAttributesUpdate<TA>,
     M: Metric<FA>,
 {
     #[allow(clippy::type_complexity)]
     fn handle_store_ops(
-        stores: Arc<Vec<Mutex<HashMap<u64, Track<A, M, U, FA, N>>>>>,
+        stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
         store_id: usize,
-        commands_receiver: Receiver<Commands<A, M, U, FA, N>>,
+        commands_receiver: Receiver<Commands<TA, M, TAU, FA, N>>,
         results_sender: Sender<Results>,
     ) {
         let store = stores.get(store_id).unwrap();
@@ -150,7 +151,7 @@ where
                         .flat_map(|(track_id, track)| {
                             match track.get_attributes().baked(&track.observations) {
                                 Ok(status) => match status {
-                                    TrackBakingStatus::Pending => None,
+                                    TrackStatus::Pending => None,
                                     other => Some((*track_id, Ok(other))),
                                 },
                                 Err(e) => Some((*track_id, Err(e))),
@@ -177,7 +178,7 @@ where
                                 Some(dists)
                             } else {
                                 match other.get_attributes().baked(&other.observations) {
-                                    Ok(TrackBakingStatus::Ready) => {
+                                    Ok(TrackStatus::Ready) => {
                                         let dists = track.distances(other, feature_class, &filter);
                                         if let Ok(d) = &dists {
                                             capacity += d.len()
@@ -224,7 +225,7 @@ where
     ///
     pub fn new(
         metric: Option<M>,
-        default_attributes: Option<A>,
+        default_attributes: Option<TA>,
         notifier: Option<N>,
         shards: usize,
     ) -> Self {
@@ -248,7 +249,7 @@ where
             attributes: if let Some(a) = default_attributes {
                 a
             } else {
-                A::default()
+                TA::default()
             },
             metric: if let Some(m) = metric {
                 m
@@ -285,7 +286,7 @@ where
     /// * `TrackBakingStatus::Wasted` or
     /// * `Err(e)`
     ///
-    pub fn find_baked(&mut self) -> Vec<(u64, Result<TrackBakingStatus>)> {
+    pub fn find_baked(&mut self) -> Vec<(u64, Result<TrackStatus>)> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         for (cmd, _) in &mut self.executors {
             cmd.send(Commands::FindBaked).unwrap();
@@ -314,7 +315,7 @@ where
 
     /// Pulls (and removes) requested tracks from the store.
     ///
-    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<A, M, U, FA, N>> {
+    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<TA, M, TAU, FA, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
             let mut tracks_shard = self.get_store(*track_id as usize);
@@ -336,11 +337,11 @@ where
     ///
     pub fn foreign_track_distances(
         &mut self,
-        track: Arc<Track<A, M, U, FA, N>>,
+        track: Arc<Track<TA, M, TAU, FA, N>>,
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
-    ) -> (Vec<FeatureDistance>, Vec<TrackDistanceError>) {
+    ) -> (Vec<ObservationDistance>, Vec<TrackDistanceError>) {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let mut errors = Vec::new();
         for (cmd, _) in &mut self.executors {
@@ -386,7 +387,7 @@ where
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
-    ) -> (Vec<FeatureDistance>, Vec<TrackDistanceError>) {
+    ) -> (Vec<ObservationDistance>, Vec<TrackDistanceError>) {
         let track = self.fetch_tracks(&vec![track_id]).pop();
         if track.is_none() {
             return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
@@ -400,7 +401,7 @@ where
         res
     }
 
-    pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, A, M, U, FA, N> {
+    pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, TA, M, TAU, FA, N> {
         let store_id = (id % self.num_shards) as usize;
         self.stores.as_ref().get(store_id).unwrap().lock().unwrap()
     }
@@ -414,7 +415,7 @@ where
     /// * `Ok(track_id)` if added
     /// * `Err(Errors::DuplicateTrackId(track_id))` if failed to add
     ///
-    pub fn add_track(&mut self, track: Track<A, M, U, FA, N>) -> Result<u64> {
+    pub fn add_track(&mut self, track: Track<TA, M, TAU, FA, N>) -> Result<u64> {
         let track_id = track.track_id;
         let mut store = self.get_store(track_id as usize);
         if store.get(&track_id).is_none() {
@@ -439,8 +440,8 @@ where
         track_id: u64,
         feature_class: u64,
         feature_attribute: FA,
-        feature: Feature,
-        attributes_update: U,
+        feature: Observation,
+        attributes_update: TAU,
     ) -> Result<()> {
         let mut tracks = self.get_store(track_id as usize);
         #[allow(clippy::significant_drop_in_scrutinee)]
@@ -452,7 +453,7 @@ where
                     track_id,
                     observations: HashMap::from([(
                         feature_class,
-                        vec![FeatureSpec(feature_attribute, feature)],
+                        vec![ObservationSpec(feature_attribute, feature)],
                     )]),
                     metric: self.metric.clone(),
                     phantom_attribute_update: PhantomData,
@@ -487,7 +488,7 @@ where
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
         merge_history: bool,
-    ) -> OwnedMergeResult<A, M, U, FA, N> {
+    ) -> OwnedMergeResult<TA, M, TAU, FA, N> {
         let mut src = self.fetch_tracks(&vec![src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
@@ -518,7 +519,7 @@ where
     pub fn merge_external(
         &mut self,
         dest_id: u64,
-        src: &Track<A, M, U, FA, N>,
+        src: &Track<TA, M, TAU, FA, N>,
         classes: Option<&[u64]>,
         merge_history: bool,
     ) -> Result<()> {
@@ -548,10 +549,11 @@ mod tests {
     use crate::distance::euclidean;
     use crate::test_stuff::vec2;
     use crate::track::store::TrackStore;
+    use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::DistanceFilter::{GE, LE};
     use crate::track::{
-        feat_confidence_cmp, FeatureObservationsGroups, FeatureSpec, Metric, NoopNotifier, Track,
-        TrackAttributes, TrackAttributesUpdate, TrackBakingStatus,
+        Metric, NoopNotifier, ObservationSpec, ObservationsDb, Track, TrackAttributes,
+        TrackAttributesUpdate, TrackStatus,
     };
     use crate::{current_time_ms, Errors, EPS};
     use anyhow::Result;
@@ -592,14 +594,11 @@ mod tests {
             Ok(())
         }
 
-        fn baked(
-            &self,
-            _observations: &FeatureObservationsGroups<f32>,
-        ) -> Result<TrackBakingStatus> {
+        fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
             if current_time_ms() >= self.baked_period + self.end_time {
-                Ok(TrackBakingStatus::Ready)
+                Ok(TrackStatus::Ready)
             } else {
-                Ok(TrackBakingStatus::Pending)
+                Ok(TrackStatus::Pending)
             }
         }
     }
@@ -612,8 +611,8 @@ mod tests {
     impl Metric<f32> for TimeMetric {
         fn distance(
             _feature_class: u64,
-            e1: &FeatureSpec<f32>,
-            e2: &FeatureSpec<f32>,
+            e1: &ObservationSpec<f32>,
+            e2: &ObservationSpec<f32>,
         ) -> Option<f32> {
             Some(euclidean(&e1.1, &e2.1))
         }
@@ -622,10 +621,10 @@ mod tests {
             &mut self,
             _feature_class: &u64,
             _merge_history: &[u64],
-            features: &mut Vec<FeatureSpec<f32>>,
+            features: &mut Vec<ObservationSpec<f32>>,
             _prev_length: usize,
         ) -> Result<()> {
-            features.sort_by(feat_confidence_cmp);
+            features.sort_by(feature_attributes_sort_dec);
             features.truncate(self.max_length);
             Ok(())
         }
