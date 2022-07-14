@@ -18,7 +18,8 @@ pub mod voting;
 /// * `.0` - other track ID
 /// * `.1` - distance
 ///
-pub type ObservationDistance = (u64, Option<f32>);
+#[derive(Debug, Clone)]
+pub struct ObservationMetric<M>(u64, Option<M>, Option<f32>);
 
 /// Filter enum that is used in distance operations to early drop large or small distances
 /// out of the output.
@@ -47,7 +48,10 @@ where
 pub type ObservationsDb<T> = HashMap<u64, Vec<ObservationSpec<T>>>;
 
 /// Custom feature attributes that accompanies the observation itself
-pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 'static {}
+pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 'static {
+    type Metric: Default + Send + Sync + Clone + PartialOrd + 'static;
+    fn metric(l: &Option<Self>, r: &Option<Self>) -> Option<Self::Metric>;
+}
 
 /// The trait that implements the methods for features comparison and filtering
 pub trait Metric<FA: ObservationAttributes>: Default + Send + Sync + Clone + 'static {
@@ -433,7 +437,7 @@ where
         other: &Self,
         feature_class: u64,
         filter: &Option<DistanceFilter>,
-    ) -> Result<Vec<ObservationDistance>> {
+    ) -> Result<Vec<ObservationMetric<FA::Metric>>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {
@@ -444,8 +448,16 @@ where
                 (Some(left), Some(right)) => Ok(left
                     .iter()
                     .cartesian_product(right.iter())
-                    .map(|(l, r)| (other.track_id, M::distance(feature_class, l, r)))
-                    .filter(|(_, d)| {
+                    .map(|(l, r)| {
+                        let feature_attr_metric = FA::metric(&l.0, &r.0);
+
+                        ObservationMetric(
+                            other.track_id,
+                            feature_attr_metric,
+                            M::distance(feature_class, l, r),
+                        )
+                    })
+                    .filter(|ObservationMetric(_, _, d)| {
                         if d.is_none() {
                             true
                         } else {
@@ -561,12 +573,12 @@ mod tests {
         let dists = t1.distances(&t1, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!(*dists[0].1.as_ref().unwrap() < EPS);
+        assert!(*dists[0].2.as_ref().unwrap() < EPS);
 
         let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
 
         let dists = t1.distances(&t2, 0, &Some(DistanceFilter::LE(0.5)));
         let dists = dists.unwrap();
@@ -575,7 +587,7 @@ mod tests {
         let dists = t1.distances(&t2, 0, &Some(DistanceFilter::GE(1.0)));
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
 
         t2.add_observation(
             0,
@@ -589,8 +601,8 @@ mod tests {
         let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 2);
-        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
-        assert!((*dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
+        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((*dists[1].2.as_ref().unwrap() - 1.0).abs() < EPS);
         Ok(())
     }
 
@@ -732,7 +744,7 @@ mod tests {
         let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert_eq!(dists[0].0, 2);
 
         let mut t3 = Track::default();

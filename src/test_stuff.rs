@@ -143,8 +143,24 @@ pub fn vec2(x: f32, y: f32) -> Observation {
     Observation::from_vec(vec![x, y])
 }
 
-impl ObservationAttributes for f32 {}
-impl ObservationAttributes for () {}
+impl ObservationAttributes for f32 {
+    type Metric = f32;
+
+    fn metric(left: &Option<Self>, right: &Option<Self>) -> Option<Self::Metric> {
+        if let (Some(left), Some(right)) = (left, right) {
+            Some((left - right).abs())
+        } else {
+            None
+        }
+    }
+}
+impl ObservationAttributes for () {
+    type Metric = ();
+
+    fn metric(_left: &Option<Self>, _right: &Option<Self>) -> Option<Self::Metric> {
+        None
+    }
+}
 
 pub struct FeatGen2 {
     x: f32,
@@ -239,7 +255,13 @@ pub struct Bbox {
     height: f32,
 }
 
-impl ObservationAttributes for Bbox {}
+impl ObservationAttributes for Bbox {
+    type Metric = f32;
+
+    fn metric(_left: &Option<Self>, _right: &Option<Self>) -> Option<Self::Metric> {
+        None
+    }
+}
 
 impl PartialOrd for Bbox {
     fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {

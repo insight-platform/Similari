@@ -1,4 +1,4 @@
-use crate::track::ObservationDistance;
+use crate::track::ObservationMetric;
 use crate::voting::Voting;
 use itertools::Itertools;
 
@@ -50,15 +50,17 @@ impl TopNVotingElt {
     }
 }
 
-impl Voting<TopNVotingElt> for TopNVoting {
-    fn winners(&self, distances: &[ObservationDistance]) -> Vec<TopNVotingElt> {
+impl Voting<TopNVotingElt, f32> for TopNVoting {
+    fn winners(&self, distances: &[ObservationMetric<f32>]) -> Vec<TopNVotingElt> {
         let mut tracks: Vec<_> = distances
             .iter()
-            .filter(|(_, e)| match e {
-                Some(e) => *e <= self.max_distance,
-                _ => false,
-            })
-            .map(|(track, _)| track)
+            .filter(
+                |ObservationMetric(_track, _f_attr_dist, feat_dist)| match feat_dist {
+                    Some(e) => *e <= self.max_distance,
+                    _ => false,
+                },
+            )
+            .map(|ObservationMetric(track, _f_attr_dist, _feat_dist)| track)
             .collect();
         tracks.sort_unstable();
         let mut counts = tracks
@@ -80,6 +82,7 @@ impl Voting<TopNVotingElt> for TopNVoting {
 #[cfg(test)]
 mod tests {
     use crate::track::voting::topn::{TopNVoting, TopNVotingElt, Voting};
+    use crate::track::ObservationMetric;
 
     #[test]
     fn default_voting() {
@@ -89,16 +92,25 @@ mod tests {
             min_votes: 1,
         };
 
-        let candidates = v.winners(&vec![(1, Some(0.2))]);
+        let candidates = v.winners(&vec![ObservationMetric(1, Some(0.0), Some(0.2))]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
-        let candidates = v.winners(&vec![(1, Some(0.2)), (1, Some(0.3))]);
+        let candidates = v.winners(&vec![
+            ObservationMetric(1, Some(0.0), Some(0.2)),
+            ObservationMetric(1, Some(0.0), Some(0.3)),
+        ]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 2)]);
 
-        let candidates = v.winners(&vec![(1, Some(0.2)), (1, Some(0.4))]);
+        let candidates = v.winners(&vec![
+            ObservationMetric(1, Some(0.0), Some(0.2)),
+            ObservationMetric(1, Some(0.0), Some(0.4)),
+        ]);
         assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
 
-        let mut candidates = v.winners(&vec![(1, Some(0.2)), (2, Some(0.2))]);
+        let mut candidates = v.winners(&vec![
+            ObservationMetric(1, Some(0.0), Some(0.2)),
+            ObservationMetric(2, Some(0.0), Some(0.2)),
+        ]);
         candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
         assert_eq!(
             candidates,
@@ -106,18 +118,18 @@ mod tests {
         );
 
         let mut candidates = v.winners(&vec![
-            (1, Some(0.2)),
-            (1, Some(0.22)),
-            (2, Some(0.21)),
-            (2, Some(0.2)),
-            (3, Some(0.22)),
-            (3, Some(0.2)),
-            (4, Some(0.23)),
-            (4, Some(0.3)),
-            (5, Some(0.24)),
-            (5, Some(0.3)),
-            (6, Some(0.25)),
-            (6, Some(0.5)),
+            ObservationMetric(1, Some(0.0), Some(0.2)),
+            ObservationMetric(1, Some(0.0), Some(0.22)),
+            ObservationMetric(2, Some(0.0), Some(0.21)),
+            ObservationMetric(2, Some(0.0), Some(0.2)),
+            ObservationMetric(3, Some(0.0), Some(0.22)),
+            ObservationMetric(3, Some(0.0), Some(0.2)),
+            ObservationMetric(4, Some(0.0), Some(0.23)),
+            ObservationMetric(4, Some(0.0), Some(0.3)),
+            ObservationMetric(5, Some(0.0), Some(0.24)),
+            ObservationMetric(5, Some(0.0), Some(0.3)),
+            ObservationMetric(6, Some(0.0), Some(0.25)),
+            ObservationMetric(6, Some(0.0), Some(0.5)),
         ]);
         candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
         assert_eq!(

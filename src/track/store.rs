@@ -1,7 +1,7 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    DistanceFilter, Metric, Observation, ObservationAttributes, ObservationDistance,
-    ObservationSpec, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    DistanceFilter, Metric, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
+    Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -41,15 +41,23 @@ pub type StoreMutexGuard<'a, TA, M, TAU, FA, N> =
 ///
 pub type OwnedMergeResult<TA, M, TAU, FA, N> = Result<Option<Track<TA, M, TAU, FA, N>>>;
 
+pub type TrackDistances<T> = (Vec<ObservationMetric<T>>, Vec<TrackDistanceError<T>>);
+
 #[derive(Debug)]
-enum Results {
-    Distance(Vec<ObservationDistance>, Vec<TrackDistanceError>),
+enum Results<FA>
+where
+    FA: ObservationAttributes,
+{
+    Distance(
+        Vec<ObservationMetric<FA::Metric>>,
+        Vec<TrackDistanceError<FA::Metric>>,
+    ),
     BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
 }
 
 /// Auxiliary type to express distance calculation errors
-pub type TrackDistanceError = Result<Vec<(u64, Option<f32>)>>;
+pub type TrackDistanceError<M> = Result<Vec<ObservationMetric<M>>>;
 
 /// Track store container with accelerated similarity operations.
 ///
@@ -78,7 +86,7 @@ where
     num_shards: usize,
     #[allow(clippy::type_complexity)]
     stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
-    receiver: Receiver<Results>,
+    receiver: Receiver<Results<FA>>,
     #[allow(clippy::type_complexity)]
     executors: Vec<(Sender<Commands<TA, M, TAU, FA, N>>, JoinHandle<()>)>,
 }
@@ -137,7 +145,7 @@ where
         stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
         store_id: usize,
         commands_receiver: Receiver<Commands<TA, M, TAU, FA, N>>,
-        results_sender: Sender<Results>,
+        results_sender: Sender<Results<FA>>,
     ) {
         let store = stores.get(store_id).unwrap();
         while let Ok(c) = commands_receiver.recv() {
@@ -347,7 +355,7 @@ where
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
-    ) -> (Vec<ObservationDistance>, Vec<TrackDistanceError>) {
+    ) -> TrackDistances<FA::Metric> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let mut errors = Vec::new();
         for (cmd, _) in &mut self.executors {
@@ -393,7 +401,7 @@ where
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
-    ) -> (Vec<ObservationDistance>, Vec<TrackDistanceError>) {
+    ) -> TrackDistances<FA::Metric> {
         let track = self.fetch_tracks(&vec![track_id]).pop();
         if track.is_none() {
             return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
@@ -777,8 +785,8 @@ mod tests {
         let (dists, errs) = store.owned_track_distances(0, 0, false, None);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].0, 1);
-        assert!(dists[0].1.is_some());
-        assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!(dists[0].2.is_some());
+        assert!((dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
         let (dists, errs) = store.owned_track_distances(1, 0, false, None);
@@ -810,8 +818,8 @@ mod tests {
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].0, 1);
-        assert!(dists[0].1.is_some());
-        assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!(dists[0].2.is_some());
+        assert!((dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
         // make it incompatible across the attributes
@@ -858,9 +866,9 @@ mod tests {
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
         assert_eq!(dists.len(), 2);
         assert_eq!(dists[0].0, 1);
-        assert!(dists[0].1.is_some());
-        assert!((dists[0].1.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
-        assert!((dists[1].1.as_ref().unwrap() - 1.0).abs() < EPS);
+        assert!(dists[0].2.is_some());
+        assert!((dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((dists[1].2.as_ref().unwrap() - 1.0).abs() < EPS);
         assert!(errs.is_empty());
 
         Ok(())
