@@ -22,6 +22,8 @@ pub fn feature_attributes_sort_inc<FA: ObservationAttributes>(
     e1.0.partial_cmp(&e2.0).unwrap()
 }
 
+/// Observation from Vec<f32>
+///
 impl FromVec<Vec<f32>> for Observation {
     fn from_vec(vec: Vec<f32>) -> Observation {
         let mut feature = {
@@ -54,6 +56,8 @@ impl FromVec<Vec<f32>> for Observation {
     }
 }
 
+/// Utility trait to get Observation from varios data structures
+///
 pub trait FromVec<V> {
     fn from_vec(vec: V) -> Observation;
 }
