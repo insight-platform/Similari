@@ -70,7 +70,10 @@ impl Metric<f32> for SimpleMetric {
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
     ) -> Option<f32> {
-        Some(euclidean(&e1.1, &e2.1))
+        match (e1.1.as_ref(), e2.1.as_ref()) {
+            (Some(x), Some(y)) => Some(euclidean(x, y)),
+            _ => None,
+        }
     }
 
     fn optimize(
@@ -119,7 +122,10 @@ impl Metric<f32> for UnboundMetric {
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
     ) -> Option<f32> {
-        Some(euclidean(&e1.1, &e2.1))
+        match (e1.1.as_ref(), e2.1.as_ref()) {
+            (Some(x), Some(y)) => Some(euclidean(x, y)),
+            _ => None,
+        }
     }
 
     fn optimize(
@@ -165,8 +171,8 @@ impl Iterator for FeatGen2 {
         self.x += self.gen.sample(&self.dist);
         self.y += self.gen.sample(&self.dist);
         Some(ObservationSpec(
-            self.gen.sample(&self.dist) + 0.7,
-            vec2(self.x, self.y),
+            Some(self.gen.sample(&self.dist) + 0.7),
+            Some(vec2(self.x, self.y)),
         ))
     }
 }

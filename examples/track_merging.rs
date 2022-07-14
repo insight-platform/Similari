@@ -248,7 +248,10 @@ impl Metric<f32> for CamTrackingAttributesMetric {
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
     ) -> Option<f32> {
-        Some(euclidean(&e1.1, &e2.1))
+        match (e1.1.as_ref(), e2.1.as_ref()) {
+            (Some(x), Some(y)) => Some(euclidean(x, y)),
+            _ => None,
+        }
     }
 
     fn optimize(
@@ -390,7 +393,13 @@ fn main() {
                 screen_pos: *screen_pos,
             };
             temp_store
-                .add(*track_id, *class, feature.0, feature.1.clone(), update)
+                .add(
+                    *track_id,
+                    *class,
+                    feature.0,
+                    feature.1.clone(),
+                    Some(update),
+                )
                 .unwrap();
         }
         idx += 1;

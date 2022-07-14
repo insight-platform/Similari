@@ -39,7 +39,7 @@ const FEATURE_LANES_SIZE: usize = 8;
 /// is used to support the estimation for every observation during the collecting. If the model doesn't provide the feature attributes
 /// `()` may be used.
 #[derive(Default, Clone)]
-pub struct ObservationSpec<T>(pub T, pub Observation)
+pub struct ObservationSpec<T>(pub Option<T>, pub Option<Observation>)
 where
     T: Default + Send + Sync + Clone + 'static + PartialOrd;
 
@@ -279,19 +279,25 @@ where
     pub fn add_observation(
         &mut self,
         feature_class: u64,
-        feature_attributes: FA,
-        feature: Observation,
-        track_attributes_update: TAU,
+        feature_attributes: Option<FA>,
+        feature: Option<Observation>,
+        track_attributes_update: Option<TAU>,
     ) -> Result<()> {
         let last_attributes = self.attributes.clone();
         let last_observations = self.observations.clone();
         let last_metric = self.metric.clone();
 
-        let res = self.update_attributes(track_attributes_update);
-        if res.is_err() {
-            self.attributes = last_attributes;
-            res?;
-            unreachable!();
+        if let Some(track_attributes_update) = track_attributes_update {
+            let res = self.update_attributes(track_attributes_update);
+            if res.is_err() {
+                self.attributes = last_attributes;
+                res?;
+                unreachable!();
+            }
+        }
+
+        if feature.is_none() && feature_attributes.is_none() {
+            return Ok(());
         }
 
         match self.observations.get_mut(&feature_class) {
@@ -508,7 +514,10 @@ mod tests {
             e1: &ObservationSpec<f32>,
             e2: &ObservationSpec<f32>,
         ) -> Option<f32> {
-            Some(euclidean(&e1.1, &e2.1))
+            match (e1.1.as_ref(), e2.1.as_ref()) {
+                (Some(x), Some(y)) => Some(euclidean(x, y)),
+                _ => None,
+            }
         }
 
         fn optimize(
@@ -536,17 +545,17 @@ mod tests {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            None,
         )?;
 
         let mut t2 = Track::default();
         t2.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            None,
         )?;
 
         let dists = t1.distances(&t1, 0, &None);
@@ -570,9 +579,9 @@ mod tests {
 
         t2.add_observation(
             0,
-            0.2,
-            Observation::from_vec(vec![1f32, 1.0f32, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.2),
+            Some(Observation::from_vec(vec![1f32, 1.0f32, 0.0])),
+            None,
         )?;
 
         assert_eq!(t2.observations.get(&0).unwrap().len(), 2);
@@ -590,17 +599,17 @@ mod tests {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            None,
         )?;
 
         let mut t2 = Track::default();
         t2.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            None,
         )?;
         let r = t1.merge(&t2, &vec![0], true);
         assert!(r.is_ok());
@@ -613,17 +622,17 @@ mod tests {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            None,
         )?;
 
         let mut t2 = Track::default();
         t2.add_observation(
             1,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            None,
         )?;
         let r = t1.merge(&t2, &vec![1], true);
         assert!(r.is_ok());
@@ -683,7 +692,10 @@ mod tests {
                 e1: &ObservationSpec<f32>,
                 e2: &ObservationSpec<f32>,
             ) -> Option<f32> {
-                Some(euclidean(&e1.1, &e2.1))
+                match (e1.1.as_ref(), e2.1.as_ref()) {
+                    (Some(x), Some(y)) => Some(euclidean(x, y)),
+                    _ => None,
+                }
             }
 
             fn optimize(
@@ -703,17 +715,17 @@ mod tests {
         t1.track_id = 1;
         t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            TimeAttrUpdates { time: 2 },
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(TimeAttrUpdates { time: 2 }),
         )?;
 
         let mut t2 = Track::default();
         t2.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            TimeAttrUpdates { time: 3 },
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(TimeAttrUpdates { time: 3 }),
         )?;
         t2.track_id = 2;
 
@@ -726,9 +738,9 @@ mod tests {
         let mut t3 = Track::default();
         t3.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            TimeAttrUpdates { time: 1 },
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(TimeAttrUpdates { time: 1 }),
         )?;
 
         let dists = t1.distances(&t3, 0, &None);
@@ -741,16 +753,16 @@ mod tests {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
         t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            None,
         )?;
 
         t1.add_observation(
             1,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            None,
         )?;
         let mut classes = t1.get_feature_classes();
         classes.sort();
@@ -821,7 +833,10 @@ mod tests {
                 e1: &ObservationSpec<f32>,
                 e2: &ObservationSpec<f32>,
             ) -> Option<f32> {
-                Some(euclidean(&e1.1, &e2.1))
+                match (e1.1.as_ref(), e2.1.as_ref()) {
+                    (Some(x), Some(y)) => Some(euclidean(x, y)),
+                    _ => None,
+                }
             }
 
             fn optimize(
@@ -843,18 +858,18 @@ mod tests {
         assert_eq!(t1.attributes, DefaultAttrs { count: 0 });
         let res = t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates { ignore: false },
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(DefaultAttrUpdates { ignore: false }),
         );
         assert!(res.is_ok());
         assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
 
         let res = t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates { ignore: true },
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(DefaultAttrUpdates { ignore: true }),
         );
         assert!(res.is_err());
         if let Err(e) = res {
@@ -874,9 +889,9 @@ mod tests {
         assert_eq!(t2.attributes, DefaultAttrs { count: 0 });
         let res = t2.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates { ignore: false },
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(DefaultAttrUpdates { ignore: false }),
         );
         assert!(res.is_ok());
         assert_eq!(t2.attributes, DefaultAttrs { count: 1 });
@@ -901,17 +916,17 @@ mod tests {
             Track::new(0, None, None, None);
         t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            None,
         )?;
 
         let mut t2 = Track::new(1, None, None, None);
         t2.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            None,
         )?;
         let dists = t1
             .distances(&t2, 0, &Some(DistanceFilter::LE(0.5)))
@@ -928,16 +943,16 @@ mod tests {
 
         t1.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![1f32, 0.0, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            None,
         )?;
 
         t2.add_observation(
             0,
-            0.3,
-            Observation::from_vec(vec![0f32, 1.0f32, 0.0]),
-            DefaultAttrUpdates {},
+            Some(0.3),
+            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            None,
         )?;
 
         let mut track_with_merge_history = t1.clone();
@@ -986,7 +1001,10 @@ mod tests {
                 e1: &ObservationSpec<()>,
                 e2: &ObservationSpec<()>,
             ) -> Option<f32> {
-                Some(euclidean(&e1.1, &e2.1))
+                match (e1.1.as_ref(), e2.1.as_ref()) {
+                    (Some(x), Some(y)) => Some(euclidean(x, y)),
+                    _ => None,
+                }
             }
 
             fn optimize(

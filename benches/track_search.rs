@@ -28,9 +28,11 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
             let res = db.add(
                 i as u64,
                 DEFAULT_FEATURE,
-                1.0,
-                Observation::from_vec((0..vec_len).map(|_| rng.sample(&gen)).collect()),
-                UnboundAttributeUpdate {},
+                Some(1.0),
+                Some(Observation::from_vec(
+                    (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+                )),
+                None,
             );
             assert!(res.is_ok());
         }
@@ -45,9 +47,11 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
     for _j in 0..track_len {
         let _ = t.add_observation(
             DEFAULT_FEATURE,
-            1.0,
-            Observation::from_vec((0..vec_len).map(|_| rng.sample(&gen)).collect()),
-            UnboundAttributeUpdate {},
+            Some(1.0),
+            Some(Observation::from_vec(
+                (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+            )),
+            Some(UnboundAttributeUpdate),
         );
     }
 

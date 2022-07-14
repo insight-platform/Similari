@@ -91,9 +91,11 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
         let res = db.add(
             i as u64,
             DEFAULT_FEATURE,
-            1.0,
-            Observation::from_vec((0..vec_len).map(|_| rng.sample(&gen)).collect()),
-            SimpleAttributeUpdate {},
+            Some(1.0),
+            Some(Observation::from_vec(
+                (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+            )),
+            Some(SimpleAttributeUpdate {}),
         );
         assert!(res.is_ok());
     }
@@ -107,9 +109,11 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
 
     let _ = t.add_observation(
         DEFAULT_FEATURE,
-        1.0,
-        Observation::from_vec((0..vec_len).map(|_| rng.sample(&gen)).collect()),
-        SimpleAttributeUpdate {},
+        Some(1.0),
+        Some(Observation::from_vec(
+            (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+        )),
+        None,
     );
 
     let t = Arc::new(t);
