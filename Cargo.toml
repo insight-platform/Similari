@@ -1,7 +1,7 @@
 [package]
 name = "similari"
 authors = ["Ivan Kudriavtsev <ivan.a.kudryavtsev@gmail.com>"]
-description = "Machine learning framework for building trackers and similarity search engines"
+description = "Machine learning framework for building object trackers and similarity search engines"
 homepage = "https://github.com/insight-platform/Similari"
 repository = "https://github.com/insight-platform/Similari"
 readme = "README.md"
