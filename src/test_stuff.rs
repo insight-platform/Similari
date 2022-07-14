@@ -5,6 +5,9 @@ use crate::track::{
     TrackAttributesUpdate, TrackStatus,
 };
 use anyhow::Result;
+use rand::distributions::Uniform;
+use rand::prelude::ThreadRng;
+use rand::Rng;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -133,3 +136,34 @@ pub fn vec2(x: f32, y: f32) -> Observation {
 
 impl ObservationAttributes for f32 {}
 impl ObservationAttributes for () {}
+
+pub struct FeatGen2 {
+    x: f32,
+    y: f32,
+    gen: ThreadRng,
+    dist: Uniform<f32>,
+}
+
+impl FeatGen2 {
+    pub fn new(x: f32, y: f32, drift: f32) -> Self {
+        Self {
+            x,
+            y,
+            gen: rand::thread_rng(),
+            dist: Uniform::new(-drift, drift),
+        }
+    }
+}
+
+impl Iterator for FeatGen2 {
+    type Item = ObservationSpec<f32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.x += self.gen.sample(&self.dist);
+        self.y += self.gen.sample(&self.dist);
+        Some(ObservationSpec(
+            self.gen.sample(&self.dist) + 0.7,
+            vec2(self.x, self.y),
+        ))
+    }
+}

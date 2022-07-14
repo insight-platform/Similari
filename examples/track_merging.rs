@@ -2,13 +2,10 @@ use crate::Gender::{Female, Male};
 use anyhow::Result;
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
-use rand::distributions::Uniform;
-use rand::rngs::ThreadRng;
-use rand::Rng;
 use similari::current_time_ms;
 use similari::distance::euclidean;
 use similari::store::TrackStore;
-use similari::test_stuff::vec2;
+use similari::test_stuff::FeatGen2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
     Metric, ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
@@ -186,39 +183,9 @@ fn cam_tracking_attributes_update_test() {
     assert!(update.apply(&mut attrs).is_err());
 }
 
-struct FeatGen2 {
-    x: f32,
-    y: f32,
-    gen: ThreadRng,
-    dist: Uniform<f32>,
-}
-
-impl FeatGen2 {
-    pub fn new(x: f32, y: f32, drift: f32) -> Self {
-        Self {
-            x,
-            y,
-            gen: rand::thread_rng(),
-            dist: Uniform::new(-drift, drift),
-        }
-    }
-}
-
-impl Iterator for FeatGen2 {
-    type Item = ObservationSpec<f32>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.x += self.gen.sample(&self.dist);
-        self.y += self.gen.sample(&self.dist);
-        Some(ObservationSpec(
-            self.gen.sample(&self.dist) + 0.7,
-            vec2(self.x, self.y),
-        ))
-    }
-}
-
 #[test]
 fn feat_gen() {
+    use similari::test_stuff::FeatGen2;
     use std::ops::Sub;
     use ultraviolet::f32x8;
 
