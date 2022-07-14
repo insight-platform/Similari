@@ -1,7 +1,8 @@
 use crate::distance::euclidean;
+use crate::track::utils::FromVec;
 use crate::track::{
-    AttributeMatch, AttributeUpdate, Feature, FeatureObservationsGroups, FeatureSpec, FromVec,
-    Metric, TrackBakingStatus,
+    Metric, Observation, ObservationAttributes, ObservationSpec, ObservationsDb, TrackAttributes,
+    TrackAttributesUpdate, TrackStatus,
 };
 use anyhow::Result;
 use thiserror::Error;
@@ -22,7 +23,7 @@ pub struct SimpleAttrs {
 #[derive(Default, Clone)]
 pub struct SimpleAttributeUpdate;
 
-impl AttributeUpdate<SimpleAttrs> for SimpleAttributeUpdate {
+impl TrackAttributesUpdate<SimpleAttrs> for SimpleAttributeUpdate {
     fn apply(&self, attrs: &mut SimpleAttrs) -> Result<()> {
         if attrs.set {
             return Err(AppError::SetError.into());
@@ -32,7 +33,7 @@ impl AttributeUpdate<SimpleAttrs> for SimpleAttributeUpdate {
     }
 }
 
-impl AttributeMatch<SimpleAttrs> for SimpleAttrs {
+impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
     fn compatible(&self, other: &SimpleAttrs) -> bool {
         self.set && other.set
     }
@@ -45,11 +46,11 @@ impl AttributeMatch<SimpleAttrs> for SimpleAttrs {
         }
     }
 
-    fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus> {
+    fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
         if self.set {
-            Ok(TrackBakingStatus::Ready)
+            Ok(TrackStatus::Ready)
         } else {
-            Ok(TrackBakingStatus::Pending)
+            Ok(TrackStatus::Pending)
         }
     }
 }
@@ -57,8 +58,12 @@ impl AttributeMatch<SimpleAttrs> for SimpleAttrs {
 #[derive(Default, Clone)]
 pub struct SimpleMetric;
 
-impl Metric for SimpleMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+impl Metric<f32> for SimpleMetric {
+    fn distance(
+        _feature_class: u64,
+        e1: &ObservationSpec<f32>,
+        e2: &ObservationSpec<f32>,
+    ) -> Option<f32> {
         Some(euclidean(&e1.1, &e2.1))
     }
 
@@ -66,7 +71,7 @@ impl Metric for SimpleMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        _features: &mut Vec<FeatureSpec>,
+        _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {
         Ok(())
@@ -79,13 +84,13 @@ pub struct UnboundAttrs;
 #[derive(Default, Clone)]
 pub struct UnboundAttributeUpdate;
 
-impl AttributeUpdate<UnboundAttrs> for UnboundAttributeUpdate {
+impl TrackAttributesUpdate<UnboundAttrs> for UnboundAttributeUpdate {
     fn apply(&self, _attrs: &mut UnboundAttrs) -> Result<()> {
         Ok(())
     }
 }
 
-impl AttributeMatch<UnboundAttrs> for UnboundAttrs {
+impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
     fn compatible(&self, _other: &UnboundAttrs) -> bool {
         true
     }
@@ -94,16 +99,20 @@ impl AttributeMatch<UnboundAttrs> for UnboundAttrs {
         Ok(())
     }
 
-    fn baked(&self, _observations: &FeatureObservationsGroups) -> Result<TrackBakingStatus> {
-        Ok(TrackBakingStatus::Ready)
+    fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
+        Ok(TrackStatus::Ready)
     }
 }
 
 #[derive(Default, Clone)]
 pub struct UnboundMetric;
 
-impl Metric for UnboundMetric {
-    fn distance(_feature_class: u64, e1: &FeatureSpec, e2: &FeatureSpec) -> Option<f32> {
+impl Metric<f32> for UnboundMetric {
+    fn distance(
+        _feature_class: u64,
+        e1: &ObservationSpec<f32>,
+        e2: &ObservationSpec<f32>,
+    ) -> Option<f32> {
         Some(euclidean(&e1.1, &e2.1))
     }
 
@@ -111,13 +120,16 @@ impl Metric for UnboundMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        _features: &mut Vec<FeatureSpec>,
+        _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {
         Ok(())
     }
 }
 
-pub fn vec2(x: f32, y: f32) -> Feature {
-    Feature::from_vec(vec![x, y])
+pub fn vec2(x: f32, y: f32) -> Observation {
+    Observation::from_vec(vec![x, y])
 }
+
+impl ObservationAttributes for f32 {}
+impl ObservationAttributes for () {}
