@@ -235,6 +235,10 @@ where
         &self.attributes
     }
 
+    pub fn get_observations(&self, feature_class: u64) -> Option<&Vec<ObservationSpec<FA>>> {
+        self.observations.get(&feature_class)
+    }
+
     /// Returns current track attributes as mutable reg
     ///
     pub fn get_attributes_mut(&mut self) -> &mut TA {

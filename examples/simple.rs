@@ -37,7 +37,7 @@ fn main() {
     // attribute implementation prevents secondary observations to be added to the same track
     assert!(res.is_err());
 
-    let baked = db.find_baked();
+    let baked = db.find_usable();
     assert_eq!(
         baked
             .into_iter()

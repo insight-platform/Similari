@@ -61,11 +61,8 @@ pub type TrackDistanceError = Result<Vec<(u64, Option<f32>)>>;
 /// calculation options for concrete feature classes. E.g. FEAT1 may be calculated with Euclid distance,
 /// while FEAT2 may be calculated with cosine. It is up to Metric implementor how the metric works.
 ///
-/// Simple TrackStore example can be found at:
-/// [examples/simple.rs](https://github.com/insight-platform/Similari/blob/main/examples/simple.rs).
-///
-/// Advanced TrackStore example can be found at:
-/// [examples/track_merging.rs](https://github.com/insight-platform/Similari/blob/main/examples/track_merging.rs).
+/// TrackStore examples can be found at:
+/// [examples/*](https://github.com/insight-platform/Similari/blob/main/examples).
 ///
 pub struct TrackStore<TA, TAU, M, FA, N = NoopNotifier>
 where
@@ -295,7 +292,7 @@ where
     /// * `TrackBakingStatus::Wasted` or
     /// * `Err(e)`
     ///
-    pub fn find_baked(&mut self) -> Vec<(u64, Result<TrackStatus>)> {
+    pub fn find_usable(&mut self) -> Vec<(u64, Result<TrackStatus>)> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         for (cmd, _) in &mut self.executors {
             cmd.send(Commands::FindBaked).unwrap();
@@ -740,10 +737,10 @@ mod tests {
                 time: current_time_ms(),
             },
         )?;
-        let baked = store.find_baked();
+        let baked = store.find_usable();
         assert!(baked.is_empty());
         thread::sleep(Duration::from_millis(30));
-        let baked = store.find_baked();
+        let baked = store.find_usable();
         assert_eq!(baked.len(), 1);
         assert_eq!(baked[0].0, 0);
 

@@ -396,7 +396,7 @@ fn main() {
         idx += 1;
 
         thread::sleep(Duration::from_millis(1));
-        let baked = temp_store.find_baked();
+        let baked = temp_store.find_usable();
         for (id, s) in baked {
             let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
             if let Ok(TrackStatus::Ready) = s {
@@ -422,7 +422,7 @@ fn main() {
         }
     }
 
-    let baked = merge_store.find_baked();
+    let baked = merge_store.find_usable();
     for (id, s) in baked {
         if let Ok(TrackStatus::Ready) = s {
             let track = merge_store.fetch_tracks(&vec![id]).pop().unwrap();

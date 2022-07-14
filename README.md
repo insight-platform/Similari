@@ -97,4 +97,5 @@ Take a look at [benchmarks](benches) for numbers.
 Take a look at 
 * [examples/simple.rs](examples/simple.rs) for an idea of simple usage.
 * [examples/track_merging.rs](examples/track_merging.rs) for an idea of intra-cam track merging.
+* [examples/incremental_track_build.rs](examples/incremental_track_build.rs) very simple feature-based tracker.
 

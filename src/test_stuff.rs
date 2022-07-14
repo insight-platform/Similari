@@ -4,10 +4,12 @@ use crate::track::{
     Metric, Observation, ObservationAttributes, ObservationSpec, ObservationsDb, TrackAttributes,
     TrackAttributesUpdate, TrackStatus,
 };
+use crate::EPS;
 use anyhow::Result;
 use rand::distributions::Uniform;
 use rand::prelude::ThreadRng;
 use rand::Rng;
+use std::cmp::Ordering;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
@@ -169,6 +171,48 @@ impl Iterator for FeatGen2 {
     }
 }
 
+pub struct BoxGen2 {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    gen: ThreadRng,
+    dist_pos: Uniform<f32>,
+    dist_box: Uniform<f32>,
+}
+
+impl BoxGen2 {
+    pub fn new(x: f32, y: f32, width: f32, height: f32, pos_drift: f32, box_drift: f32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+            gen: rand::thread_rng(),
+            dist_pos: Uniform::new(-pos_drift, pos_drift),
+            dist_box: Uniform::new(-box_drift, box_drift),
+        }
+    }
+}
+
+impl Iterator for BoxGen2 {
+    type Item = Bbox;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.x += self.gen.sample(&self.dist_pos);
+        self.y += self.gen.sample(&self.dist_pos);
+        self.width += self.gen.sample(&self.dist_box);
+        self.height += self.gen.sample(&self.dist_box);
+
+        Some(Bbox {
+            x: self.x,
+            y: self.y,
+            width: self.width,
+            height: self.height,
+        })
+    }
+}
+
 pub fn current_time_span() -> Duration {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
 }
@@ -179,4 +223,29 @@ pub fn current_time_ms() -> u128 {
 
 pub fn current_time_sec() -> u64 {
     current_time_span().as_secs()
+}
+
+#[derive(Clone, Default, Debug)]
+pub struct Bbox {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+}
+
+impl ObservationAttributes for Bbox {}
+
+impl PartialOrd for Bbox {
+    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
+        unreachable!()
+    }
+}
+
+impl PartialEq<Self> for Bbox {
+    fn eq(&self, other: &Self) -> bool {
+        (self.x - other.x).abs() < EPS
+            && (self.y - other.y).abs() < EPS
+            && (self.width - other.width).abs() < EPS
+            && (self.height - other.height).abs() < EPS
+    }
 }
