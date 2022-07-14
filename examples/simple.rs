@@ -21,18 +21,18 @@ fn main() {
     let res = db.add(
         0,
         DEFAULT_FEATURE,
-        1.0,
-        vec2(1.0, 0.0),
-        SimpleAttributeUpdate {},
+        Some(1.0),
+        Some(vec2(1.0, 0.0)),
+        Some(SimpleAttributeUpdate {}),
     );
     assert!(res.is_ok());
 
     let res = db.add(
         0,
         DEFAULT_FEATURE,
-        1.0,
-        vec2(1.0, 0.0),
-        SimpleAttributeUpdate {},
+        Some(1.0),
+        Some(vec2(1.0, 0.0)),
+        Some(SimpleAttributeUpdate {}),
     );
     // attribute implementation prevents secondary observations to be added to the same track
     assert!(res.is_err());
@@ -50,9 +50,9 @@ fn main() {
     let res = db.add(
         1,
         DEFAULT_FEATURE,
-        0.9,
-        vec2(0.9, 0.1),
-        SimpleAttributeUpdate {},
+        Some(0.9),
+        Some(vec2(0.9, 0.1)),
+        Some(SimpleAttributeUpdate {}),
     );
     assert!(res.is_ok());
 
@@ -65,9 +65,9 @@ fn main() {
 
     let res = ext_track.add_observation(
         DEFAULT_FEATURE,
-        0.8,
-        vec2(0.66, 0.33),
-        SimpleAttributeUpdate {},
+        Some(0.8),
+        Some(vec2(0.66, 0.33)),
+        Some(SimpleAttributeUpdate {}),
     );
 
     assert!(res.is_ok());

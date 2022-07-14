@@ -48,12 +48,15 @@ impl Metric<Bbox> for TrackMetric {
         e1: &ObservationSpec<Bbox>,
         e2: &ObservationSpec<Bbox>,
     ) -> Option<f32> {
-        /// bbox information (.0) is not used but can be used
-        /// to implement additional IoU tracking
-        /// one can use None if low IoU
-        /// or implement weighted distance based on IoU and euclidean distance
-        ///
-        Some(euclidean(&e1.1, &e2.1))
+        // bbox information (.0) is not used but can be used
+        // to implement additional IoU tracking
+        // one can use None if low IoU
+        // or implement weighted distance based on IoU and euclidean distance
+        //
+        match (e1.1.as_ref(), e2.1.as_ref()) {
+            (Some(x), Some(y)) => Some(euclidean(x, y)),
+            _ => None,
+        }
     }
 
     fn optimize(
@@ -81,23 +84,19 @@ fn main() {
     let mut b2 = BoxGen2::new(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
 
     for _ in 0..10 {
-        let (obj1f, obj1b) = (p1.next().unwrap().1, b1.next().unwrap());
+        let (obj1f, obj1b) = (p1.next().unwrap().1, b1.next());
         let mut obj1t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, Bbox> =
             Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
-        obj1t
-            .add_observation(FEAT0, obj1b, obj1f, NoopAttributesUpdate)
-            .unwrap();
+        obj1t.add_observation(FEAT0, obj1b, obj1f, None).unwrap();
 
-        let (obj2f, obj2b) = (p2.next().unwrap().1, b2.next().unwrap());
+        let (obj2f, obj2b) = (p2.next().unwrap().1, b2.next());
         let mut obj2t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, Bbox> = Track::new(
             (u64::try_from(current_time_ms()).unwrap()) + 1,
             None,
             None,
             None,
         );
-        obj2t
-            .add_observation(FEAT0, obj2b, obj2f, NoopAttributesUpdate)
-            .unwrap();
+        obj2t.add_observation(FEAT0, obj2b, obj2f, None).unwrap();
         thread::sleep(Duration::from_millis(2));
 
         for t in [obj1t, obj2t] {

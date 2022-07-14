@@ -445,9 +445,9 @@ where
         &mut self,
         track_id: u64,
         feature_class: u64,
-        feature_attribute: FA,
-        feature: Observation,
-        attributes_update: TAU,
+        feature_attribute: Option<FA>,
+        feature: Option<Observation>,
+        attributes_update: Option<TAU>,
     ) -> Result<()> {
         let mut tracks = self.get_store(track_id as usize);
         #[allow(clippy::significant_drop_in_scrutinee)]
@@ -465,7 +465,10 @@ where
                     phantom_attribute_update: PhantomData,
                     merge_history: vec![track_id],
                 };
-                t.update_attributes(attributes_update)?;
+                if let Some(attributes_update) = attributes_update {
+                    t.update_attributes(attributes_update)?;
+                }
+
                 tracks.insert(track_id, t);
             }
             Some(track) => {
@@ -620,7 +623,10 @@ mod tests {
             e1: &ObservationSpec<f32>,
             e2: &ObservationSpec<f32>,
         ) -> Option<f32> {
-            Some(euclidean(&e1.1, &e2.1))
+            match (e1.1.as_ref(), e2.1.as_ref()) {
+                (Some(x), Some(y)) => Some(euclidean(x, y)),
+                _ => None,
+            }
         }
 
         fn optimize(
@@ -658,14 +664,20 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            Some(TimeAttrUpdates {
                 time: current_time_ms(),
-            },
+            }),
         )?;
 
         Ok(())
+    }
+
+    fn time_attrs_current_ts() -> Option<TimeAttrUpdates> {
+        Some(TimeAttrUpdates {
+            time: current_time_ms(),
+        })
     }
 
     #[test]
@@ -686,11 +698,9 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let stats = store.shard_stats();
@@ -699,11 +709,9 @@ mod tests {
         store.add(
             1,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let stats = store.shard_stats();
@@ -731,11 +739,9 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
         let baked = store.find_usable();
         assert!(baked.is_empty());
@@ -752,11 +758,9 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
         let (dists, errs) = store.owned_track_distances(0, 0, false, None);
         assert!(dists.is_empty());
@@ -765,11 +769,9 @@ mod tests {
         store.add(
             1,
             0,
-            0.7,
-            vec2(1.0, 0.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.7),
+            Some(vec2(1.0, 0.0)),
+            time_attrs_current_ts(),
         )?;
 
         let (dists, errs) = store.owned_track_distances(0, 0, false, None);
@@ -845,11 +847,9 @@ mod tests {
         store.add(
             1,
             0,
-            0.7,
-            vec2(1.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.7),
+            Some(vec2(1.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let mut v = (*v).clone();
@@ -881,11 +881,9 @@ mod tests {
         store.add(
             1,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let mut ext_track = Track::new(
@@ -901,11 +899,11 @@ mod tests {
         //thread::sleep(Duration::from_millis(10));
         ext_track.add_observation(
             0,
-            0.8,
-            vec2(0.66, 0.33),
-            TimeAttrUpdates {
+            Some(0.8),
+            Some(vec2(0.66, 0.33)),
+            Some(TimeAttrUpdates {
                 time: current_time_ms(),
-            },
+            }),
         )?;
 
         let ext_track = Arc::new(ext_track);
@@ -916,11 +914,9 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let (dists, errs) = store.owned_track_distances(1, 0, true, None);
@@ -946,11 +942,9 @@ mod tests {
         thread::sleep(Duration::from_millis(1));
         ext_track.add_observation(
             0,
-            0.8,
-            vec2(0.66, 0.33),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.8),
+            Some(vec2(0.66, 0.33)),
+            time_attrs_current_ts(),
         )?;
 
         let mut store = TrackStore::new(
@@ -966,11 +960,9 @@ mod tests {
         store.add(
             1,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let ext_track = Arc::new(ext_track);
@@ -988,11 +980,9 @@ mod tests {
         store.add(
             3,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let (dists, errs) = store.owned_track_distances(1, 0, false, None);
@@ -1021,11 +1011,9 @@ mod tests {
         thread::sleep(Duration::from_millis(1));
         ext_track.add_observation(
             0,
-            0.8,
-            vec2(0.66, 0.33),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.8),
+            Some(vec2(0.66, 0.33)),
+            time_attrs_current_ts(),
         )?;
 
         let mut store = TrackStore::new(
@@ -1041,11 +1029,9 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         store.add_track(ext_track)?;
@@ -1067,11 +1053,9 @@ mod tests {
         thread::sleep(Duration::from_millis(1));
         ext_track.add_observation(
             0,
-            0.8,
-            vec2(0.66, 0.33),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.8),
+            Some(vec2(0.66, 0.33)),
+            time_attrs_current_ts(),
         )?;
 
         let mut store = TrackStore::new(
@@ -1087,11 +1071,9 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         assert!(store.add_track(ext_track).is_err());
@@ -1114,20 +1096,16 @@ mod tests {
         thread::sleep(Duration::from_millis(1));
         ext_track.add_observation(
             0,
-            0.8,
-            vec2(0.66, 0.33),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.8),
+            Some(vec2(0.66, 0.33)),
+            time_attrs_current_ts(),
         )?;
 
         ext_track.add_observation(
             1,
-            0.8,
-            vec2(0.65, 0.33),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.8),
+            Some(vec2(0.65, 0.33)),
+            time_attrs_current_ts(),
         )?;
 
         let mut store = TrackStore::new(
@@ -1143,11 +1121,9 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let res = store.merge_external(0, &ext_track, Some(&[0]), true);
@@ -1179,22 +1155,18 @@ mod tests {
         store.add(
             0,
             0,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         thread::sleep(Duration::from_millis(1));
         store.add(
             1,
             1,
-            0.9,
-            vec2(0.0, 1.0),
-            TimeAttrUpdates {
-                time: current_time_ms(),
-            },
+            Some(0.9),
+            Some(vec2(0.0, 1.0)),
+            time_attrs_current_ts(),
         )?;
 
         let res = store.merge_owned(0, 1, None, false, true);
