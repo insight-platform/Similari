@@ -33,7 +33,7 @@ pub enum Errors {
     IncompatibleAttributes,
     /// One of tracks doesn't have features for specified class
     ///
-    #[error("Requested observations for class={2}= are missing in track={0} or track={1} - distance cannot be calculated.")]
+    #[error("Requested observations for class={2} are missing in track={0} or track={1} - distance cannot be calculated.")]
     ObservationForClassNotFound(u64, u64, u64),
     /// Requested track is not found in the store
     ///
