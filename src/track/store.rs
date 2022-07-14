@@ -1,7 +1,7 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    DistanceFilter, Metric, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
-    Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    DistanceFilter, Observation, ObservationAttributes, ObservationMetric, ObservationMetricResult,
+    ObservationSpec, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -18,7 +18,7 @@ where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    M: Metric<TA, FA>,
+    M: ObservationMetric<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
 {
     Drop,
@@ -41,7 +41,7 @@ pub type StoreMutexGuard<'a, TA, M, TAU, FA, N> =
 ///
 pub type OwnedMergeResult<TA, M, TAU, FA, N> = Result<Option<Track<TA, M, TAU, FA, N>>>;
 
-pub type TrackDistances<T> = (Vec<ObservationMetric<T>>, Vec<TrackDistanceError<T>>);
+pub type TrackDistances<T> = (Vec<ObservationMetricResult<T>>, Vec<TrackDistanceError<T>>);
 
 #[derive(Debug)]
 enum Results<FA>
@@ -49,15 +49,15 @@ where
     FA: ObservationAttributes,
 {
     Distance(
-        Vec<ObservationMetric<FA::Metric>>,
-        Vec<TrackDistanceError<FA::Metric>>,
+        Vec<ObservationMetricResult<FA::MetricObject>>,
+        Vec<TrackDistanceError<FA::MetricObject>>,
     ),
     BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
 }
 
 /// Auxiliary type to express distance calculation errors
-pub type TrackDistanceError<M> = Result<Vec<ObservationMetric<M>>>;
+pub type TrackDistanceError<M> = Result<Vec<ObservationMetricResult<M>>>;
 
 /// Track store container with accelerated similarity operations.
 ///
@@ -78,7 +78,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<TA, FA>,
+    M: ObservationMetric<TA, FA>,
 {
     attributes: TA,
     metric: M,
@@ -97,7 +97,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<TA, FA>,
+    M: ObservationMetric<TA, FA>,
 {
     fn drop(&mut self) {
         let executors = mem::take(&mut self.executors);
@@ -123,7 +123,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<TA, FA>,
+    M: ObservationMetric<TA, FA>,
 {
     fn default() -> Self {
         Self::new(None, None, None, 1)
@@ -138,7 +138,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<TA, FA>,
+    M: ObservationMetric<TA, FA>,
 {
     #[allow(clippy::type_complexity)]
     fn handle_store_ops(
@@ -355,7 +355,7 @@ where
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
-    ) -> TrackDistances<FA::Metric> {
+    ) -> TrackDistances<FA::MetricObject> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let mut errors = Vec::new();
         for (cmd, _) in &mut self.executors {
@@ -401,7 +401,7 @@ where
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
-    ) -> TrackDistances<FA::Metric> {
+    ) -> TrackDistances<FA::MetricObject> {
         let track = self.fetch_tracks(&vec![track_id]).pop();
         if track.is_none() {
             return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
@@ -569,7 +569,7 @@ mod tests {
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::DistanceFilter::{GE, LE};
     use crate::track::{
-        Metric, NoopNotifier, ObservationSpec, ObservationsDb, Track, TrackAttributes,
+        NoopNotifier, ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
         TrackAttributesUpdate, TrackStatus,
     };
     use crate::{Errors, EPS};
@@ -625,7 +625,7 @@ mod tests {
         max_length: usize,
     }
 
-    impl Metric<TimeAttrs, f32> for TimeMetric {
+    impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
         fn distance(
             _feature_class: u64,
             e1: &ObservationSpec<f32>,

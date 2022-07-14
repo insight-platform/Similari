@@ -1,8 +1,8 @@
 use crate::distance::euclidean;
 use crate::track::utils::FromVec;
 use crate::track::{
-    Metric, Observation, ObservationAttributes, ObservationSpec, ObservationsDb, TrackAttributes,
-    TrackAttributesUpdate, TrackStatus,
+    Observation, ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb,
+    TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::EPS;
 use anyhow::Result;
@@ -64,7 +64,7 @@ impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
 #[derive(Default, Clone)]
 pub struct SimpleMetric;
 
-impl Metric<SimpleAttrs, f32> for SimpleMetric {
+impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
     fn distance(
         _feature_class: u64,
         e1: &ObservationSpec<f32>,
@@ -117,7 +117,7 @@ impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
 #[derive(Default, Clone)]
 pub struct UnboundMetric;
 
-impl Metric<UnboundAttrs, f32> for UnboundMetric {
+impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
     fn distance(
         _feature_class: u64,
         e1: &ObservationSpec<f32>,
@@ -146,9 +146,12 @@ pub fn vec2(x: f32, y: f32) -> Observation {
 }
 
 impl ObservationAttributes for f32 {
-    type Metric = f32;
+    type MetricObject = f32;
 
-    fn metric(left: &Option<Self>, right: &Option<Self>) -> Option<Self::Metric> {
+    fn calculate_metric_object(
+        left: &Option<Self>,
+        right: &Option<Self>,
+    ) -> Option<Self::MetricObject> {
         if let (Some(left), Some(right)) = (left, right) {
             Some((left - right).abs())
         } else {
@@ -157,9 +160,12 @@ impl ObservationAttributes for f32 {
     }
 }
 impl ObservationAttributes for () {
-    type Metric = ();
+    type MetricObject = ();
 
-    fn metric(_left: &Option<Self>, _right: &Option<Self>) -> Option<Self::Metric> {
+    fn calculate_metric_object(
+        _left: &Option<Self>,
+        _right: &Option<Self>,
+    ) -> Option<Self::MetricObject> {
         None
     }
 }
@@ -269,9 +275,12 @@ pub struct Bbox {
 }
 
 impl ObservationAttributes for Bbox {
-    type Metric = f32;
+    type MetricObject = f32;
 
-    fn metric(_left: &Option<Self>, _right: &Option<Self>) -> Option<Self::Metric> {
+    fn calculate_metric_object(
+        _left: &Option<Self>,
+        _right: &Option<Self>,
+    ) -> Option<Self::MetricObject> {
         match (_left, _right) {
             (Some(l), Some(r)) => {
                 assert!(l.width > 0.0);
@@ -344,10 +353,20 @@ mod tests {
             height: 3.0,
         };
 
-        assert!(Bbox::metric(&Some(bb1.clone()), &Some(bb1.clone())).unwrap() > 0.999);
-        assert!(Bbox::metric(&Some(bb2.clone()), &Some(bb2.clone())).unwrap() > 0.999);
-        assert!(Bbox::metric(&Some(bb1.clone()), &Some(bb2.clone())).unwrap() > 0.8);
-        assert!(Bbox::metric(&Some(bb1.clone()), &Some(bb3.clone())).unwrap() < 0.001);
-        assert!(Bbox::metric(&Some(bb2.clone()), &Some(bb3.clone())).unwrap() < 0.001);
+        assert!(
+            Bbox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap() > 0.999
+        );
+        assert!(
+            Bbox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap() > 0.999
+        );
+        assert!(
+            Bbox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap() > 0.8
+        );
+        assert!(
+            Bbox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap() < 0.001
+        );
+        assert!(
+            Bbox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap() < 0.001
+        );
     }
 }

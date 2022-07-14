@@ -19,7 +19,7 @@ pub mod voting;
 /// * `.1` - distance
 ///
 #[derive(Debug, Clone)]
-pub struct ObservationMetric<M>(pub u64, pub Option<M>, pub Option<f32>);
+pub struct ObservationMetricResult<M>(pub u64, pub Option<M>, pub Option<f32>);
 
 /// Filter enum that is used in distance operations to early drop large or small distances
 /// out of the output.
@@ -49,12 +49,14 @@ pub type ObservationsDb<T> = HashMap<u64, Vec<ObservationSpec<T>>>;
 
 /// Custom feature attributes that accompanies the observation itself
 pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 'static {
-    type Metric: Default + Send + Sync + Clone + PartialOrd + 'static;
-    fn metric(l: &Option<Self>, r: &Option<Self>) -> Option<Self::Metric>;
+    type MetricObject: Default + Send + Sync + Clone + PartialOrd + 'static;
+    fn calculate_metric_object(l: &Option<Self>, r: &Option<Self>) -> Option<Self::MetricObject>;
 }
 
 /// The trait that implements the methods for features comparison and filtering
-pub trait Metric<TA, FA: ObservationAttributes>: Default + Send + Sync + Clone + 'static {
+pub trait ObservationMetric<TA, FA: ObservationAttributes>:
+    Default + Send + Sync + Clone + 'static
+{
     /// calculates the distance between two features.
     /// The output is `Result<f32>` because the method may return distance calculation error if the distance
     /// cannot be computed for two features. E.g. when one of them has low confidence.
@@ -164,7 +166,7 @@ where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    M: Metric<TA, FA>,
+    M: ObservationMetric<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
 {
     attributes: TA,
@@ -183,7 +185,7 @@ where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    M: Metric<TA, FA>,
+    M: ObservationMetric<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
@@ -441,7 +443,7 @@ where
         other: &Self,
         feature_class: u64,
         filter: &Option<DistanceFilter>,
-    ) -> Result<Vec<ObservationMetric<FA::Metric>>> {
+    ) -> Result<Vec<ObservationMetricResult<FA::MetricObject>>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {
@@ -453,15 +455,15 @@ where
                     .iter()
                     .cartesian_product(right.iter())
                     .map(|(l, r)| {
-                        let feature_attr_metric = FA::metric(&l.0, &r.0);
+                        let feature_attr_metric = FA::calculate_metric_object(&l.0, &r.0);
 
-                        ObservationMetric(
+                        ObservationMetricResult(
                             other.track_id,
                             feature_attr_metric,
                             M::distance(feature_class, l, r),
                         )
                     })
-                    .filter(|ObservationMetric(_, _, d)| {
+                    .filter(|ObservationMetricResult(_, _, d)| {
                         if d.is_none() {
                             true
                         } else {
@@ -490,7 +492,7 @@ mod tests {
     use crate::test_stuff::current_time_sec;
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
-        DistanceFilter, Metric, Observation, ObservationSpec, ObservationsDb, Track,
+        DistanceFilter, Observation, ObservationMetric, ObservationSpec, ObservationsDb, Track,
         TrackAttributes, TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
@@ -524,7 +526,7 @@ mod tests {
 
     #[derive(Default, Clone)]
     struct DefaultMetric;
-    impl Metric<DefaultAttrs, f32> for DefaultMetric {
+    impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
         fn distance(
             _feature_class: u64,
             e1: &ObservationSpec<f32>,
@@ -703,7 +705,7 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct TimeMetric;
-        impl Metric<TimeAttrs, f32> for TimeMetric {
+        impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
             fn distance(
                 _feature_class: u64,
                 e1: &ObservationSpec<f32>,
@@ -845,7 +847,7 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct DefaultMetric;
-        impl Metric<DefaultAttrs, f32> for DefaultMetric {
+        impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
             fn distance(
                 _feature_class: u64,
                 e1: &ObservationSpec<f32>,
@@ -1014,7 +1016,7 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct UnitMetric;
-        impl Metric<UnitAttrs, ()> for UnitMetric {
+        impl ObservationMetric<UnitAttrs, ()> for UnitMetric {
             fn distance(
                 _feature_class: u64,
                 e1: &ObservationSpec<()>,

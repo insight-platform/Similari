@@ -3,8 +3,8 @@ use itertools::Itertools;
 use similari::store::TrackStore;
 use similari::test_stuff::{current_time_ms, Bbox, BoxGen2};
 use similari::track::{
-    Metric, ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
-    TrackAttributesUpdate, TrackStatus,
+    ObservationMetric, ObservationMetricResult, ObservationSpec, ObservationsDb, Track,
+    TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
@@ -57,7 +57,7 @@ impl Default for IOUMetric {
     }
 }
 
-impl Metric<BBoxAttributes, Bbox> for IOUMetric {
+impl ObservationMetric<BBoxAttributes, Bbox> for IOUMetric {
     fn distance(
         _feature_class: u64,
         _e1: &ObservationSpec<Bbox>,
@@ -89,14 +89,16 @@ pub struct TopNVoting {
 }
 
 impl Voting<TopNVotingElt, f32> for TopNVoting {
-    fn winners(&self, distances: &[ObservationMetric<f32>]) -> Vec<TopNVotingElt> {
+    fn winners(&self, distances: &[ObservationMetricResult<f32>]) -> Vec<TopNVotingElt> {
         let mut tracks: Vec<_> = distances
             .iter()
-            .filter(|ObservationMetric(_, f_attr_dist, _)| match f_attr_dist {
-                Some(e) => *e >= self.min_distance,
-                _ => false,
-            })
-            .map(|ObservationMetric(track, _, _)| track)
+            .filter(
+                |ObservationMetricResult(_, f_attr_dist, _)| match f_attr_dist {
+                    Some(e) => *e >= self.min_distance,
+                    _ => false,
+                },
+            )
+            .map(|ObservationMetricResult(track, _, _)| track)
             .collect();
         tracks.sort_unstable();
         let mut counts = tracks
