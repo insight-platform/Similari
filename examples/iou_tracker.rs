@@ -1,7 +1,7 @@
 use anyhow::Result;
 use itertools::Itertools;
 use similari::store::TrackStore;
-use similari::test_stuff::{current_time_ms, Bbox, BoxGen2, FeatGen2};
+use similari::test_stuff::{current_time_ms, Bbox, BoxGen2};
 use similari::track::{
     Metric, ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
     TrackAttributesUpdate, TrackStatus,
@@ -57,7 +57,7 @@ impl Default for IOUMetric {
     }
 }
 
-impl Metric<Bbox> for IOUMetric {
+impl Metric<BBoxAttributes, Bbox> for IOUMetric {
     fn distance(
         _feature_class: u64,
         _e1: &ObservationSpec<Bbox>,
@@ -70,6 +70,7 @@ impl Metric<Bbox> for IOUMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
+        _attrs: &mut BBoxAttributes,
         features: &mut Vec<ObservationSpec<Bbox>>,
         _prev_length: usize,
     ) -> Result<()> {

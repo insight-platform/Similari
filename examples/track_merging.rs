@@ -242,7 +242,7 @@ impl Default for CamTrackingAttributesMetric {
     }
 }
 
-impl Metric<f32> for CamTrackingAttributesMetric {
+impl Metric<CamTrackingAttributes, f32> for CamTrackingAttributesMetric {
     fn distance(
         _feature_class: u64,
         e1: &ObservationSpec<f32>,
@@ -258,6 +258,7 @@ impl Metric<f32> for CamTrackingAttributesMetric {
         &mut self,
         _feature_class: &u64,
         merge_history: &[u64],
+        _attrs: &mut CamTrackingAttributes,
         features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {

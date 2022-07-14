@@ -64,7 +64,7 @@ impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
 #[derive(Default, Clone)]
 pub struct SimpleMetric;
 
-impl Metric<f32> for SimpleMetric {
+impl Metric<SimpleAttrs, f32> for SimpleMetric {
     fn distance(
         _feature_class: u64,
         e1: &ObservationSpec<f32>,
@@ -80,6 +80,7 @@ impl Metric<f32> for SimpleMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
+        _attrs: &mut SimpleAttrs,
         _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {
@@ -116,7 +117,7 @@ impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
 #[derive(Default, Clone)]
 pub struct UnboundMetric;
 
-impl Metric<f32> for UnboundMetric {
+impl Metric<UnboundAttrs, f32> for UnboundMetric {
     fn distance(
         _feature_class: u64,
         e1: &ObservationSpec<f32>,
@@ -132,6 +133,7 @@ impl Metric<f32> for UnboundMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
+        _attrs: &mut UnboundAttrs,
         _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
     ) -> Result<()> {

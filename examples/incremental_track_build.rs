@@ -42,7 +42,7 @@ impl TrackAttributes<NoopAttributes, Bbox> for NoopAttributes {
 #[derive(Clone, Default)]
 pub struct TrackMetric;
 
-impl Metric<Bbox> for TrackMetric {
+impl Metric<NoopAttributes, Bbox> for TrackMetric {
     fn distance(
         _feature_class: u64,
         e1: &ObservationSpec<Bbox>,
@@ -63,6 +63,7 @@ impl Metric<Bbox> for TrackMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
+        _attrs: &mut NoopAttributes,
         _observations: &mut Vec<ObservationSpec<Bbox>>,
         _prev_length: usize,
     ) -> anyhow::Result<()> {

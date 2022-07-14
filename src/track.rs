@@ -54,7 +54,7 @@ pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 's
 }
 
 /// The trait that implements the methods for features comparison and filtering
-pub trait Metric<FA: ObservationAttributes>: Default + Send + Sync + Clone + 'static {
+pub trait Metric<TA, FA: ObservationAttributes>: Default + Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
     /// The output is `Result<f32>` because the method may return distance calculation error if the distance
     /// cannot be computed for two features. E.g. when one of them has low confidence.
@@ -71,6 +71,7 @@ pub trait Metric<FA: ObservationAttributes>: Default + Send + Sync + Clone + 'st
     ///
     /// * `feature_class` - the feature class
     /// * `merge_history` - how many times the track was merged already (it may be used to calculate maximum amount of observation for the feature)
+    /// * `attributes` - mutable attributes that can be updated or read during optimization
     /// * `observations` - features to optimize
     /// * `prev_length` - previous length of observations (before the current observation was added or merge occurred)
     ///
@@ -82,6 +83,7 @@ pub trait Metric<FA: ObservationAttributes>: Default + Send + Sync + Clone + 'st
         &mut self,
         feature_class: &u64,
         merge_history: &[u64],
+        attributes: &mut TA,
         observations: &mut Vec<ObservationSpec<FA>>,
         prev_length: usize,
     ) -> Result<()>;
@@ -162,7 +164,7 @@ where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    M: Metric<FA>,
+    M: Metric<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
 {
     attributes: TA,
@@ -181,7 +183,7 @@ where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    M: Metric<FA>,
+    M: Metric<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
@@ -321,6 +323,7 @@ where
         let res = self.metric.optimize(
             &feature_class,
             &self.merge_history,
+            &mut self.attributes,
             observations,
             prev_length,
         );
@@ -399,6 +402,7 @@ where
                 let res = self.metric.optimize(
                     cls,
                     &merge_history,
+                    &mut self.attributes,
                     self.observations.get_mut(cls).unwrap(),
                     prev_length,
                 );
@@ -520,7 +524,7 @@ mod tests {
 
     #[derive(Default, Clone)]
     struct DefaultMetric;
-    impl Metric<f32> for DefaultMetric {
+    impl Metric<DefaultAttrs, f32> for DefaultMetric {
         fn distance(
             _feature_class: u64,
             e1: &ObservationSpec<f32>,
@@ -536,6 +540,7 @@ mod tests {
             &mut self,
             _feature_class: &u64,
             _merge_history: &[u64],
+            _attributes: &mut DefaultAttrs,
             features: &mut Vec<ObservationSpec<f32>>,
             _prev_length: usize,
         ) -> Result<()> {
@@ -698,7 +703,7 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct TimeMetric;
-        impl Metric<f32> for TimeMetric {
+        impl Metric<TimeAttrs, f32> for TimeMetric {
             fn distance(
                 _feature_class: u64,
                 e1: &ObservationSpec<f32>,
@@ -714,6 +719,7 @@ mod tests {
                 &mut self,
                 _feature_class: &u64,
                 _merge_history: &[u64],
+                _attributes: &mut TimeAttrs,
                 features: &mut Vec<ObservationSpec<f32>>,
                 _prev_length: usize,
             ) -> Result<()> {
@@ -839,7 +845,7 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct DefaultMetric;
-        impl Metric<f32> for DefaultMetric {
+        impl Metric<DefaultAttrs, f32> for DefaultMetric {
             fn distance(
                 _feature_class: u64,
                 e1: &ObservationSpec<f32>,
@@ -855,6 +861,7 @@ mod tests {
                 &mut self,
                 _feature_class: &u64,
                 _merge_history: &[u64],
+                _attributes: &mut DefaultAttrs,
                 _features: &mut Vec<ObservationSpec<f32>>,
                 prev_length: usize,
             ) -> Result<()> {
@@ -1007,7 +1014,7 @@ mod tests {
 
         #[derive(Default, Clone)]
         struct UnitMetric;
-        impl Metric<()> for UnitMetric {
+        impl Metric<UnitAttrs, ()> for UnitMetric {
             fn distance(
                 _feature_class: u64,
                 e1: &ObservationSpec<()>,
@@ -1023,6 +1030,7 @@ mod tests {
                 &mut self,
                 _feature_class: &u64,
                 _merge_history: &[u64],
+                _attributes: &mut UnitAttrs,
                 features: &mut Vec<ObservationSpec<()>>,
                 _prev_length: usize,
             ) -> Result<()> {

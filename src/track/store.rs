@@ -18,7 +18,7 @@ where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    M: Metric<FA>,
+    M: Metric<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
 {
     Drop,
@@ -78,7 +78,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<FA>,
+    M: Metric<TA, FA>,
 {
     attributes: TA,
     metric: M,
@@ -97,7 +97,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<FA>,
+    M: Metric<TA, FA>,
 {
     fn drop(&mut self) {
         let executors = mem::take(&mut self.executors);
@@ -123,7 +123,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<FA>,
+    M: Metric<TA, FA>,
 {
     fn default() -> Self {
         Self::new(None, None, None, 1)
@@ -138,7 +138,7 @@ where
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
-    M: Metric<FA>,
+    M: Metric<TA, FA>,
 {
     #[allow(clippy::type_complexity)]
     fn handle_store_ops(
@@ -625,7 +625,7 @@ mod tests {
         max_length: usize,
     }
 
-    impl Metric<f32> for TimeMetric {
+    impl Metric<TimeAttrs, f32> for TimeMetric {
         fn distance(
             _feature_class: u64,
             e1: &ObservationSpec<f32>,
@@ -641,6 +641,7 @@ mod tests {
             &mut self,
             _feature_class: &u64,
             _merge_history: &[u64],
+            _attrs: &mut TimeAttrs,
             features: &mut Vec<ObservationSpec<f32>>,
             _prev_length: usize,
         ) -> Result<()> {
