@@ -5,6 +5,9 @@
 Similari is a framework that helps build sophisticated tracking systems that collect observable object features and 
 merge them into tracks based on feature vectors.
 
+with Similari one can develop highly efficient parallelized [SORT](https://github.com/abewley/sort), [DeepSORT]
+(https://github.com/nwojke/deep_sort) and another sophisticated tracking engines.
+
 ## Introduction
 
 The purpose of Similari is to provide tools to build sophisticated in-memory objects similarity engines.
