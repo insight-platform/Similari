@@ -86,7 +86,7 @@ optimization levels configured.
 
 Use `RUSTFLAGS="-C target-cpu=native"` to enable all cpu features like AVX, AVX2, etc. It is beneficial to ultraviolet.
 
-Alternatively you can add build instructions to `./cargo/config`:
+Alternatively you can add build instructions to `.cargo/config`:
 
 ```
 [build]
