@@ -3,6 +3,8 @@
 //!
 //! The purpose of the crate is to provide tools to config in-memory vector (feature) similarity engines.
 //! Similarity calculation is an important resource demanding task broadly used in machine learning and AI systems.
+//! Read more about it at GitHub [README](https://github.com/insight-platform/Similari/blob/main/README.md)
+//!
 
 /// Holds auxiliary functions that calculate distances between two features.
 ///
