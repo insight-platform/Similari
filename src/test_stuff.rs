@@ -223,8 +223,16 @@ impl Iterator for BoxGen2 {
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist_pos);
         self.y += self.gen.sample(&self.dist_pos);
+
         self.width += self.gen.sample(&self.dist_box);
         self.height += self.gen.sample(&self.dist_box);
+
+        if self.width < 1.0 {
+            self.width = 2.0;
+        }
+        if self.height < 1.0 {
+            self.height = 2.0;
+        }
 
         Some(Bbox {
             x: self.x,
@@ -235,14 +243,17 @@ impl Iterator for BoxGen2 {
     }
 }
 
+#[inline]
 pub fn current_time_span() -> Duration {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
 }
 
+#[inline]
 pub fn current_time_ms() -> u128 {
     current_time_span().as_millis()
 }
 
+#[inline]
 pub fn current_time_sec() -> u64 {
     current_time_span().as_secs()
 }
@@ -259,7 +270,33 @@ impl ObservationAttributes for Bbox {
     type Metric = f32;
 
     fn metric(_left: &Option<Self>, _right: &Option<Self>) -> Option<Self::Metric> {
-        None
+        match (_left, _right) {
+            (Some(l), Some(r)) => {
+                assert!(l.width > 0.0);
+                assert!(l.height > 0.0);
+                assert!(r.width > 0.0);
+                assert!(r.height > 0.0);
+
+                let (ax0, ay0, ax1, ay1) = (l.x, l.y, l.x + l.width, l.y + l.height);
+                let (bx0, by0, bx1, by1) = (r.x, r.y, r.x + r.width, r.y + r.height);
+
+                let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
+                let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
+
+                let int_width = x2 - x1;
+                let int_height = y2 - y1;
+
+                let intersection = if int_width > 0.0 && int_height > 0.0 {
+                    int_width * int_height
+                } else {
+                    0.0
+                };
+
+                let union = (ax1 - ax0) * (ay1 - ay0) + (bx1 - bx0) * (by1 - by0) - intersection;
+                Some(intersection / union)
+            }
+            _ => None,
+        }
     }
 }
 
@@ -275,5 +312,40 @@ impl PartialEq<Self> for Bbox {
             && (self.y - other.y).abs() < EPS
             && (self.width - other.width).abs() < EPS
             && (self.height - other.height).abs() < EPS
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::test_stuff::Bbox;
+    use crate::track::ObservationAttributes;
+
+    #[test]
+    fn test_iou() {
+        let bb1 = Bbox {
+            x: -1.0,
+            y: -1.0,
+            width: 2.0,
+            height: 2.0,
+        };
+
+        let bb2 = Bbox {
+            x: -0.9,
+            y: -0.9,
+            width: 2.0,
+            height: 2.0,
+        };
+        let bb3 = Bbox {
+            x: 1.0,
+            y: 1.0,
+            width: 3.0,
+            height: 3.0,
+        };
+
+        assert!(Bbox::metric(&Some(bb1.clone()), &Some(bb1.clone())).unwrap() > 0.999);
+        assert!(Bbox::metric(&Some(bb2.clone()), &Some(bb2.clone())).unwrap() > 0.999);
+        assert!(Bbox::metric(&Some(bb1.clone()), &Some(bb2.clone())).unwrap() > 0.8);
+        assert!(Bbox::metric(&Some(bb1.clone()), &Some(bb3.clone())).unwrap() < 0.001);
+        assert!(Bbox::metric(&Some(bb2.clone()), &Some(bb3.clone())).unwrap() < 0.001);
     }
 }

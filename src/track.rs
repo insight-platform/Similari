@@ -19,7 +19,7 @@ pub mod voting;
 /// * `.1` - distance
 ///
 #[derive(Debug, Clone)]
-pub struct ObservationMetric<M>(u64, Option<M>, Option<f32>);
+pub struct ObservationMetric<M>(pub u64, pub Option<M>, pub Option<f32>);
 
 /// Filter enum that is used in distance operations to early drop large or small distances
 /// out of the output.
