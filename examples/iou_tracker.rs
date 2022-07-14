@@ -73,6 +73,7 @@ impl Metric<Bbox> for IOUMetric {
         features: &mut Vec<ObservationSpec<Bbox>>,
         _prev_length: usize,
     ) -> Result<()> {
+        // Kalman filter should be there to generate better predictions
         features.reverse();
         features.truncate(self.history);
         features.reverse();
@@ -107,6 +108,7 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
                 votes: c,
             })
             .collect::<Vec<_>>();
+
         counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
         counts.truncate(self.topn);
         counts
