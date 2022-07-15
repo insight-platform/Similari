@@ -53,7 +53,7 @@ pub struct IOUMetric {
 
 impl Default for IOUMetric {
     fn default() -> Self {
-        Self { history: 3 }
+        Self { history: 1 }
     }
 }
 
