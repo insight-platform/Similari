@@ -649,6 +649,7 @@ mod tests {
             _attrs: &mut TimeAttrs,
             features: &mut Vec<ObservationSpec<f32>>,
             _prev_length: usize,
+            _is_merge: bool,
         ) -> Result<()> {
             features.sort_by(feature_attributes_sort_dec);
             features.truncate(self.max_length);

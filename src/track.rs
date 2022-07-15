@@ -99,6 +99,7 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
         attributes: &mut TA,
         observations: &mut Vec<ObservationSpec<FA>>,
         prev_length: usize,
+        is_merge: bool,
     ) -> Result<()>;
 }
 
@@ -339,6 +340,7 @@ where
             &mut self.attributes,
             observations,
             prev_length,
+            false,
         );
         if res.is_err() {
             self.attributes = last_attributes;
@@ -418,6 +420,7 @@ where
                     &mut self.attributes,
                     self.observations.get_mut(cls).unwrap(),
                     prev_length,
+                    true,
                 );
 
                 if res.is_err() {
@@ -562,6 +565,7 @@ mod tests {
             _attributes: &mut DefaultAttrs,
             features: &mut Vec<ObservationSpec<f32>>,
             _prev_length: usize,
+            _is_merge: bool,
         ) -> Result<()> {
             features.sort_by(feature_attributes_sort_dec);
             features.truncate(20);
@@ -746,6 +750,7 @@ mod tests {
                 _attributes: &mut TimeAttrs,
                 features: &mut Vec<ObservationSpec<f32>>,
                 _prev_length: usize,
+                _is_merge: bool,
             ) -> Result<()> {
                 features.sort_by(feature_attributes_sort_dec);
                 features.truncate(20);
@@ -893,6 +898,7 @@ mod tests {
                 _attributes: &mut DefaultAttrs,
                 _features: &mut Vec<ObservationSpec<f32>>,
                 prev_length: usize,
+                _is_merge: bool,
             ) -> Result<()> {
                 if prev_length == 1 {
                     Err(TestError::OptimizeError.into())
@@ -1067,6 +1073,7 @@ mod tests {
                 _attributes: &mut UnitAttrs,
                 features: &mut Vec<ObservationSpec<()>>,
                 _prev_length: usize,
+                _is_merge: bool,
             ) -> Result<()> {
                 features.sort_by(feature_attributes_sort_dec);
                 features.truncate(20);

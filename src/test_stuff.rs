@@ -88,6 +88,7 @@ impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
         _attrs: &mut SimpleAttrs,
         _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
+        _is_merge: bool,
     ) -> Result<()> {
         Ok(())
     }
@@ -146,6 +147,7 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
         _attrs: &mut UnboundAttrs,
         _features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
+        _is_merge: bool,
     ) -> Result<()> {
         Ok(())
     }

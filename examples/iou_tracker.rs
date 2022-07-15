@@ -20,13 +20,10 @@ struct BBoxAttributes {
 }
 
 #[derive(Clone, Debug)]
-struct BBoxAttributesUpdate {
-    bbox: BBox,
-}
+struct BBoxAttributesUpdate;
 
 impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
-    fn apply(&self, attrs: &mut BBoxAttributes) -> Result<()> {
-        attrs.bboxes.push(self.bbox.clone());
+    fn apply(&self, _attrs: &mut BBoxAttributes) -> Result<()> {
         Ok(())
     }
 }
@@ -72,11 +69,18 @@ impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        _attrs: &mut BBoxAttributes,
+        attrs: &mut BBoxAttributes,
         features: &mut Vec<ObservationSpec<BBox>>,
-        _prev_length: usize,
+        prev_length: usize,
+        is_merge: bool,
     ) -> Result<()> {
-        // Kalman filter should be there to generate better predictions
+        if !is_merge {
+            if let Some(bb) = &features[prev_length].0 {
+                attrs.bboxes.push(bb.clone());
+            }
+        }
+        // Kalman filter should be used here to generate better prediction for next
+        // comparison
         features.reverse();
         features.truncate(self.history);
         features.reverse();
@@ -143,15 +147,12 @@ fn main() {
         let mut obj1t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> =
             Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
 
+        //  {
+        //                     bbox: obj1b.unwrap(),
+        //                 }
+
         obj1t
-            .add_observation(
-                FEAT0,
-                obj1b.clone(),
-                None,
-                Some(BBoxAttributesUpdate {
-                    bbox: obj1b.unwrap(),
-                }),
-            )
+            .add_observation(FEAT0, obj1b, None, Some(BBoxAttributesUpdate))
             .unwrap();
 
         let mut obj2t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> = Track::new(
@@ -162,14 +163,7 @@ fn main() {
         );
 
         obj2t
-            .add_observation(
-                FEAT0,
-                obj2b.clone(),
-                None,
-                Some(BBoxAttributesUpdate {
-                    bbox: obj2b.unwrap(),
-                }),
-            )
+            .add_observation(FEAT0, obj2b, None, Some(BBoxAttributesUpdate))
             .unwrap();
 
         thread::sleep(Duration::from_millis(2));

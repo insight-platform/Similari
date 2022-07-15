@@ -267,6 +267,7 @@ impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetr
         _attrs: &mut CamTrackingAttributes,
         features: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
+        _is_merge: bool,
     ) -> Result<()> {
         let merges = merge_history.len();
         let mut current_capacity =

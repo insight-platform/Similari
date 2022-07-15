@@ -71,6 +71,7 @@ impl ObservationMetric<NoopAttributes, BBox> for TrackMetric {
         _attrs: &mut NoopAttributes,
         _observations: &mut Vec<ObservationSpec<BBox>>,
         _prev_length: usize,
+        _is_merge: bool,
     ) -> anyhow::Result<()> {
         Ok(())
     }
