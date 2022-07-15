@@ -128,17 +128,17 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
 }
 
 #[bench]
-fn bench_iou_0010(b: &mut Bencher) {
+fn bench_iou_00010(b: &mut Bencher) {
     bench_iou(10, b);
 }
 
 #[bench]
-fn bench_iou_0100(b: &mut Bencher) {
+fn bench_iou_00100(b: &mut Bencher) {
     bench_iou(100, b);
 }
 
 #[bench]
-fn bench_iou_1000(b: &mut Bencher) {
+fn bench_iou_01000(b: &mut Bencher) {
     bench_iou(1000, b);
 }
 
