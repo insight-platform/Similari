@@ -65,15 +65,20 @@ impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
 pub struct SimpleMetric;
 
 impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
-    fn distance(
+    fn metric(
         _feature_class: u64,
+        _attrs1: &SimpleAttrs,
+        _attrs2: &SimpleAttrs,
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
-    ) -> Option<f32> {
-        match (e1.1.as_ref(), e2.1.as_ref()) {
-            (Some(x), Some(y)) => Some(euclidean(x, y)),
-            _ => None,
-        }
+    ) -> (Option<f32>, Option<f32>) {
+        (
+            f32::calculate_metric_object(&e1.0, &e2.0),
+            match (e1.1.as_ref(), e2.1.as_ref()) {
+                (Some(x), Some(y)) => Some(euclidean(x, y)),
+                _ => None,
+            },
+        )
     }
 
     fn optimize(
@@ -118,15 +123,20 @@ impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
 pub struct UnboundMetric;
 
 impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
-    fn distance(
+    fn metric(
         _feature_class: u64,
+        _attrs1: &UnboundAttrs,
+        _attrs2: &UnboundAttrs,
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
-    ) -> Option<f32> {
-        match (e1.1.as_ref(), e2.1.as_ref()) {
-            (Some(x), Some(y)) => Some(euclidean(x, y)),
-            _ => None,
-        }
+    ) -> (Option<f32>, Option<f32>) {
+        (
+            f32::calculate_metric_object(&e1.0, &e2.0),
+            match (e1.1.as_ref(), e2.1.as_ref()) {
+                (Some(x), Some(y)) => Some(euclidean(x, y)),
+                _ => None,
+            },
+        )
     }
 
     fn optimize(
@@ -226,7 +236,7 @@ impl BoxGen2 {
 }
 
 impl Iterator for BoxGen2 {
-    type Item = Bbox;
+    type Item = BBox;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist_pos);
@@ -242,7 +252,7 @@ impl Iterator for BoxGen2 {
             self.height = 2.0;
         }
 
-        Some(Bbox {
+        Some(BBox {
             x: self.x,
             y: self.y,
             width: self.width,
@@ -267,14 +277,14 @@ pub fn current_time_sec() -> u64 {
 }
 
 #[derive(Clone, Default, Debug)]
-pub struct Bbox {
+pub struct BBox {
     x: f32,
     y: f32,
     width: f32,
     height: f32,
 }
 
-impl ObservationAttributes for Bbox {
+impl ObservationAttributes for BBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
@@ -311,13 +321,13 @@ impl ObservationAttributes for Bbox {
     }
 }
 
-impl PartialOrd for Bbox {
+impl PartialOrd for BBox {
     fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
         unreachable!()
     }
 }
 
-impl PartialEq<Self> for Bbox {
+impl PartialEq<Self> for BBox {
     fn eq(&self, other: &Self) -> bool {
         (self.x - other.x).abs() < EPS
             && (self.y - other.y).abs() < EPS
@@ -328,25 +338,25 @@ impl PartialEq<Self> for Bbox {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_stuff::Bbox;
+    use crate::test_stuff::BBox;
     use crate::track::ObservationAttributes;
 
     #[test]
     fn test_iou() {
-        let bb1 = Bbox {
+        let bb1 = BBox {
             x: -1.0,
             y: -1.0,
             width: 2.0,
             height: 2.0,
         };
 
-        let bb2 = Bbox {
+        let bb2 = BBox {
             x: -0.9,
             y: -0.9,
             width: 2.0,
             height: 2.0,
         };
-        let bb3 = Bbox {
+        let bb3 = BBox {
             x: 1.0,
             y: 1.0,
             width: 3.0,
@@ -354,19 +364,19 @@ mod tests {
         };
 
         assert!(
-            Bbox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap() > 0.999
+            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap() > 0.999
         );
         assert!(
-            Bbox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap() > 0.999
+            BBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap() > 0.999
         );
         assert!(
-            Bbox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap() > 0.8
+            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap() > 0.8
         );
         assert!(
-            Bbox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap() < 0.001
+            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap() < 0.001
         );
         assert!(
-            Bbox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap() < 0.001
+            BBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap() < 0.001
         );
     }
 }

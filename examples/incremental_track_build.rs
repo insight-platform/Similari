@@ -1,9 +1,9 @@
 use similari::distance::euclidean;
 use similari::store::TrackStore;
-use similari::test_stuff::{current_time_ms, Bbox, BoxGen2, FeatGen2};
+use similari::test_stuff::{current_time_ms, BBox, BoxGen2, FeatGen2};
 use similari::track::{
-    ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
-    TrackAttributesUpdate, TrackStatus,
+    ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb, Track,
+    TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -25,7 +25,7 @@ impl TrackAttributesUpdate<NoopAttributes> for NoopAttributesUpdate {
     }
 }
 
-impl TrackAttributes<NoopAttributes, Bbox> for NoopAttributes {
+impl TrackAttributes<NoopAttributes, BBox> for NoopAttributes {
     fn compatible(&self, _other: &NoopAttributes) -> bool {
         true
     }
@@ -34,7 +34,7 @@ impl TrackAttributes<NoopAttributes, Bbox> for NoopAttributes {
         Ok(())
     }
 
-    fn baked(&self, _observations: &ObservationsDb<Bbox>) -> anyhow::Result<TrackStatus> {
+    fn baked(&self, _observations: &ObservationsDb<BBox>) -> anyhow::Result<TrackStatus> {
         Ok(TrackStatus::Ready)
     }
 }
@@ -42,21 +42,26 @@ impl TrackAttributes<NoopAttributes, Bbox> for NoopAttributes {
 #[derive(Clone, Default)]
 pub struct TrackMetric;
 
-impl ObservationMetric<NoopAttributes, Bbox> for TrackMetric {
-    fn distance(
+impl ObservationMetric<NoopAttributes, BBox> for TrackMetric {
+    fn metric(
         _feature_class: u64,
-        e1: &ObservationSpec<Bbox>,
-        e2: &ObservationSpec<Bbox>,
-    ) -> Option<f32> {
+        _attrs1: &NoopAttributes,
+        _attrs2: &NoopAttributes,
+        e1: &ObservationSpec<BBox>,
+        e2: &ObservationSpec<BBox>,
+    ) -> (Option<f32>, Option<f32>) {
         // bbox information (.0) is not used but can be used
         // to implement additional IoU tracking
         // one can use None if low IoU
         // or implement weighted distance based on IoU and euclidean distance
         //
-        match (e1.1.as_ref(), e2.1.as_ref()) {
-            (Some(x), Some(y)) => Some(euclidean(x, y)),
-            _ => None,
-        }
+        (
+            BBox::calculate_metric_object(&e1.0, &e2.0),
+            match (e1.1.as_ref(), e2.1.as_ref()) {
+                (Some(x), Some(y)) => Some(euclidean(x, y)),
+                _ => None,
+            },
+        )
     }
 
     fn optimize(
@@ -64,7 +69,7 @@ impl ObservationMetric<NoopAttributes, Bbox> for TrackMetric {
         _feature_class: &u64,
         _merge_history: &[u64],
         _attrs: &mut NoopAttributes,
-        _observations: &mut Vec<ObservationSpec<Bbox>>,
+        _observations: &mut Vec<ObservationSpec<BBox>>,
         _prev_length: usize,
     ) -> anyhow::Result<()> {
         Ok(())
@@ -72,7 +77,7 @@ impl ObservationMetric<NoopAttributes, Bbox> for TrackMetric {
 }
 
 fn main() {
-    let mut store: TrackStore<NoopAttributes, NoopAttributesUpdate, TrackMetric, Bbox> =
+    let mut store: TrackStore<NoopAttributes, NoopAttributesUpdate, TrackMetric, BBox> =
         TrackStore::default();
     let voting = TopNVoting::new(1, 0.1, 1);
     let feature_drift = 0.01;
@@ -86,12 +91,12 @@ fn main() {
 
     for _ in 0..10 {
         let (obj1f, obj1b) = (p1.next().unwrap().1, b1.next());
-        let mut obj1t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, Bbox> =
+        let mut obj1t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, BBox> =
             Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
         obj1t.add_observation(FEAT0, obj1b, obj1f, None).unwrap();
 
         let (obj2f, obj2b) = (p2.next().unwrap().1, b2.next());
-        let mut obj2t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, Bbox> = Track::new(
+        let mut obj2t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, BBox> = Track::new(
             (u64::try_from(current_time_ms()).unwrap()) + 1,
             None,
             None,

@@ -569,8 +569,8 @@ mod tests {
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::DistanceFilter::{GE, LE};
     use crate::track::{
-        NoopNotifier, ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
-        TrackAttributesUpdate, TrackStatus,
+        NoopNotifier, ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb,
+        Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
@@ -626,15 +626,20 @@ mod tests {
     }
 
     impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
-        fn distance(
+        fn metric(
             _feature_class: u64,
+            _attrs1: &TimeAttrs,
+            _attrs2: &TimeAttrs,
             e1: &ObservationSpec<f32>,
             e2: &ObservationSpec<f32>,
-        ) -> Option<f32> {
-            match (e1.1.as_ref(), e2.1.as_ref()) {
-                (Some(x), Some(y)) => Some(euclidean(x, y)),
-                _ => None,
-            }
+        ) -> (Option<f32>, Option<f32>) {
+            (
+                f32::calculate_metric_object(&e1.0, &e2.0),
+                match (e1.1.as_ref(), e2.1.as_ref()) {
+                    (Some(x), Some(y)) => Some(euclidean(x, y)),
+                    _ => None,
+                },
+            )
         }
 
         fn optimize(

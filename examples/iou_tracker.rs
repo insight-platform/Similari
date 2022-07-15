@@ -1,10 +1,10 @@
 use anyhow::Result;
 use itertools::Itertools;
 use similari::store::TrackStore;
-use similari::test_stuff::{current_time_ms, Bbox, BoxGen2};
+use similari::test_stuff::{current_time_ms, BBox, BoxGen2};
 use similari::track::{
-    ObservationMetric, ObservationMetricResult, ObservationSpec, ObservationsDb, Track,
-    TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    ObservationAttributes, ObservationMetric, ObservationMetricResult, ObservationSpec,
+    ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
@@ -16,12 +16,12 @@ const FEAT0: u64 = 0;
 
 #[derive(Debug, Clone, Default)]
 struct BBoxAttributes {
-    bboxes: Vec<Bbox>,
+    bboxes: Vec<BBox>,
 }
 
 #[derive(Clone, Debug)]
 struct BBoxAttributesUpdate {
-    bbox: Bbox,
+    bbox: BBox,
 }
 
 impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
@@ -31,7 +31,7 @@ impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
     }
 }
 
-impl TrackAttributes<BBoxAttributes, Bbox> for BBoxAttributes {
+impl TrackAttributes<BBoxAttributes, BBox> for BBoxAttributes {
     fn compatible(&self, _other: &BBoxAttributes) -> bool {
         true
     }
@@ -41,7 +41,7 @@ impl TrackAttributes<BBoxAttributes, Bbox> for BBoxAttributes {
         Ok(())
     }
 
-    fn baked(&self, _observations: &ObservationsDb<Bbox>) -> Result<TrackStatus> {
+    fn baked(&self, _observations: &ObservationsDb<BBox>) -> Result<TrackStatus> {
         Ok(TrackStatus::Ready)
     }
 }
@@ -57,13 +57,15 @@ impl Default for IOUMetric {
     }
 }
 
-impl ObservationMetric<BBoxAttributes, Bbox> for IOUMetric {
-    fn distance(
+impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
+    fn metric(
         _feature_class: u64,
-        _e1: &ObservationSpec<Bbox>,
-        _e2: &ObservationSpec<Bbox>,
-    ) -> Option<f32> {
-        None
+        _attrs1: &BBoxAttributes,
+        _attrs2: &BBoxAttributes,
+        e1: &ObservationSpec<BBox>,
+        e2: &ObservationSpec<BBox>,
+    ) -> (Option<f32>, Option<f32>) {
+        (BBox::calculate_metric_object(&e1.0, &e2.0), None)
     }
 
     fn optimize(
@@ -71,7 +73,7 @@ impl ObservationMetric<BBoxAttributes, Bbox> for IOUMetric {
         _feature_class: &u64,
         _merge_history: &[u64],
         _attrs: &mut BBoxAttributes,
-        features: &mut Vec<ObservationSpec<Bbox>>,
+        features: &mut Vec<ObservationSpec<BBox>>,
         _prev_length: usize,
     ) -> Result<()> {
         // Kalman filter should be there to generate better predictions
@@ -119,7 +121,7 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
 }
 
 fn main() {
-    let mut store: TrackStore<BBoxAttributes, BBoxAttributesUpdate, IOUMetric, Bbox> =
+    let mut store: TrackStore<BBoxAttributes, BBoxAttributesUpdate, IOUMetric, BBox> =
         TrackStore::default();
 
     let voting = TopNVoting {
@@ -138,7 +140,7 @@ fn main() {
         let obj1b = b1.next();
         let obj2b = b2.next();
 
-        let mut obj1t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, Bbox> =
+        let mut obj1t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> =
             Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
 
         obj1t
@@ -152,7 +154,7 @@ fn main() {
             )
             .unwrap();
 
-        let mut obj2t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, Bbox> = Track::new(
+        let mut obj2t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> = Track::new(
             u64::try_from(current_time_ms()).unwrap() + 1,
             None,
             None,

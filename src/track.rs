@@ -16,7 +16,8 @@ pub mod voting;
 ///
 /// # Parameters
 /// * `.0` - other track ID
-/// * `.1` - distance
+/// * `.1` - custom feature attribute metric object calculated for pairwise feature attributes
+/// * `.2` - distance calculated for pairwise features
 ///
 #[derive(Debug, Clone)]
 pub struct ObservationMetricResult<M>(pub u64, pub Option<M>, pub Option<f32>);
@@ -60,11 +61,21 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
     /// calculates the distance between two features.
     /// The output is `Result<f32>` because the method may return distance calculation error if the distance
     /// cannot be computed for two features. E.g. when one of them has low confidence.
-    fn distance(
+    ///
+    /// # Parameters
+    /// * `feature_class` - class of currently used feature
+    /// * `left_attrs` - left track attributes
+    /// * `right_attrs` - right track attributes
+    /// * `left_observation` - left track observation
+    /// * `right_observation` - right track observation
+    ///
+    fn metric(
         feature_class: u64,
-        e1: &ObservationSpec<FA>,
-        e2: &ObservationSpec<FA>,
-    ) -> Option<f32>;
+        left_attrs: &TA,
+        right_attrs: &TA,
+        left_observation: &ObservationSpec<FA>,
+        right_observation: &ObservationSpec<FA>,
+    ) -> (Option<FA::MetricObject>, Option<f32>);
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
     /// two tracks are merged.
@@ -131,7 +142,7 @@ pub trait TrackAttributes<TA, FA: ObservationAttributes>:
     ///
     fn merge(&mut self, other: &TA) -> Result<()>;
 
-    /// The method is used by storage to determine when track is ready/not ready/wasted. Look at [TrackBakingStatus](TrackBakingStatus).
+    /// The method is used by storage to determine when track is ready/not ready/wasted. Look at [TrackStatus](TrackStatus).
     ///
     /// It uses attribute information collected across the track config and features information.
     ///
@@ -455,13 +466,14 @@ where
                     .iter()
                     .cartesian_product(right.iter())
                     .map(|(l, r)| {
-                        let feature_attr_metric = FA::calculate_metric_object(&l.0, &r.0);
-
-                        ObservationMetricResult(
-                            other.track_id,
-                            feature_attr_metric,
-                            M::distance(feature_class, l, r),
-                        )
+                        let (feature_metric_object, distance) = M::metric(
+                            feature_class,
+                            self.get_attributes(),
+                            other.get_attributes(),
+                            l,
+                            r,
+                        );
+                        ObservationMetricResult(other.track_id, feature_metric_object, distance)
                     })
                     .filter(|ObservationMetricResult(_, _, d)| {
                         if d.is_none() {
@@ -492,8 +504,8 @@ mod tests {
     use crate::test_stuff::current_time_sec;
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
-        DistanceFilter, Observation, ObservationMetric, ObservationSpec, ObservationsDb, Track,
-        TrackAttributes, TrackAttributesUpdate, TrackStatus,
+        DistanceFilter, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
+        ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -527,15 +539,20 @@ mod tests {
     #[derive(Default, Clone)]
     struct DefaultMetric;
     impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
-        fn distance(
+        fn metric(
             _feature_class: u64,
+            _attrs1: &DefaultAttrs,
+            _attrs2: &DefaultAttrs,
             e1: &ObservationSpec<f32>,
             e2: &ObservationSpec<f32>,
-        ) -> Option<f32> {
-            match (e1.1.as_ref(), e2.1.as_ref()) {
-                (Some(x), Some(y)) => Some(euclidean(x, y)),
-                _ => None,
-            }
+        ) -> (Option<f32>, Option<f32>) {
+            (
+                f32::calculate_metric_object(&e1.0, &e2.0),
+                match (e1.1.as_ref(), e2.1.as_ref()) {
+                    (Some(x), Some(y)) => Some(euclidean(x, y)),
+                    _ => None,
+                },
+            )
         }
 
         fn optimize(
@@ -706,15 +723,20 @@ mod tests {
         #[derive(Default, Clone)]
         struct TimeMetric;
         impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
-            fn distance(
+            fn metric(
                 _feature_class: u64,
+                _attrs1: &TimeAttrs,
+                _attrs2: &TimeAttrs,
                 e1: &ObservationSpec<f32>,
                 e2: &ObservationSpec<f32>,
-            ) -> Option<f32> {
-                match (e1.1.as_ref(), e2.1.as_ref()) {
-                    (Some(x), Some(y)) => Some(euclidean(x, y)),
-                    _ => None,
-                }
+            ) -> (Option<f32>, Option<f32>) {
+                (
+                    f32::calculate_metric_object(&e1.0, &e2.0),
+                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                        (Some(x), Some(y)) => Some(euclidean(x, y)),
+                        _ => None,
+                    },
+                )
             }
 
             fn optimize(
@@ -848,15 +870,20 @@ mod tests {
         #[derive(Default, Clone)]
         struct DefaultMetric;
         impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
-            fn distance(
+            fn metric(
                 _feature_class: u64,
+                _attrs1: &DefaultAttrs,
+                _attrs2: &DefaultAttrs,
                 e1: &ObservationSpec<f32>,
                 e2: &ObservationSpec<f32>,
-            ) -> Option<f32> {
-                match (e1.1.as_ref(), e2.1.as_ref()) {
-                    (Some(x), Some(y)) => Some(euclidean(x, y)),
-                    _ => None,
-                }
+            ) -> (Option<f32>, Option<f32>) {
+                (
+                    f32::calculate_metric_object(&e1.0, &e2.0),
+                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                        (Some(x), Some(y)) => Some(euclidean(x, y)),
+                        _ => None,
+                    },
+                )
             }
 
             fn optimize(
@@ -1017,15 +1044,20 @@ mod tests {
         #[derive(Default, Clone)]
         struct UnitMetric;
         impl ObservationMetric<UnitAttrs, ()> for UnitMetric {
-            fn distance(
+            fn metric(
                 _feature_class: u64,
+                _attrs1: &UnitAttrs,
+                _attrs2: &UnitAttrs,
                 e1: &ObservationSpec<()>,
                 e2: &ObservationSpec<()>,
-            ) -> Option<f32> {
-                match (e1.1.as_ref(), e2.1.as_ref()) {
-                    (Some(x), Some(y)) => Some(euclidean(x, y)),
-                    _ => None,
-                }
+            ) -> (Option<()>, Option<f32>) {
+                (
+                    None,
+                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                        (Some(x), Some(y)) => Some(euclidean(x, y)),
+                        _ => None,
+                    },
+                )
             }
 
             fn optimize(

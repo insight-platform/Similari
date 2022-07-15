@@ -2,7 +2,7 @@ use crate::track::{Observation, ObservationAttributes, ObservationSpec, FEATURE_
 use std::cmp::Ordering;
 use ultraviolet::f32x8;
 
-/// Utility function that can be used by [Metric](Metric::optimize) implementors to sort
+/// Utility function that can be used by [ObservationMetric](crate::track::ObservationMetric::metric) implementors to sort
 /// features by attributes decreasingly.
 ///
 pub fn feature_attributes_sort_dec<FA: ObservationAttributes>(
@@ -12,7 +12,7 @@ pub fn feature_attributes_sort_dec<FA: ObservationAttributes>(
     e2.0.partial_cmp(&e1.0).unwrap()
 }
 
-/// Utility function that can be used by [Metric](Metric::optimize) implementors to sort
+/// Utility function that can be used by [ObservationMetric](crate::track::ObservationMetric::metric) implementors to sort
 /// features by attributes increasingly.
 ///
 pub fn feature_attributes_sort_inc<FA: ObservationAttributes>(

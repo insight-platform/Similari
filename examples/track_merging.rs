@@ -8,8 +8,8 @@ use similari::test_stuff::current_time_ms;
 use similari::test_stuff::FeatGen2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
-    ObservationMetric, ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate,
-    TrackStatus,
+    ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb, TrackAttributes,
+    TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -244,15 +244,20 @@ impl Default for CamTrackingAttributesMetric {
 }
 
 impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetric {
-    fn distance(
+    fn metric(
         _feature_class: u64,
+        _attrs1: &CamTrackingAttributes,
+        _attrs2: &CamTrackingAttributes,
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
-    ) -> Option<f32> {
-        match (e1.1.as_ref(), e2.1.as_ref()) {
-            (Some(x), Some(y)) => Some(euclidean(x, y)),
-            _ => None,
-        }
+    ) -> (Option<f32>, Option<f32>) {
+        (
+            f32::calculate_metric_object(&e1.0, &e2.0),
+            match (e1.1.as_ref(), e2.1.as_ref()) {
+                (Some(x), Some(y)) => Some(euclidean(x, y)),
+                _ => None,
+            },
+        )
     }
 
     fn optimize(
