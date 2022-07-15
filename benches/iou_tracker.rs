@@ -1,3 +1,7 @@
+#![feature(test)]
+
+extern crate test;
+
 use anyhow::Result;
 use itertools::Itertools;
 use similari::store::TrackStore;
@@ -9,8 +13,7 @@ use similari::track::{
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+use test::Bencher;
 
 const FEAT0: u64 = 0;
 
@@ -124,9 +127,24 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
     }
 }
 
-fn main() {
+#[bench]
+fn bench_iou_0010x0100(b: &mut Bencher) {
+    b.iter(|| bench_iou(10, 100));
+}
+
+#[bench]
+fn bench_iou_0100x0100(b: &mut Bencher) {
+    b.iter(|| bench_iou(100, 100));
+}
+
+#[bench]
+fn bench_iou_1000x0100(b: &mut Bencher) {
+    b.iter(|| bench_iou(1000, 100));
+}
+
+fn bench_iou(objects: usize, observations: usize) {
     let mut store: TrackStore<BBoxAttributes, BBoxAttributesUpdate, IOUMetric, BBox> =
-        TrackStore::default();
+        TrackStore::new(None, None, None, num_cpus::get());
 
     let voting = TopNVoting {
         topn: 1,
@@ -136,35 +154,31 @@ fn main() {
 
     let pos_drift = 1.0;
     let box_drift = 1.0;
-    let mut b1 = BoxGen2::new(100.0, 100.0, 10.0, 15.0, pos_drift, box_drift);
+    let mut iterators = Vec::default();
+    for i in 0..objects {
+        iterators.push(BoxGen2::new(
+            10.0 * i as f32,
+            100.0 * i as f32,
+            10.0,
+            15.0,
+            pos_drift,
+            box_drift,
+        ))
+    }
 
-    let mut b2 = BoxGen2::new(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
+    for iteration in 1..observations as u128 {
+        for (c, i) in &mut iterators.iter_mut().enumerate() {
+            let b = i.next();
+            let mut t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> = Track::new(
+                u64::try_from(current_time_ms() * iteration + c as u128).unwrap(),
+                None,
+                None,
+                None,
+            );
 
-    for _ in 0..10 {
-        let obj1b = b1.next();
-        let obj2b = b2.next();
+            t.add_observation(FEAT0, b, None, Some(BBoxAttributesUpdate))
+                .unwrap();
 
-        let mut obj1t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> =
-            Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
-
-        obj1t
-            .add_observation(FEAT0, obj1b, None, Some(BBoxAttributesUpdate))
-            .unwrap();
-
-        let mut obj2t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> = Track::new(
-            u64::try_from(current_time_ms()).unwrap() + 1,
-            None,
-            None,
-            None,
-        );
-
-        obj2t
-            .add_observation(FEAT0, obj2b, None, Some(BBoxAttributesUpdate))
-            .unwrap();
-
-        thread::sleep(Duration::from_millis(2));
-
-        for t in [obj1t, obj2t] {
             let search_track = Arc::new(t.clone());
             let (dists, errs) = store.foreign_track_distances(search_track, FEAT0, false, None);
             assert!(errs.is_empty());
@@ -177,12 +191,5 @@ fn main() {
                     .unwrap();
             }
         }
-    }
-
-    let tracks = store.find_usable();
-    for (t, _) in tracks {
-        let t = store.fetch_tracks(&vec![t]);
-        eprintln!("Track id: {}", t[0].get_track_id());
-        eprintln!("Boxes: {:#?}", t[0].get_attributes().bboxes);
     }
 }
