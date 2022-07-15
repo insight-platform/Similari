@@ -128,21 +128,21 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
 }
 
 #[bench]
-fn bench_iou_0010x0100(b: &mut Bencher) {
-    b.iter(|| bench_iou(10, 100));
+fn bench_iou_0010(b: &mut Bencher) {
+    bench_iou(10, b);
 }
 
 #[bench]
-fn bench_iou_0100x0100(b: &mut Bencher) {
-    b.iter(|| bench_iou(100, 100));
+fn bench_iou_0100(b: &mut Bencher) {
+    bench_iou(100, b);
 }
 
 #[bench]
-fn bench_iou_1000x0100(b: &mut Bencher) {
-    b.iter(|| bench_iou(1000, 100));
+fn bench_iou_1000(b: &mut Bencher) {
+    bench_iou(1000, b);
 }
 
-fn bench_iou(objects: usize, observations: usize) {
+fn bench_iou(objects: usize, b: &mut Bencher) {
     let mut store: TrackStore<BBoxAttributes, BBoxAttributesUpdate, IOUMetric, BBox> =
         TrackStore::new(None, None, None, num_cpus::get());
 
@@ -166,7 +166,9 @@ fn bench_iou(objects: usize, observations: usize) {
         ))
     }
 
-    for iteration in 1..observations as u128 {
+    let mut iteration = 0;
+    b.iter(|| {
+        iteration += 1;
         for (c, i) in &mut iterators.iter_mut().enumerate() {
             let b = i.next();
             let mut t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> = Track::new(
@@ -191,5 +193,5 @@ fn bench_iou(objects: usize, observations: usize) {
                     .unwrap();
             }
         }
-    }
+    });
 }
