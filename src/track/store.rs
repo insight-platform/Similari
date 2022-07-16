@@ -402,14 +402,14 @@ where
         distance_filter: Option<DistanceFilter>,
     ) -> TrackDistances<FA::MetricObject> {
         let track = self.fetch_tracks(&vec![track_id]).pop();
+
         if track.is_none() {
             return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
         }
-        let track = Arc::new(track.unwrap());
+        let track = track.unwrap();
 
         let res =
             self.foreign_track_distances(track.clone(), feature_class, only_baked, distance_filter);
-        let track = (*track).clone();
         self.add_track(track).unwrap();
         res
     }
@@ -573,7 +573,6 @@ mod tests {
     };
     use crate::{Errors, EPS};
     use anyhow::Result;
-    use std::sync::Arc;
     use std::thread;
     use std::time::Duration;
 
@@ -820,7 +819,7 @@ mod tests {
 
         let mut v = store.fetch_tracks(&vec![0]);
 
-        let v = Arc::new(v.pop().unwrap());
+        let v = v.pop().unwrap();
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].to, 1);
@@ -830,9 +829,8 @@ mod tests {
 
         // make it incompatible across the attributes
         thread::sleep(Duration::from_millis(10));
-        let mut v = (*v).clone();
+        let mut v = v.clone();
         v.attributes.end_time = current_time_ms();
-        let v = Arc::new(v);
 
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
         assert_eq!(dists.len(), 0);
@@ -866,9 +864,8 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let mut v = (*v).clone();
+        let mut v = v.clone();
         v.attributes.end_time = store.get_store(1).get(&1).unwrap().attributes.start_time - 1;
-        let v = Arc::new(v);
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
         assert_eq!(dists.len(), 2);
         assert_eq!(dists[0].to, 1);
@@ -920,7 +917,6 @@ mod tests {
             }),
         )?;
 
-        let ext_track = Arc::new(ext_track);
         let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, true, None);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
@@ -979,7 +975,6 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let ext_track = Arc::new(ext_track);
         let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, false, None);
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());

@@ -4,7 +4,6 @@ use similari::track::notify::NoopNotifier;
 use similari::track::Track;
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
-use std::sync::Arc;
 
 fn main() {
     if cfg!(target_feature = "avx2") {
@@ -72,7 +71,7 @@ fn main() {
 
     assert!(res.is_ok());
 
-    let (dists, errs) = db.foreign_track_distances(Arc::new(ext_track), 0, true, None);
+    let (dists, errs) = db.foreign_track_distances(ext_track, 0, true, None);
     assert_eq!(errs.len(), 0);
 
     eprintln!("Distances: {:?}", &dists);

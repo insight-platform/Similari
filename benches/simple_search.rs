@@ -8,7 +8,6 @@ use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::track::notify::NoopNotifier;
 use similari::track::utils::FromVec;
 use similari::track::{Observation, Track};
-use std::sync::Arc;
 use test::Bencher;
 
 #[bench]
@@ -115,8 +114,6 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
         )),
         None,
     );
-
-    let t = Arc::new(t);
 
     b.iter(|| {
         db.foreign_track_distances(t.clone(), DEFAULT_FEATURE, true, None);

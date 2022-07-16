@@ -8,7 +8,6 @@ use similari::track::{
 };
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
-use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -177,7 +176,7 @@ fn main() {
         thread::sleep(Duration::from_millis(2));
 
         for t in [obj1t, obj2t] {
-            let search_track = Arc::new(t.clone());
+            let search_track = t.clone();
             let (dists, errs) = store.foreign_track_distances(search_track, FEAT0, false, None);
             assert!(errs.is_empty());
             let winners = voting.winners(&dists);

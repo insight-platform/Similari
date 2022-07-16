@@ -15,7 +15,6 @@ use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
 use std::cmp::{max, min};
 
-use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use thiserror::Error;
@@ -417,7 +416,7 @@ fn main() {
         for (id, s) in baked {
             let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
             if let Ok(TrackStatus::Ready) = s {
-                let search_track = Arc::new(track.clone());
+                let search_track = track.clone();
                 track.get_attributes_mut().baked_period_ms = 0;
 
                 let (dists, _errs) =

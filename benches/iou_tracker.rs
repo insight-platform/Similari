@@ -12,7 +12,6 @@ use similari::track::{
 };
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
-use std::sync::Arc;
 use std::time::Instant;
 use test::Bencher;
 
@@ -191,7 +190,7 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
             t.add_observation(FEAT0, b, None, Some(BBoxAttributesUpdate))
                 .unwrap();
 
-            let search_track = Arc::new(t.clone());
+            let search_track = t.clone();
             let (dists, errs) = store.foreign_track_distances(search_track, FEAT0, false, None);
             assert!(errs.is_empty());
             let winners = voting.winners(&dists);

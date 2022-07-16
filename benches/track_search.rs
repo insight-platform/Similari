@@ -6,7 +6,6 @@ use rand::{distributions::Uniform, Rng};
 use similari::store;
 use similari::test_stuff::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
 use similari::track::{Observation, Track};
-use std::sync::Arc;
 
 use similari::track::notify::NoopNotifier;
 use similari::track::utils::FromVec;
@@ -55,7 +54,6 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
         );
     }
 
-    let t = Arc::new(t);
     b.iter(move || {
         db.foreign_track_distances(t.clone(), DEFAULT_FEATURE, true, None);
     });
