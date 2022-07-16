@@ -13,7 +13,7 @@ use similari::track::{
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
 use std::collections::HashMap;
-use std::time::Instant;
+use std::thread;
 use test::Bencher;
 
 const FEAT0: u64 = 0;
@@ -54,7 +54,7 @@ pub struct IOUMetric {
 
 impl Default for IOUMetric {
     fn default() -> Self {
-        Self { history: 1 }
+        Self { history: 3 }
     }
 }
 
@@ -88,6 +88,11 @@ impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
         features.reverse();
         features.truncate(self.history);
         features.reverse();
+        // eprintln!(
+        //     "Features: {:?}, attrs: {:?}",
+        //     &features[0].0,
+        //     &attrs.bboxes.len()
+        // );
         Ok(())
     }
 }
@@ -180,20 +185,20 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
 
     let voting = TopNVoting {
         topn: 1,
-        min_distance: 0.5,
+        min_distance: 0.2,
         min_votes: 1,
     };
 
     let pos_drift = 1.0;
-    let box_drift = 1.0;
+    let box_drift = 0.01;
     let mut iterators = Vec::default();
 
     for i in 0..objects {
         iterators.push(BoxGen2::new(
-            10.0 * i as f32,
-            100.0 * i as f32,
-            10.0,
-            15.0,
+            1000.0 * i as f32,
+            1000.0 * i as f32,
+            50.0,
+            50.0,
             pos_drift,
             box_drift,
         ))
@@ -216,8 +221,8 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         let search_tracks = tracks.clone();
         let (dists, errs) = store.foreign_track_distances(search_tracks, FEAT0, false, None);
         assert!(errs.is_empty());
-        let tm = Instant::now();
-        let mut winners = voting.winners(&dists);
+        //let tm = Instant::now();
+        let winners = voting.winners(&dists);
         for t in tracks {
             let winner = winners.get(&t.get_track_id());
             if let Some(winners) = winner {
@@ -225,11 +230,13 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
                     .merge_external(winners[0].winner_track, &t, None, false)
                     .unwrap();
             } else {
-                store.add_track(t);
+                store.add_track(t).unwrap();
             }
         }
 
-        let elapsed = tm.elapsed();
-        eprintln!("Voting time: {:?}", elapsed.as_micros());
+        //let elapsed = tm.elapsed();
+        //eprintln!("Voting time: {:?}", elapsed);
+        //thread::sleep(Duration::from_secs(2));
     });
+    eprintln!("Store stats: {:?}", store.shard_stats());
 }

@@ -248,10 +248,10 @@ impl Iterator for BoxGen2 {
         self.height += self.gen.sample(&self.dist_box);
 
         if self.width < 1.0 {
-            self.width = 2.0;
+            self.width = 1.0;
         }
         if self.height < 1.0 {
-            self.height = 2.0;
+            self.height = 1.0;
         }
 
         Some(BBox {
