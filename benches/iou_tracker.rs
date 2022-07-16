@@ -191,7 +191,8 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
                 .unwrap();
 
             let search_track = t.clone();
-            let (dists, errs) = store.foreign_track_distances(search_track, FEAT0, false, None);
+            let (dists, errs) =
+                store.foreign_track_distances(vec![search_track], FEAT0, false, None);
             assert!(errs.is_empty());
             let winners = voting.winners(&dists);
             if winners.is_empty() {

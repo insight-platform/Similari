@@ -39,6 +39,10 @@ pub enum Errors {
     ///
     #[error("Missing track={0}.")]
     TrackNotFound(u64),
+
+    #[error("Missing requested tracks.")]
+    TracksNotFound,
+
     /// The distance is calculated against self. Ignore it.
     ///
     #[error("Calculation with self id={0} not permitted")]

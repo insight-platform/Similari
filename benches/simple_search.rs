@@ -116,6 +116,6 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
     );
 
     b.iter(|| {
-        db.foreign_track_distances(t.clone(), DEFAULT_FEATURE, true, None);
+        db.foreign_track_distances(vec![t.clone()], DEFAULT_FEATURE, true, None);
     });
 }

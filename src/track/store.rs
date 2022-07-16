@@ -30,6 +30,7 @@ where
         Option<DistanceFilter>,
         Sender<Results<FA>>,
     ),
+    Merge(Track<TA, M, TAU, FA, N>, Option<Sender<Results<FA>>>),
 }
 
 /// The type that provides lock-ed access to certain shard store
@@ -55,6 +56,7 @@ where
     ),
     BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
+    MergeResult(Result<()>),
 }
 
 /// Auxiliary type to express distance calculation errors
@@ -220,6 +222,7 @@ where
                         return;
                     }
                 }
+                Commands::Merge(track, channel_opt) => {}
             }
         }
     }
@@ -322,7 +325,7 @@ where
 
     /// Pulls (and removes) requested tracks from the store.
     ///
-    pub fn fetch_tracks(&mut self, tracks: &Vec<u64>) -> Vec<Track<TA, M, TAU, FA, N>> {
+    pub fn fetch_tracks(&mut self, tracks: &[u64]) -> Vec<Track<TA, M, TAU, FA, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
             let mut tracks_shard = self.get_store(*track_id as usize);
@@ -344,28 +347,32 @@ where
     ///
     pub fn foreign_track_distances(
         &mut self,
-        track: Track<TA, M, TAU, FA, N>,
+        tracks: Vec<Track<TA, M, TAU, FA, N>>,
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
     ) -> TrackDistances<FA::MetricObject> {
-        let track = Arc::new(track);
-        let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
+        let tracks_count = tracks.len();
+
         let (results_sender, results_receiver) = crossbeam::channel::unbounded();
+        let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let mut errors = Vec::new();
-        for (cmd, _) in &mut self.executors {
-            cmd.send(Commands::Distances(
-                track.clone(),
-                feature_class,
-                only_baked,
-                distance_filter.clone(),
-                results_sender.clone(),
-            ))
-            .unwrap();
+
+        for track in tracks {
+            let track = Arc::new(track);
+            for (cmd, _) in &mut self.executors {
+                cmd.send(Commands::Distances(
+                    track.clone(),
+                    feature_class,
+                    only_baked,
+                    distance_filter.clone(),
+                    results_sender.clone(),
+                ))
+                .unwrap();
+            }
         }
 
-        //let mut index = 0;
-        for (_, _) in &mut self.executors {
+        for _ in 0..(self.executors.len() * tracks_count) {
             let res = results_receiver.recv().unwrap();
             match res {
                 Results::Distance(r, e) => {
@@ -378,7 +385,6 @@ where
             }
         }
         (results, errors)
-        //(results.into_iter().flatten().collect(), errors)
     }
 
     /// Calculates track distances for a track within the store
@@ -393,21 +399,28 @@ where
     ///
     pub fn owned_track_distances(
         &mut self,
-        track_id: u64,
+        tracks: &[u64],
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
     ) -> TrackDistances<FA::MetricObject> {
-        let track = self.fetch_tracks(&vec![track_id]).pop();
+        let tracks_vec = self.fetch_tracks(tracks);
 
-        if track.is_none() {
-            return (vec![], vec![Err(Errors::TrackNotFound(track_id).into())]);
+        if tracks_vec.is_empty() {
+            return (vec![], vec![Err(Errors::TracksNotFound.into())]);
         }
-        let track = track.unwrap();
 
-        let res =
-            self.foreign_track_distances(track.clone(), feature_class, only_baked, distance_filter);
-        self.add_track(track).unwrap();
+        let res = self.foreign_track_distances(
+            tracks_vec.clone(),
+            feature_class,
+            only_baked,
+            distance_filter,
+        );
+
+        for t in tracks_vec {
+            self.add_track(t).unwrap();
+        }
+
         res
     }
 
@@ -760,7 +773,7 @@ mod tests {
         assert_eq!(baked.len(), 1);
         assert_eq!(baked[0].0, 0);
 
-        let vectors = store.fetch_tracks(&baked.into_iter().map(|(t, _)| t).collect());
+        let vectors = store.fetch_tracks(&baked.into_iter().map(|(t, _)| t).collect::<Vec<_>>());
         assert_eq!(vectors.len(), 1);
         assert_eq!(vectors[0].track_id, 0);
         assert_eq!(vectors[0].observations.len(), 1);
@@ -772,7 +785,7 @@ mod tests {
             Some(vec2(0.0, 1.0)),
             time_attrs_current_ts(),
         )?;
-        let (dists, errs) = store.owned_track_distances(0, 0, false, None);
+        let (dists, errs) = store.owned_track_distances(&[0], 0, false, None);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
         thread::sleep(Duration::from_millis(10));
@@ -784,14 +797,14 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let (dists, errs) = store.owned_track_distances(0, 0, false, None);
+        let (dists, errs) = store.owned_track_distances(&[0], 0, false, None);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].to, 1);
         assert!(dists[0].feature_distance.is_some());
         assert!((dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
-        let (dists, errs) = store.owned_track_distances(1, 0, false, None);
+        let (dists, errs) = store.owned_track_distances(&[1], 0, false, None);
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 1);
         match errs[0].as_ref() {
@@ -810,6 +823,9 @@ mod tests {
                     | Errors::SameTrackCalculation(_t) => {
                         unreachable!();
                     }
+                    Errors::TracksNotFound => {
+                        unreachable!();
+                    }
                 }
             }
         }
@@ -817,7 +833,7 @@ mod tests {
         let mut v = store.fetch_tracks(&vec![0]);
 
         let v = v.pop().unwrap();
-        let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
+        let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false, None);
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].to, 1);
         assert!(dists[0].feature_distance.is_some());
@@ -829,7 +845,7 @@ mod tests {
         let mut v = v.clone();
         v.attributes.end_time = current_time_ms();
 
-        let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
+        let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false, None);
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 1);
         match errs[0].as_ref() {
@@ -846,6 +862,9 @@ mod tests {
                     Errors::TrackNotFound(_t)
                     | Errors::DuplicateTrackId(_t)
                     | Errors::SameTrackCalculation(_t) => {
+                        unreachable!();
+                    }
+                    Errors::TracksNotFound => {
                         unreachable!();
                     }
                 }
@@ -863,7 +882,7 @@ mod tests {
 
         let mut v = v.clone();
         v.attributes.end_time = store.get_store(1).get(&1).unwrap().attributes.start_time - 1;
-        let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
+        let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false, None);
         assert_eq!(dists.len(), 2);
         assert_eq!(dists[0].to, 1);
         assert!(dists[0].feature_distance.is_some());
@@ -914,7 +933,7 @@ mod tests {
             }),
         )?;
 
-        let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, true, None);
+        let (dists, errs) = store.foreign_track_distances(vec![ext_track.clone()], 0, true, None);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
         thread::sleep(Duration::from_millis(10));
@@ -926,7 +945,7 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let (dists, errs) = store.owned_track_distances(1, 0, true, None);
+        let (dists, errs) = store.owned_track_distances(&[1], 0, true, None);
         assert!(dists.is_empty());
         dbg!(&errs);
         assert!(errs.is_empty());
@@ -972,13 +991,13 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let (dists, errs) = store.foreign_track_distances(ext_track.clone(), 0, false, None);
+        let (dists, errs) = store.foreign_track_distances(vec![ext_track.clone()], 0, false, None);
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
         // with distance_filter
         let (dists, errs) =
-            store.foreign_track_distances(ext_track.clone(), 0, false, Some(LE(0.1)));
+            store.foreign_track_distances(vec![ext_track.clone()], 0, false, Some(LE(0.1)));
         assert!(dists.is_empty());
         assert!(errs.is_empty());
 
@@ -991,11 +1010,11 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let (dists, errs) = store.owned_track_distances(1, 0, false, None);
+        let (dists, errs) = store.owned_track_distances(&[1], 0, false, None);
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
-        let (dists, errs) = store.owned_track_distances(1, 0, false, Some(GE(0.1)));
+        let (dists, errs) = store.owned_track_distances(&[1], 0, false, Some(GE(0.1)));
         assert_eq!(dists.len(), 0);
         assert!(errs.is_empty());
 

@@ -420,7 +420,7 @@ fn main() {
                 track.get_attributes_mut().baked_period_ms = 0;
 
                 let (dists, _errs) =
-                    merge_store.foreign_track_distances(search_track, FEATURE0, false, None);
+                    merge_store.foreign_track_distances(vec![search_track], FEATURE0, false, None);
                 let mut winners = voting_machine.winners(&dists);
                 if winners.is_empty() {
                     let _track_id = merge_store.add_track(track).unwrap();
