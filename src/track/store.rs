@@ -150,15 +150,12 @@ where
     ) {
         let store = stores.get(store_id).unwrap();
         while let Ok(c) = commands_receiver.recv() {
-            // if let Err(_e) = results_sender.send(Results::NotImplemented) {
-            //     break;
-            // }
             match c {
-                Commands::Drop(s) => {
-                    let _r = s.send(Results::Dropped);
+                Commands::Drop(channel) => {
+                    let _r = channel.send(Results::Dropped);
                     return;
                 }
-                Commands::FindBaked(s) => {
+                Commands::FindBaked(channel) => {
                     let baked = store
                         .lock()
                         .unwrap()
@@ -173,12 +170,12 @@ where
                             }
                         })
                         .collect();
-                    let r = s.send(Results::BakedStatus(baked));
+                    let r = channel.send(Results::BakedStatus(baked));
                     if let Err(_e) = r {
                         return;
                     }
                 }
-                Commands::Distances(track, feature_class, only_baked, filter, s) => {
+                Commands::Distances(track, feature_class, only_baked, filter, channel) => {
                     let mut capacity = 0;
                     let res = store
                         .lock()
@@ -218,7 +215,7 @@ where
                         }
                     }
 
-                    let r = s.send(Results::Distance(distances, errors));
+                    let r = channel.send(Results::Distance(distances, errors));
                     if let Err(_e) = r {
                         return;
                     }
