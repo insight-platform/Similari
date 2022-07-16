@@ -275,7 +275,7 @@ where
                 (0..shards)
                     .into_iter()
                     .map(|s| {
-                        let (commands_sender, commands_receiver) = crossbeam::channel::bounded(1);
+                        let (commands_sender, commands_receiver) = crossbeam::channel::unbounded();
                         let stores = stores.clone();
                         let thread_results_sender = results_sender.clone();
                         let thread = thread::spawn(move || {
@@ -791,9 +791,9 @@ mod tests {
 
         let (dists, errs) = store.owned_track_distances(0, 0, false, None);
         assert_eq!(dists.len(), 1);
-        assert_eq!(dists[0].0, 1);
-        assert!(dists[0].2.is_some());
-        assert!((dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert_eq!(dists[0].to, 1);
+        assert!(dists[0].feature_distance.is_some());
+        assert!((dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
         let (dists, errs) = store.owned_track_distances(1, 0, false, None);
@@ -824,9 +824,9 @@ mod tests {
         let v = Arc::new(v.pop().unwrap());
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
         assert_eq!(dists.len(), 1);
-        assert_eq!(dists[0].0, 1);
-        assert!(dists[0].2.is_some());
-        assert!((dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert_eq!(dists[0].to, 1);
+        assert!(dists[0].feature_distance.is_some());
+        assert!((dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert!(errs.is_empty());
 
         // make it incompatible across the attributes
@@ -872,10 +872,10 @@ mod tests {
         let v = Arc::new(v);
         let (dists, errs) = store.foreign_track_distances(v.clone(), 0, false, None);
         assert_eq!(dists.len(), 2);
-        assert_eq!(dists[0].0, 1);
-        assert!(dists[0].2.is_some());
-        assert!((dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
-        assert!((dists[1].2.as_ref().unwrap() - 1.0).abs() < EPS);
+        assert_eq!(dists[0].to, 1);
+        assert!(dists[0].feature_distance.is_some());
+        assert!((dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((dists[1].feature_distance.as_ref().unwrap() - 1.0).abs() < EPS);
         assert!(errs.is_empty());
 
         Ok(())

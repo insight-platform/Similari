@@ -99,12 +99,24 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
         let mut tracks: Vec<_> = distances
             .iter()
             .filter(
-                |ObservationMetricResult(_, f_attr_dist, _)| match f_attr_dist {
+                |ObservationMetricResult {
+                     from: _,
+                     to: _,
+                     attribute_metric: f_attr_dist,
+                     feature_distance: _,
+                 }| match f_attr_dist {
                     Some(e) => *e >= self.min_distance,
                     _ => false,
                 },
             )
-            .map(|ObservationMetricResult(track, _, _)| track)
+            .map(
+                |ObservationMetricResult {
+                     from: _,
+                     to: track,
+                     attribute_metric: _,
+                     feature_distance: _,
+                 }| track,
+            )
             .collect();
         tracks.sort_unstable();
         let mut counts = tracks

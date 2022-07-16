@@ -5,7 +5,7 @@ extern crate test;
 use anyhow::Result;
 use itertools::Itertools;
 use similari::store::TrackStore;
-use similari::test_stuff::{current_time_ms, BBox, BoxGen2};
+use similari::test_stuff::{BBox, BoxGen2};
 use similari::track::{
     ObservationAttributes, ObservationMetric, ObservationMetricResult, ObservationSpec,
     ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
@@ -13,6 +13,7 @@ use similari::track::{
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
 use std::sync::Arc;
+use std::time::Instant;
 use test::Bencher;
 
 const FEAT0: u64 = 0;
@@ -102,12 +103,24 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
         let mut tracks: Vec<_> = distances
             .iter()
             .filter(
-                |ObservationMetricResult(_, f_attr_dist, _)| match f_attr_dist {
+                |ObservationMetricResult {
+                     from: _,
+                     to: _,
+                     attribute_metric: f_attr_dist,
+                     feature_distance: _,
+                 }| match f_attr_dist {
                     Some(e) => *e >= self.min_distance,
                     _ => false,
                 },
             )
-            .map(|ObservationMetricResult(track, _, _)| track)
+            .map(
+                |ObservationMetricResult {
+                     from: _,
+                     to: track,
+                     attribute_metric: _,
+                     feature_distance: _,
+                 }| track,
+            )
             .collect();
         tracks.sort_unstable();
         let mut counts = tracks
@@ -168,15 +181,12 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
 
     let mut iteration = 0;
     b.iter(|| {
-        iteration += 1;
-        for (c, i) in &mut iterators.iter_mut().enumerate() {
+        for i in &mut iterators {
+            iteration += 1;
             let b = i.next();
-            let mut t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> = Track::new(
-                u64::try_from(current_time_ms() * iteration + c as u128).unwrap(),
-                None,
-                None,
-                None,
-            );
+            let tm = Instant::now();
+            let mut t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> =
+                Track::new(iteration, None, None, None);
 
             t.add_observation(FEAT0, b, None, Some(BBoxAttributesUpdate))
                 .unwrap();
@@ -192,6 +202,8 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
                     .merge_external(winners[0].track_id, &t, None, false)
                     .unwrap();
             }
+            let elapsed = tm.elapsed();
+            eprintln!("Voting time: {:?}", elapsed.as_micros());
         }
     });
 }

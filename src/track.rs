@@ -20,7 +20,28 @@ pub mod voting;
 /// * `.2` - distance calculated for pairwise features
 ///
 #[derive(Debug, Clone)]
-pub struct ObservationMetricResult<M>(pub u64, pub Option<M>, pub Option<f32>);
+pub struct ObservationMetricResult<M> {
+    pub from: u64,
+    pub to: u64,
+    pub attribute_metric: Option<M>,
+    pub feature_distance: Option<f32>,
+}
+
+impl<M> ObservationMetricResult<M> {
+    pub fn new(
+        from: u64,
+        to: u64,
+        attribute_metric: Option<M>,
+        feature_distance: Option<f32>,
+    ) -> Self {
+        Self {
+            from,
+            to,
+            attribute_metric,
+            feature_distance,
+        }
+    }
+}
 
 /// Filter enum that is used in distance operations to early drop large or small distances
 /// out of the output.
@@ -469,26 +490,38 @@ where
                     .iter()
                     .cartesian_product(right.iter())
                     .map(|(l, r)| {
-                        let (feature_metric_object, distance) = M::metric(
+                        let (attribute_metric, feature_distance) = M::metric(
                             feature_class,
                             self.get_attributes(),
                             other.get_attributes(),
                             l,
                             r,
                         );
-                        ObservationMetricResult(other.track_id, feature_metric_object, distance)
-                    })
-                    .filter(|ObservationMetricResult(_, _, d)| {
-                        if d.is_none() {
-                            true
-                        } else {
-                            match filter {
-                                Some(DistanceFilter::LE(max_dist)) => d.unwrap() <= *max_dist,
-                                Some(DistanceFilter::GE(min_dist)) => d.unwrap() >= *min_dist,
-                                None => true,
-                            }
+                        ObservationMetricResult {
+                            from: self.track_id,
+                            to: other.track_id,
+                            attribute_metric,
+                            feature_distance,
                         }
                     })
+                    .filter(
+                        |ObservationMetricResult {
+                             from: _,
+                             to: _,
+                             attribute_metric: _,
+                             feature_distance: d,
+                         }| {
+                            if d.is_none() {
+                                true
+                            } else {
+                                match filter {
+                                    Some(DistanceFilter::LE(max_dist)) => d.unwrap() <= *max_dist,
+                                    Some(DistanceFilter::GE(min_dist)) => d.unwrap() >= *min_dist,
+                                    None => true,
+                                }
+                            }
+                        },
+                    )
                     .collect()),
                 _ => Err(Errors::ObservationForClassNotFound(
                     self.track_id,
@@ -601,12 +634,12 @@ mod tests {
         let dists = t1.distances(&t1, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!(*dists[0].2.as_ref().unwrap() < EPS);
+        assert!(*dists[0].feature_distance.as_ref().unwrap() < EPS);
 
         let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
 
         let dists = t1.distances(&t2, 0, &Some(DistanceFilter::LE(0.5)));
         let dists = dists.unwrap();
@@ -615,7 +648,7 @@ mod tests {
         let dists = t1.distances(&t2, 0, &Some(DistanceFilter::GE(1.0)));
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
 
         t2.add_observation(
             0,
@@ -629,8 +662,8 @@ mod tests {
         let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 2);
-        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
-        assert!((*dists[1].2.as_ref().unwrap() - 1.0).abs() < EPS);
+        assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert!((*dists[1].feature_distance.as_ref().unwrap() - 1.0).abs() < EPS);
         Ok(())
     }
 
@@ -779,8 +812,8 @@ mod tests {
         let dists = t1.distances(&t2, 0, &None);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
-        assert!((*dists[0].2.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
-        assert_eq!(dists[0].0, 2);
+        assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
+        assert_eq!(dists[0].to, 2);
 
         let mut t3 = Track::default();
         t3.add_observation(
