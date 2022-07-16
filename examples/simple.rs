@@ -6,10 +6,6 @@ use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
 
 fn main() {
-    if cfg!(target_feature = "avx2") {
-        eprintln!("AVX2 is on");
-    }
-
     const DEFAULT_FEATURE: u64 = 0;
     let mut db = store::TrackStore::new(
         Some(SimpleMetric::default()),
@@ -77,7 +73,7 @@ fn main() {
     eprintln!("Distances: {:?}", &dists);
     eprintln!("Errs: {:?}", &errs);
 
-    let top1_voting_engine = TopNVoting::new(1, 1.0, 1);
+    let top1_voting_engine = TopNVoting::new(2, 1.0, 1);
     let results = top1_voting_engine.winners(&dists);
     eprintln!(
         "Voting results (the less distance, the better result): {:?}",

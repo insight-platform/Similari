@@ -115,7 +115,12 @@ fn main() {
                 store.add_track(t).unwrap();
             } else {
                 store
-                    .merge_external(winners[0].track_id, &t, None, false)
+                    .merge_external(
+                        winners.get(&t.get_track_id()).unwrap()[0].winner_track,
+                        &t,
+                        None,
+                        false,
+                    )
                     .unwrap();
             }
         }

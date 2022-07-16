@@ -1,6 +1,7 @@
 use crate::track::ObservationMetricResult;
 use crate::voting::Voting;
 use itertools::Itertools;
+use std::collections::HashMap;
 
 /// TopN winners voting engine that selects Top N vectors with most close distances.
 ///
@@ -38,20 +39,28 @@ impl TopNVoting {
 ///
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct TopNVotingElt {
+    pub query_track: u64,
     /// winning track
-    pub track_id: u64,
+    pub winner_track: u64,
     /// number of votes it gathered
     pub votes: usize,
 }
 
 impl TopNVotingElt {
-    pub fn new(track_id: u64, votes: usize) -> Self {
-        Self { track_id, votes }
+    pub fn new(query_track: u64, winner_track: u64, votes: usize) -> Self {
+        Self {
+            query_track,
+            winner_track,
+            votes,
+        }
     }
 }
 
 impl Voting<TopNVotingElt, f32> for TopNVoting {
-    fn winners(&self, distances: &[ObservationMetricResult<f32>]) -> Vec<TopNVotingElt> {
+    fn winners(
+        &self,
+        distances: &[ObservationMetricResult<f32>],
+    ) -> HashMap<u64, Vec<TopNVotingElt>> {
         let mut tracks: Vec<_> = distances
             .iter()
             .filter(
@@ -67,27 +76,44 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
             )
             .map(
                 |ObservationMetricResult {
-                     from: _,
-                     to: track,
+                     from: src_track,
+                     to: dest_track,
                      attribute_metric: _f_attr_dist,
                      feature_distance: _feat_dist,
-                 }| track,
+                 }| (src_track, dest_track),
             )
             .collect();
         tracks.sort_unstable();
-        let mut counts = tracks
+
+        let counts = tracks
             .into_iter()
             .counts()
             .into_iter()
             .filter(|(_, count)| *count >= self.min_votes)
-            .map(|(e, c)| TopNVotingElt {
-                track_id: *e,
+            .map(|((q, w), c)| TopNVotingElt {
+                query_track: *q,
+                winner_track: *w,
                 votes: c,
             })
             .collect::<Vec<_>>();
-        counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
-        counts.truncate(self.topn);
-        counts
+
+        let mut results: HashMap<u64, Vec<TopNVotingElt>> = HashMap::new();
+
+        for c in counts {
+            let key = c.query_track;
+            if let Some(val) = results.get_mut(&key) {
+                val.push(c);
+            } else {
+                results.insert(key, vec![c]);
+            }
+        }
+
+        for counts in results.values_mut() {
+            counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
+            counts.truncate(self.topn);
+        }
+
+        results
     }
 }
 
@@ -95,6 +121,7 @@ impl Voting<TopNVotingElt, f32> for TopNVoting {
 mod tests {
     use crate::track::voting::topn::{TopNVoting, TopNVotingElt, Voting};
     use crate::track::ObservationMetricResult;
+    use std::collections::HashMap;
 
     #[test]
     fn default_voting() {
@@ -110,28 +137,48 @@ mod tests {
             Some(0.0),
             Some(0.2),
         )]);
-        assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
+
+        assert_eq!(
+            candidates,
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 1)])])
+        );
 
         let candidates = v.winners(&vec![
             ObservationMetricResult::new(0, 1, Some(0.0), Some(0.2)),
             ObservationMetricResult::new(0, 1, Some(0.0), Some(0.3)),
         ]);
-        assert_eq!(candidates, vec![TopNVotingElt::new(1, 2)]);
+
+        assert_eq!(
+            candidates,
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 2)])])
+        );
 
         let candidates = v.winners(&vec![
             ObservationMetricResult::new(0, 1, Some(0.0), Some(0.2)),
             ObservationMetricResult::new(0, 1, Some(0.0), Some(0.4)),
         ]);
-        assert_eq!(candidates, vec![TopNVotingElt::new(1, 1)]);
+
+        assert_eq!(
+            candidates,
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 1)])])
+        );
 
         let mut candidates = v.winners(&vec![
             ObservationMetricResult::new(0, 1, Some(0.0), Some(0.2)),
             ObservationMetricResult::new(0, 2, Some(0.0), Some(0.2)),
         ]);
-        candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
+
+        candidates
+            .get_mut(&0)
+            .unwrap()
+            .sort_by(|l, r| l.winner_track.partial_cmp(&r.winner_track).unwrap());
+
         assert_eq!(
             candidates,
-            vec![TopNVotingElt::new(1, 1), TopNVotingElt::new(2, 1)]
+            HashMap::from([(
+                0,
+                vec![TopNVotingElt::new(0, 1, 1), TopNVotingElt::new(0, 2, 1)]
+            )])
         );
 
         let mut candidates = v.winners(&vec![
@@ -148,16 +195,80 @@ mod tests {
             ObservationMetricResult::new(0, 6, Some(0.0), Some(0.25)),
             ObservationMetricResult::new(0, 6, Some(0.0), Some(0.5)),
         ]);
-        candidates.sort_by(|l, r| l.track_id.partial_cmp(&r.track_id).unwrap());
+
+        candidates
+            .get_mut(&0)
+            .unwrap()
+            .sort_by(|l, r| l.winner_track.partial_cmp(&r.winner_track).unwrap());
+
         assert_eq!(
             candidates,
-            vec![
-                TopNVotingElt::new(1, 2),
-                TopNVotingElt::new(2, 2),
-                TopNVotingElt::new(3, 2),
-                TopNVotingElt::new(4, 2),
-                TopNVotingElt::new(5, 2)
-            ]
+            HashMap::from([(
+                0,
+                vec![
+                    TopNVotingElt::new(0, 1, 2),
+                    TopNVotingElt::new(0, 2, 2),
+                    TopNVotingElt::new(0, 3, 2),
+                    TopNVotingElt::new(0, 4, 2),
+                    TopNVotingElt::new(0, 5, 2)
+                ]
+            )])
+        );
+    }
+
+    #[test]
+    fn two_query_vecs() {
+        let v = TopNVoting {
+            topn: 5,
+            max_distance: 0.32,
+            min_votes: 1,
+        };
+
+        let mut candidates = v.winners(&vec![
+            ObservationMetricResult::new(0, 1, Some(0.0), Some(0.2)),
+            ObservationMetricResult::new(0, 1, Some(0.0), Some(0.22)),
+            ObservationMetricResult::new(0, 2, Some(0.0), Some(0.21)),
+            ObservationMetricResult::new(0, 2, Some(0.0), Some(0.2)),
+            ObservationMetricResult::new(0, 3, Some(0.0), Some(0.22)),
+            ObservationMetricResult::new(0, 3, Some(0.0), Some(0.2)),
+            ObservationMetricResult::new(7, 4, Some(0.0), Some(0.23)),
+            ObservationMetricResult::new(7, 4, Some(0.0), Some(0.3)),
+            ObservationMetricResult::new(7, 5, Some(0.0), Some(0.24)),
+            ObservationMetricResult::new(7, 5, Some(0.0), Some(0.3)),
+            ObservationMetricResult::new(7, 6, Some(0.0), Some(0.25)),
+            ObservationMetricResult::new(7, 6, Some(0.0), Some(0.5)),
+        ]);
+
+        candidates
+            .get_mut(&0)
+            .unwrap()
+            .sort_by(|l, r| l.winner_track.partial_cmp(&r.winner_track).unwrap());
+
+        candidates
+            .get_mut(&7)
+            .unwrap()
+            .sort_by(|l, r| l.winner_track.partial_cmp(&r.winner_track).unwrap());
+
+        assert_eq!(
+            candidates,
+            HashMap::from([
+                (
+                    0,
+                    vec![
+                        TopNVotingElt::new(0, 1, 2),
+                        TopNVotingElt::new(0, 2, 2),
+                        TopNVotingElt::new(0, 3, 2),
+                    ]
+                ),
+                (
+                    7,
+                    vec![
+                        TopNVotingElt::new(7, 4, 2),
+                        TopNVotingElt::new(7, 5, 2),
+                        TopNVotingElt::new(7, 6, 1)
+                    ]
+                )
+            ])
         );
     }
 }

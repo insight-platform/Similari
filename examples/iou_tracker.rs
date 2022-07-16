@@ -8,6 +8,7 @@ use similari::track::{
 };
 use similari::voting::topn::TopNVotingElt;
 use similari::voting::Voting;
+use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
 
@@ -94,44 +95,63 @@ pub struct TopNVoting {
 }
 
 impl Voting<TopNVotingElt, f32> for TopNVoting {
-    fn winners(&self, distances: &[ObservationMetricResult<f32>]) -> Vec<TopNVotingElt> {
+    fn winners(
+        &self,
+        distances: &[ObservationMetricResult<f32>],
+    ) -> HashMap<u64, Vec<TopNVotingElt>> {
         let mut tracks: Vec<_> = distances
             .iter()
             .filter(
                 |ObservationMetricResult {
                      from: _,
-                     to: _,
-                     attribute_metric: f_attr_dist,
+                     to: _track,
+                     attribute_metric: attr_dist,
                      feature_distance: _,
-                 }| match f_attr_dist {
+                 }| match attr_dist {
                     Some(e) => *e >= self.min_distance,
                     _ => false,
                 },
             )
             .map(
                 |ObservationMetricResult {
-                     from: _,
-                     to: track,
+                     from: src_track,
+                     to: dest_track,
                      attribute_metric: _,
                      feature_distance: _,
-                 }| track,
+                 }| (src_track, dest_track),
             )
             .collect();
         tracks.sort_unstable();
-        let mut counts = tracks
+
+        let counts = tracks
             .into_iter()
             .counts()
             .into_iter()
             .filter(|(_, count)| *count >= self.min_votes)
-            .map(|(e, c)| TopNVotingElt {
-                track_id: *e,
+            .map(|((q, w), c)| TopNVotingElt {
+                query_track: *q,
+                winner_track: *w,
                 votes: c,
             })
             .collect::<Vec<_>>();
 
-        counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
-        counts.truncate(self.topn);
-        counts
+        let mut results: HashMap<u64, Vec<TopNVotingElt>> = HashMap::new();
+
+        for c in counts {
+            let key = c.query_track;
+            if let Some(val) = results.get_mut(&key) {
+                val.push(c);
+            } else {
+                results.insert(key, vec![c]);
+            }
+        }
+
+        for (_query_track, counts) in &mut results {
+            counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
+            counts.truncate(self.topn);
+        }
+
+        results
     }
 }
 
@@ -180,12 +200,14 @@ fn main() {
             let (dists, errs) =
                 store.foreign_track_distances(vec![search_track], FEAT0, false, None);
             assert!(errs.is_empty());
-            let winners = voting.winners(&dists);
+            let mut winners = voting.winners(&dists);
             if winners.is_empty() {
                 store.add_track(t).unwrap();
             } else {
+                let winner = winners.get_mut(&t.get_track_id()).unwrap().pop().unwrap();
+
                 store
-                    .merge_external(winners[0].track_id, &t, None, false)
+                    .merge_external(winner.winner_track, &t, None, false)
                     .unwrap();
             }
         }

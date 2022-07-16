@@ -222,7 +222,7 @@ where
                         return;
                     }
                 }
-                Commands::Merge(track, channel_opt) => {}
+                Commands::Merge(_track, _channel_opt) => {}
             }
         }
     }
@@ -515,7 +515,7 @@ where
         remove_src_if_ok: bool,
         merge_history: bool,
     ) -> OwnedMergeResult<TA, M, TAU, FA, N> {
-        let mut src = self.fetch_tracks(&vec![src_id]);
+        let mut src = self.fetch_tracks(&[src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
         }

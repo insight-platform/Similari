@@ -425,9 +425,14 @@ fn main() {
                 if winners.is_empty() {
                     let _track_id = merge_store.add_track(track).unwrap();
                 } else {
-                    let winner = winners.pop().unwrap();
+                    let winner = winners
+                        .get_mut(&track.get_track_id())
+                        .unwrap()
+                        .pop()
+                        .unwrap();
+
                     merge_store
-                        .merge_external(winner.track_id, &track, Some(&[FEATURE0]), true)
+                        .merge_external(winner.winner_track, &track, Some(&[FEATURE0]), true)
                         .unwrap();
                 }
             }
