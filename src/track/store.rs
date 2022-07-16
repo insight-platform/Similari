@@ -21,13 +21,14 @@ where
     M: ObservationMetric<TA, FA>,
     TAU: TrackAttributesUpdate<TA>,
 {
-    Drop,
-    FindBaked,
+    Drop(Sender<Results<FA>>),
+    FindBaked(Sender<Results<FA>>),
     Distances(
         Arc<Track<TA, M, TAU, FA, N>>,
         u64,
         bool,
         Option<DistanceFilter>,
+        Sender<Results<FA>>,
     ),
 }
 
@@ -86,7 +87,7 @@ where
     num_shards: usize,
     #[allow(clippy::type_complexity)]
     stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
-    receiver: Receiver<Results<FA>>,
+    // receiver: Receiver<Results<FA>>,
     #[allow(clippy::type_complexity)]
     executors: Vec<(Sender<Commands<TA, M, TAU, FA, N>>, JoinHandle<()>)>,
 }
@@ -101,9 +102,10 @@ where
 {
     fn drop(&mut self) {
         let executors = mem::take(&mut self.executors);
+        let (results_sender, results_receiver) = crossbeam::channel::unbounded();
         for (s, j) in executors {
-            s.send(Commands::Drop).unwrap();
-            let res = self.receiver.recv().unwrap();
+            s.send(Commands::Drop(results_sender.clone())).unwrap();
+            let res = results_receiver.recv().unwrap();
             match res {
                 Results::Dropped => {
                     j.join().unwrap();
@@ -145,7 +147,6 @@ where
         stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
         store_id: usize,
         commands_receiver: Receiver<Commands<TA, M, TAU, FA, N>>,
-        results_sender: Sender<Results<FA>>,
     ) {
         let store = stores.get(store_id).unwrap();
         while let Ok(c) = commands_receiver.recv() {
@@ -153,11 +154,11 @@ where
             //     break;
             // }
             match c {
-                Commands::Drop => {
-                    let _r = results_sender.send(Results::Dropped);
+                Commands::Drop(s) => {
+                    let _r = s.send(Results::Dropped);
                     return;
                 }
-                Commands::FindBaked => {
+                Commands::FindBaked(s) => {
                     let baked = store
                         .lock()
                         .unwrap()
@@ -172,12 +173,12 @@ where
                             }
                         })
                         .collect();
-                    let r = results_sender.send(Results::BakedStatus(baked));
+                    let r = s.send(Results::BakedStatus(baked));
                     if let Err(_e) = r {
                         return;
                     }
                 }
-                Commands::Distances(track, feature_class, only_baked, filter) => {
+                Commands::Distances(track, feature_class, only_baked, filter, s) => {
                     let mut capacity = 0;
                     let res = store
                         .lock()
@@ -217,7 +218,7 @@ where
                         }
                     }
 
-                    let r = results_sender.send(Results::Distance(distances, errors));
+                    let r = s.send(Results::Distance(distances, errors));
                     if let Err(_e) = r {
                         return;
                     }
@@ -250,10 +251,9 @@ where
                 .collect::<Vec<_>>(),
         );
         let my_stores = stores.clone();
-        let (results_sender, results_receiver) = crossbeam::channel::unbounded();
 
         Self {
-            receiver: results_receiver,
+            //receiver: results_receiver,
             num_shards: shards,
             notifier: if let Some(notifier) = notifier {
                 notifier
@@ -277,14 +277,8 @@ where
                     .map(|s| {
                         let (commands_sender, commands_receiver) = crossbeam::channel::unbounded();
                         let stores = stores.clone();
-                        let thread_results_sender = results_sender.clone();
                         let thread = thread::spawn(move || {
-                            Self::handle_store_ops(
-                                stores,
-                                s,
-                                commands_receiver,
-                                thread_results_sender,
-                            );
+                            Self::handle_store_ops(stores, s, commands_receiver);
                         });
                         (commands_sender, thread)
                     })
@@ -302,11 +296,13 @@ where
     ///
     pub fn find_usable(&mut self) -> Vec<(u64, Result<TrackStatus>)> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
+        let (results_sender, results_receiver) = crossbeam::channel::unbounded();
         for (cmd, _) in &mut self.executors {
-            cmd.send(Commands::FindBaked).unwrap();
+            cmd.send(Commands::FindBaked(results_sender.clone()))
+                .unwrap();
         }
         for (_, _) in &mut self.executors {
-            let res = self.receiver.recv().unwrap();
+            let res = results_receiver.recv().unwrap();
             match res {
                 Results::BakedStatus(r) => {
                     results.extend(r);
@@ -351,12 +347,14 @@ where
     ///
     pub fn foreign_track_distances(
         &mut self,
-        track: Arc<Track<TA, M, TAU, FA, N>>,
+        track: Track<TA, M, TAU, FA, N>,
         feature_class: u64,
         only_baked: bool,
         distance_filter: Option<DistanceFilter>,
     ) -> TrackDistances<FA::MetricObject> {
+        let track = Arc::new(track);
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
+        let (results_sender, results_receiver) = crossbeam::channel::unbounded();
         let mut errors = Vec::new();
         for (cmd, _) in &mut self.executors {
             cmd.send(Commands::Distances(
@@ -364,13 +362,14 @@ where
                 feature_class,
                 only_baked,
                 distance_filter.clone(),
+                results_sender.clone(),
             ))
             .unwrap();
         }
 
         //let mut index = 0;
         for (_, _) in &mut self.executors {
-            let res = self.receiver.recv().unwrap();
+            let res = results_receiver.recv().unwrap();
             match res {
                 Results::Distance(r, e) => {
                     results.extend_from_slice(&r);
