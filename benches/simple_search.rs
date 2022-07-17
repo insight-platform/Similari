@@ -4,7 +4,7 @@ extern crate test;
 
 use rand::{distributions::Uniform, Rng};
 use similari::store;
-use similari::test_stuff::{SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
+use similari::test_stuff::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
 use similari::track::notify::NoopNotifier;
 use similari::track::utils::FromVec;
 use similari::track::{Observation, Track};
@@ -78,8 +78,8 @@ fn simple_2048_100k(b: &mut Bencher) {
 fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
     const DEFAULT_FEATURE: u64 = 0;
     let mut db = store::TrackStore::new(
-        Some(SimpleMetric::default()),
-        Some(SimpleAttrs::default()),
+        Some(UnboundMetric::default()),
+        Some(UnboundAttrs::default()),
         None,
         num_cpus::get(),
     );
@@ -94,28 +94,29 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             Some(Observation::from_vec(
                 (0..vec_len).map(|_| rng.sample(&gen)).collect(),
             )),
-            Some(SimpleAttributeUpdate {}),
+            Some(UnboundAttributeUpdate {}),
         );
         assert!(res.is_ok());
     }
 
-    let mut t = Track::new(
-        count as u64 + 1,
-        Some(SimpleMetric::default()),
-        Some(SimpleAttrs::default()),
-        Some(NoopNotifier::default()),
-    );
-
-    let _ = t.add_observation(
-        DEFAULT_FEATURE,
-        Some(1.0),
-        Some(Observation::from_vec(
-            (0..vec_len).map(|_| rng.sample(&gen)).collect(),
-        )),
-        None,
-    );
-
     b.iter(|| {
-        db.foreign_track_distances(vec![t.clone()], DEFAULT_FEATURE, true);
+        let mut t = Track::new(
+            count as u64 + 1,
+            Some(UnboundMetric::default()),
+            Some(UnboundAttrs::default()),
+            Some(NoopNotifier::default()),
+        );
+
+        let _ = t.add_observation(
+            DEFAULT_FEATURE,
+            Some(1.0),
+            Some(Observation::from_vec(
+                (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+            )),
+            None,
+        );
+        let (dists, errs) = db.foreign_track_distances(vec![t.clone()], DEFAULT_FEATURE, true);
+        assert_eq!(dists.len(), count);
+        assert!(errs.is_empty());
     });
 }
