@@ -185,18 +185,34 @@ where
                         .flat_map(|(_, other)| {
                             if !only_baked {
                                 let dists = track.distances(other, feature_class);
-                                if let Ok(d) = &dists {
-                                    capacity += d.len();
+                                if let Err(e) = &dists {
+                                    match e.downcast_ref::<Errors>() {
+                                        None => Some(dists),
+                                        Some(e) => match e {
+                                            Errors::IncompatibleAttributes => None,
+                                            _ => Some(dists),
+                                        },
+                                    }
+                                } else {
+                                    capacity += dists.as_ref().unwrap().len();
+                                    Some(dists)
                                 }
-                                Some(dists)
                             } else {
                                 match other.get_attributes().baked(&other.observations) {
                                     Ok(TrackStatus::Ready) => {
                                         let dists = track.distances(other, feature_class);
-                                        if let Ok(d) = &dists {
-                                            capacity += d.len();
+                                        if let Err(e) = &dists {
+                                            match e.downcast_ref::<Errors>() {
+                                                None => Some(dists),
+                                                Some(e) => match e {
+                                                    Errors::IncompatibleAttributes => None,
+                                                    _ => Some(dists),
+                                                },
+                                            }
+                                        } else {
+                                            capacity += dists.as_ref().unwrap().len();
+                                            Some(dists)
                                         }
-                                        Some(dists)
                                     }
                                     _ => None,
                                 }
@@ -571,7 +587,7 @@ mod tests {
         MetricOutput, NoopNotifier, ObservationAttributes, ObservationMetric, ObservationSpec,
         ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
     };
-    use crate::{Errors, EPS};
+    use crate::EPS;
     use anyhow::Result;
     use std::thread;
     use std::time::Duration;
@@ -796,29 +812,7 @@ mod tests {
 
         let (dists, errs) = store.owned_track_distances(&[1], 0, false);
         assert_eq!(dists.len(), 0);
-        assert_eq!(errs.len(), 1);
-        match errs[0].as_ref() {
-            Ok(_) => {
-                unreachable!();
-            }
-            Err(e) => {
-                let errs = e.downcast_ref::<Errors>().unwrap();
-                match errs {
-                    Errors::IncompatibleAttributes => {}
-                    Errors::ObservationForClassNotFound(_t1, _t2, _c) => {
-                        unreachable!();
-                    }
-                    Errors::TrackNotFound(_t)
-                    | Errors::DuplicateTrackId(_t)
-                    | Errors::SameTrackCalculation(_t) => {
-                        unreachable!();
-                    }
-                    Errors::TracksNotFound => {
-                        unreachable!();
-                    }
-                }
-            }
-        }
+        assert_eq!(errs.len(), 0);
 
         let mut v = store.fetch_tracks(&vec![0]);
 
@@ -837,29 +831,7 @@ mod tests {
 
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
         assert_eq!(dists.len(), 0);
-        assert_eq!(errs.len(), 1);
-        match errs[0].as_ref() {
-            Ok(_) => {
-                unreachable!();
-            }
-            Err(e) => {
-                let errs = e.downcast_ref::<Errors>().unwrap();
-                match errs {
-                    Errors::IncompatibleAttributes => {}
-                    Errors::ObservationForClassNotFound(_t1, _t2, _c) => {
-                        unreachable!();
-                    }
-                    Errors::TrackNotFound(_t)
-                    | Errors::DuplicateTrackId(_t)
-                    | Errors::SameTrackCalculation(_t) => {
-                        unreachable!();
-                    }
-                    Errors::TracksNotFound => {
-                        unreachable!();
-                    }
-                }
-            }
-        }
+        assert_eq!(errs.len(), 0);
 
         thread::sleep(Duration::from_millis(10));
         store.add(
