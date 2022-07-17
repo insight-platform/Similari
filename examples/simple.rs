@@ -67,7 +67,7 @@ fn main() {
 
     assert!(res.is_ok());
 
-    let (dists, errs) = db.foreign_track_distances(vec![ext_track], 0, true, None);
+    let (dists, errs) = db.foreign_track_distances(vec![ext_track], 0, true);
     assert_eq!(errs.len(), 0);
 
     eprintln!("Distances: {:?}", &dists);

@@ -2,7 +2,7 @@ use similari::distance::euclidean;
 use similari::store::TrackStore;
 use similari::test_stuff::{current_time_ms, BBox, BoxGen2, FeatGen2};
 use similari::track::{
-    ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb, Track,
+    MetricOutput, ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb, Track,
     TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
@@ -48,19 +48,19 @@ impl ObservationMetric<NoopAttributes, BBox> for TrackMetric {
         _attrs2: &NoopAttributes,
         e1: &ObservationSpec<BBox>,
         e2: &ObservationSpec<BBox>,
-    ) -> (Option<f32>, Option<f32>) {
+    ) -> MetricOutput<f32> {
         // bbox information (.0) is not used but can be used
         // to implement additional IoU tracking
         // one can use None if low IoU
         // or implement weighted distance based on IoU and euclidean distance
         //
-        (
+        Some((
             BBox::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
-        )
+        ))
     }
 
     fn optimize(
@@ -107,8 +107,7 @@ fn main() {
 
         for t in [obj1t, obj2t] {
             let search_track = t.clone();
-            let (dists, errs) =
-                store.foreign_track_distances(vec![search_track], FEAT0, false, None);
+            let (dists, errs) = store.foreign_track_distances(vec![search_track], FEAT0, false);
             assert!(errs.is_empty());
             let winners = voting.winners(&dists);
             if winners.is_empty() {

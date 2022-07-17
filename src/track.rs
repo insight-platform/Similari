@@ -43,15 +43,6 @@ impl<M> ObservationMetricResult<M> {
     }
 }
 
-/// Filter enum that is used in distance operations to early drop large or small distances
-/// out of the output.
-///
-#[derive(Clone)]
-pub enum DistanceFilter {
-    LE(f32),
-    GE(f32),
-}
-
 /// Feature vector representation. It is a valid Nalgebra dynamic matrix
 pub type Observation = Vec<f32x8>;
 
@@ -75,6 +66,8 @@ pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 's
     fn calculate_metric_object(l: &Option<Self>, r: &Option<Self>) -> Option<Self::MetricObject>;
 }
 
+pub type MetricOutput<T> = Option<(Option<T>, Option<f32>)>;
+
 /// The trait that implements the methods for features comparison and filtering
 pub trait ObservationMetric<TA, FA: ObservationAttributes>:
     Default + Send + Sync + Clone + 'static
@@ -96,7 +89,7 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
         right_attrs: &TA,
         left_observation: &ObservationSpec<FA>,
         right_observation: &ObservationSpec<FA>,
-    ) -> (Option<FA::MetricObject>, Option<f32>);
+    ) -> MetricOutput<FA::MetricObject>;
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
     /// two tracks are merged.
@@ -477,7 +470,6 @@ where
         &self,
         other: &Self,
         feature_class: u64,
-        filter: &Option<DistanceFilter>,
     ) -> Result<Vec<ObservationMetricResult<FA::MetricObject>>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
@@ -489,39 +481,21 @@ where
                 (Some(left), Some(right)) => Ok(left
                     .iter()
                     .cartesian_product(right.iter())
-                    .map(|(l, r)| {
+                    .flat_map(|(l, r)| {
                         let (attribute_metric, feature_distance) = M::metric(
                             feature_class,
                             self.get_attributes(),
                             other.get_attributes(),
                             l,
                             r,
-                        );
-                        ObservationMetricResult {
+                        )?;
+                        Some(ObservationMetricResult {
                             from: self.track_id,
                             to: other.track_id,
                             attribute_metric,
                             feature_distance,
-                        }
+                        })
                     })
-                    .filter(
-                        |ObservationMetricResult {
-                             from: _,
-                             to: _,
-                             attribute_metric: _,
-                             feature_distance: d,
-                         }| {
-                            if d.is_none() {
-                                true
-                            } else {
-                                match filter {
-                                    Some(DistanceFilter::LE(max_dist)) => d.unwrap() <= *max_dist,
-                                    Some(DistanceFilter::GE(min_dist)) => d.unwrap() >= *min_dist,
-                                    None => true,
-                                }
-                            }
-                        },
-                    )
                     .collect()),
                 _ => Err(Errors::ObservationForClassNotFound(
                     self.track_id,
@@ -540,7 +514,7 @@ mod tests {
     use crate::test_stuff::current_time_sec;
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
-        DistanceFilter, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
+        MetricOutput, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
         ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
@@ -581,14 +555,14 @@ mod tests {
             _attrs2: &DefaultAttrs,
             e1: &ObservationSpec<f32>,
             e2: &ObservationSpec<f32>,
-        ) -> (Option<f32>, Option<f32>) {
-            (
+        ) -> MetricOutput<f32> {
+            Some((
                 f32::calculate_metric_object(&e1.0, &e2.0),
                 match (e1.1.as_ref(), e2.1.as_ref()) {
                     (Some(x), Some(y)) => Some(euclidean(x, y)),
                     _ => None,
                 },
-            )
+            ))
         }
 
         fn optimize(
@@ -631,21 +605,12 @@ mod tests {
             None,
         )?;
 
-        let dists = t1.distances(&t1, 0, &None);
+        let dists = t1.distances(&t1, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
         assert!(*dists[0].feature_distance.as_ref().unwrap() < EPS);
 
-        let dists = t1.distances(&t2, 0, &None);
-        let dists = dists.unwrap();
-        assert_eq!(dists.len(), 1);
-        assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
-
-        let dists = t1.distances(&t2, 0, &Some(DistanceFilter::LE(0.5)));
-        let dists = dists.unwrap();
-        assert_eq!(dists.len(), 0);
-
-        let dists = t1.distances(&t2, 0, &Some(DistanceFilter::GE(1.0)));
+        let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
         assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
@@ -659,7 +624,7 @@ mod tests {
 
         assert_eq!(t2.observations.get(&0).unwrap().len(), 2);
 
-        let dists = t1.distances(&t2, 0, &None);
+        let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 2);
         assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
@@ -766,14 +731,14 @@ mod tests {
                 _attrs2: &TimeAttrs,
                 e1: &ObservationSpec<f32>,
                 e2: &ObservationSpec<f32>,
-            ) -> (Option<f32>, Option<f32>) {
-                (
+            ) -> MetricOutput<f32> {
+                Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
                     match (e1.1.as_ref(), e2.1.as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
-                )
+                ))
             }
 
             fn optimize(
@@ -809,7 +774,7 @@ mod tests {
         )?;
         t2.track_id = 2;
 
-        let dists = t1.distances(&t2, 0, &None);
+        let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
         assert_eq!(dists.len(), 1);
         assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
@@ -823,7 +788,7 @@ mod tests {
             Some(TimeAttrUpdates { time: 1 }),
         )?;
 
-        let dists = t1.distances(&t3, 0, &None);
+        let dists = t1.distances(&t3, 0);
         assert!(dists.is_err());
         Ok(())
     }
@@ -914,14 +879,14 @@ mod tests {
                 _attrs2: &DefaultAttrs,
                 e1: &ObservationSpec<f32>,
                 e2: &ObservationSpec<f32>,
-            ) -> (Option<f32>, Option<f32>) {
-                (
+            ) -> MetricOutput<f32> {
+                Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
                     match (e1.1.as_ref(), e2.1.as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
-                )
+                ))
             }
 
             fn optimize(
@@ -998,31 +963,6 @@ mod tests {
     }
 
     #[test]
-    fn distance_filter() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> =
-            Track::new(0, None, None, None);
-        t1.add_observation(
-            0,
-            Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
-            None,
-        )?;
-
-        let mut t2 = Track::new(1, None, None, None);
-        t2.add_observation(
-            0,
-            Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
-            None,
-        )?;
-        let dists = t1
-            .distances(&t2, 0, &Some(DistanceFilter::LE(0.5)))
-            .unwrap();
-        assert!(dists.is_empty());
-        Ok(())
-    }
-
-    #[test]
     fn merge_history() -> Result<()> {
         let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> =
             Track::new(0, None, None, None);
@@ -1089,14 +1029,14 @@ mod tests {
                 _attrs2: &UnitAttrs,
                 e1: &ObservationSpec<()>,
                 e2: &ObservationSpec<()>,
-            ) -> (Option<()>, Option<f32>) {
-                (
+            ) -> MetricOutput<()> {
+                Some((
                     None,
                     match (e1.1.as_ref(), e2.1.as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
-                )
+                ))
             }
 
             fn optimize(

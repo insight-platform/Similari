@@ -1,8 +1,10 @@
+pub mod iou;
+
 use crate::distance::euclidean;
 use crate::track::utils::FromVec;
 use crate::track::{
-    Observation, ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb,
-    TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
+    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::EPS;
 use anyhow::Result;
@@ -71,14 +73,14 @@ impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
         _attrs2: &SimpleAttrs,
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
-    ) -> (Option<f32>, Option<f32>) {
-        (
+    ) -> MetricOutput<f32> {
+        Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
-        )
+        ))
     }
 
     fn optimize(
@@ -130,14 +132,14 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
         _attrs2: &UnboundAttrs,
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
-    ) -> (Option<f32>, Option<f32>) {
-        (
+    ) -> MetricOutput<f32> {
+        Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
-        )
+        ))
     }
 
     fn optimize(

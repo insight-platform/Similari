@@ -8,8 +8,8 @@ use similari::test_stuff::current_time_ms;
 use similari::test_stuff::FeatGen2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
-    ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb, TrackAttributes,
-    TrackAttributesUpdate, TrackStatus,
+    MetricOutput, ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb,
+    TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -249,14 +249,14 @@ impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetr
         _attrs2: &CamTrackingAttributes,
         e1: &ObservationSpec<f32>,
         e2: &ObservationSpec<f32>,
-    ) -> (Option<f32>, Option<f32>) {
-        (
+    ) -> MetricOutput<f32> {
+        Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
-        )
+        ))
     }
 
     fn optimize(
@@ -420,7 +420,7 @@ fn main() {
                 track.get_attributes_mut().baked_period_ms = 0;
 
                 let (dists, _errs) =
-                    merge_store.foreign_track_distances(vec![search_track], FEATURE0, false, None);
+                    merge_store.foreign_track_distances(vec![search_track], FEATURE0, false);
                 let mut winners = voting_machine.winners(&dists);
                 if winners.is_empty() {
                     let _track_id = merge_store.add_track(track).unwrap();
