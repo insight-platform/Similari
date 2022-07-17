@@ -13,28 +13,28 @@ use test::Bencher;
 const FEAT0: u64 = 0;
 
 #[bench]
-fn bench_iou_00010(b: &mut Bencher) {
+fn bench_iou_00010_4cores(b: &mut Bencher) {
     bench_iou(10, b);
 }
 
 #[bench]
-fn bench_iou_00100(b: &mut Bencher) {
+fn bench_iou_00100_4cores(b: &mut Bencher) {
     bench_iou(100, b);
 }
 
 #[bench]
-fn bench_iou_00500(b: &mut Bencher) {
+fn bench_iou_00500_4cores(b: &mut Bencher) {
     bench_iou(500, b);
 }
 
 #[bench]
-fn bench_iou_01000(b: &mut Bencher) {
+fn bench_iou_01000_4cores(b: &mut Bencher) {
     bench_iou(1000, b);
 }
 
 fn bench_iou(objects: usize, b: &mut Bencher) {
     let mut store: TrackStore<BBoxAttributes, BBoxAttributesUpdate, IOUMetric, BBox> =
-        TrackStore::new(None, None, None, num_cpus::get());
+        TrackStore::new(None, None, None, 4);
 
     let voting = IOUTopNVoting {
         topn: 1,
