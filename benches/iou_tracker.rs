@@ -23,6 +23,11 @@ fn bench_iou_00100(b: &mut Bencher) {
 }
 
 #[bench]
+fn bench_iou_00500(b: &mut Bencher) {
+    bench_iou(500, b);
+}
+
+#[bench]
 fn bench_iou_01000(b: &mut Bencher) {
     bench_iou(1000, b);
 }
