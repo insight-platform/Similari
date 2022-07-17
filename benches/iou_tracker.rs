@@ -7,6 +7,7 @@ use similari::test_stuff::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric,
 use similari::test_stuff::{BBox, BoxGen2};
 use similari::track::Track;
 use similari::voting::Voting;
+use std::time::Instant;
 use test::Bencher;
 
 const FEAT0: u64 = 0;
@@ -54,6 +55,7 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
     let mut iteration = 0;
     b.iter(|| {
         let mut tracks = Vec::new();
+        let tm = Instant::now();
         for i in &mut iterators {
             iteration += 1;
             let b = i.next();
@@ -66,10 +68,21 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         }
 
         let search_tracks = tracks.clone();
+        let elapsed = tm.elapsed();
+        eprintln!("Construction time: {:?}", elapsed);
+
+        let tm = Instant::now();
         let (dists, errs) = store.foreign_track_distances(search_tracks, FEAT0, false);
+        let elapsed = tm.elapsed();
         assert!(errs.is_empty());
-        //let tm = Instant::now();
+        eprintln!("Lookup time: {:?}", elapsed);
+
+        let tm = Instant::now();
         let winners = voting.winners(&dists);
+        let elapsed = tm.elapsed();
+        eprintln!("Voting time: {:?}", elapsed);
+
+        let tm = Instant::now();
         for t in tracks {
             let winner = winners.get(&t.get_track_id());
             if let Some(winners) = winner {
@@ -80,6 +93,8 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
                 store.add_track(t).unwrap();
             }
         }
+        let elapsed = tm.elapsed();
+        eprintln!("Merging time: {:?}", elapsed);
 
         //let elapsed = tm.elapsed();
         //eprintln!("Voting time: {:?}", elapsed);
