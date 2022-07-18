@@ -222,11 +222,8 @@ where
                                 let dists = track.distances(other, feature_class);
                                 if let Err(e) = &dists {
                                     match e.downcast_ref::<Errors>() {
-                                        None => Some(dists),
-                                        Some(e) => match e {
-                                            Errors::IncompatibleAttributes => None,
-                                            _ => Some(dists),
-                                        },
+                                        Some(Errors::IncompatibleAttributes) => None,
+                                        _ => Some(dists),
                                     }
                                 } else {
                                     capacity += dists.as_ref().unwrap().len();
@@ -238,11 +235,8 @@ where
                                         let dists = track.distances(other, feature_class);
                                         if let Err(e) = &dists {
                                             match e.downcast_ref::<Errors>() {
-                                                None => Some(dists),
-                                                Some(e) => match e {
-                                                    Errors::IncompatibleAttributes => None,
-                                                    _ => Some(dists),
-                                                },
+                                                Some(Errors::IncompatibleAttributes) => None,
+                                                _ => Some(dists),
                                             }
                                         } else {
                                             capacity += dists.as_ref().unwrap().len();
@@ -280,15 +274,13 @@ where
                         Some(dest) => {
                             if dest_id == src.track_id {
                                 Err(Errors::SameTrackCalculation(dest_id).into())
+                            } else if !classes.is_empty() {
+                                dest.merge(&src, &classes, merge_history)
                             } else {
-                                let res = if !classes.is_empty() {
-                                    dest.merge(&src, &classes, merge_history)
-                                } else {
-                                    dest.merge(&src, &src.get_feature_classes(), merge_history)
-                                };
-                                res
+                                dest.merge(&src, &src.get_feature_classes(), merge_history)
                             }
                         }
+
                         None => Err(Errors::TrackNotFound(dest_id).into()),
                     };
 
