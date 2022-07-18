@@ -72,7 +72,6 @@ The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
 
 Feature (256@f32) tracking benchmark for N simultaneously observed objects run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
 
-running 4 tests
 ```
 10 objects:       153,216 ns/iter (+/- 77,727)         [6500 FPS]
 100 objects:    4,977,081 ns/iter (+/- 1,134,611)      [ 200 FPS]
