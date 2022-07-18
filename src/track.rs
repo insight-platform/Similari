@@ -14,16 +14,15 @@ pub mod voting;
 
 /// Return type item for distances between the current track and other track.
 ///
-/// # Parameters
-/// * `.0` - other track ID
-/// * `.1` - custom feature attribute metric object calculated for pairwise feature attributes
-/// * `.2` - distance calculated for pairwise features
-///
 #[derive(Debug, Clone)]
 pub struct ObservationMetricResult<M> {
+    /// source track ID
     pub from: u64,
+    /// compared track ID
     pub to: u64,
+    /// custom feature attribute metric object calculated for pairwise feature attributes
     pub attribute_metric: Option<M>,
+    /// distance calculated for pairwise features
     pub feature_distance: Option<f32>,
 }
 
@@ -43,7 +42,7 @@ impl<M> ObservationMetricResult<M> {
     }
 }
 
-/// Feature vector representation. It is a valid Nalgebra dynamic matrix
+/// Internal feature vector representation.
 pub type Observation = Vec<f32x8>;
 
 /// Number of SIMD lanes used to store observation parts internally
@@ -60,12 +59,17 @@ where
 /// Table that accumulates observed features across the tracks (or objects)
 pub type ObservationsDb<T> = HashMap<u64, Vec<ObservationSpec<T>>>;
 
-/// Custom feature attributes that accompanies the observation itself
+/// Custom feature attributes object that accompanies the observation itself
 pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 'static {
     type MetricObject: Default + Send + Sync + Clone + PartialOrd + 'static;
     fn calculate_metric_object(l: &Option<Self>, r: &Option<Self>) -> Option<Self::MetricObject>;
 }
 
+/// Output result type used by metric when pairwise metric is calculated
+///
+/// `None` - no metric for that pair - the result will be dropped (optimization technique)
+/// `Some(X, Y)` - metric is calculated, values are inside
+///
 pub type MetricOutput<T> = Option<(Option<T>, Option<f32>)>;
 
 /// The trait that implements the methods for features comparison and filtering
@@ -101,6 +105,7 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
     /// * `attributes` - mutable attributes that can be updated or read during optimization
     /// * `observations` - features to optimize
     /// * `prev_length` - previous length of observations (before the current observation was added or merge occurred)
+    /// * `is_merge` - true, when merge op, false when the feature added to the object
     ///
     /// # Returns
     /// * `Ok(())` if the optimization is successful

@@ -17,8 +17,9 @@ where
     ///
     /// # Arguments
     /// * `distances` - distances resulted from the distance calculation.
-    ///   * `.0` is the track_id
-    ///   * `.1` is the distance
+    ///
+    /// # Return
+    /// Map of track_ids -> Vec<Result>
     ///
     fn winners(
         &self,

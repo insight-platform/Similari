@@ -67,7 +67,7 @@ where
 
 /// Merge future result
 ///
-pub struct MergeFutureResponse<FA>
+pub struct FutureMergeResponse<FA>
 where
     FA: ObservationAttributes,
 {
@@ -75,7 +75,7 @@ where
     _sender: Sender<Results<FA>>,
 }
 
-impl<FA> MergeFutureResponse<FA>
+impl<FA> FutureMergeResponse<FA>
 where
     FA: ObservationAttributes,
 {
@@ -382,6 +382,8 @@ where
         results
     }
 
+    /// Counts of objects per every store shard
+    ///
     pub fn shard_stats(&self) -> Vec<usize> {
         let mut result = Vec::new();
         for s in self.stores.iter() {
@@ -407,10 +409,9 @@ where
     /// allowed.
     ///
     /// # Arguments
-    /// * `track` - external track that is used as a distance subject
+    /// * `tracks` - batch external tracks that is used as distance subjects
     /// * `feature_class` - what feature to use for distance calculation
     /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
-    /// * `distance_filter` - optional filter to cut-off tracks with lesser/greater distances out of the query
     ///
     pub fn foreign_track_distances(
         &mut self,
@@ -457,10 +458,9 @@ where
     /// The distances for (self, self) are not calculated.
     ///
     /// # Arguments
-    /// * `track` - external track that is used as a distance subject
+    /// * `tracks` - batch of tracks that are used as distance subjects
     /// * `feature_class` - what feature to use for distance calculation
     /// * `only_baked` - calculate distances only across the tracks that have `TrackBakingStatus::Ready` status
-    /// * `distance_filter` - optional filter to cut-off tracks with lesser/greater distances out of the query    
     ///
     pub fn owned_track_distances(
         &mut self,
@@ -574,6 +574,12 @@ where
     /// * `src_id` - identifier of source track
     /// * `classes` - optional list of classes to merge (otherwise all defined in src are merged into dest)
     /// * `remove_src_if_ok` - whether remove source track from store if merge completed or not
+    /// * `merge_history` - configures whether merge history is built upon track merging.
+    ///
+    /// # Return
+    /// * `Ok(Old_Source_Track)` - merge was successful
+    /// * `Err(e)` - merge met problems
+    ///
     pub fn merge_owned(
         &mut self,
         dest_id: u64,
@@ -603,13 +609,25 @@ where
         }
     }
 
+    /// Merge external track with destination stored in store without blocking
+    ///
+    /// # Arguments
+    /// * `dest_id` - identifier of destination track
+    /// * `src` - source track
+    /// * `classes` - optional list of classes to merge (otherwise all defined in src are merged into dest)
+    /// * `merge_history` - configures whether merge history is built upon track merging.
+    ///
+    /// # Return
+    /// * `Ok(FutureMergeResponse<FA>)` - future object that contains the receiver channel to gen the result when it is complete
+    /// * `Err(e)` - error occurred
+    ///
     pub fn merge_external_noblock(
         &mut self,
         dest_id: u64,
         src: Track<TA, M, TAU, FA, N>,
         classes: Option<&[u64]>,
         merge_history: bool,
-    ) -> Result<MergeFutureResponse<FA>> {
+    ) -> Result<FutureMergeResponse<FA>> {
         let (results_sender, results_receiver) = crossbeam::channel::bounded(1);
         let executor_id = self.get_executor(dest_id as usize);
         let (cmd, _) = self.executors.get_mut(executor_id).unwrap();
@@ -637,7 +655,7 @@ where
             unreachable!();
         }
 
-        Ok(MergeFutureResponse {
+        Ok(FutureMergeResponse {
             _sender: results_sender,
             receiver: results_receiver,
         })
@@ -645,9 +663,15 @@ where
 
     /// Merge external track with destination stored in store
     ///
+    /// # Arguments
     /// * `dest_id` - identifier of destination track
     /// * `src` - source track
     /// * `classes` - optional list of classes to merge (otherwise all defined in src are merged into dest)
+    /// * `merge_history` - configures whether merge history is built upon track merging.
+    ///
+    /// # Return
+    /// * `Ok(())` - merge was successful
+    /// * `Err(e)` - merge met problems
     ///
     pub fn merge_external(
         &mut self,
