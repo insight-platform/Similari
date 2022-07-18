@@ -91,8 +91,8 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         for t in tracks {
             let winner = winners.get(&t.get_track_id());
             if let Some(winners) = winner {
-                store
-                    .merge_external(winners[0].winner_track, &t, None, false)
+                let _res = store
+                    .merge_external_noblock(winners[0].winner_track, t, None, false)
                     .unwrap();
             } else {
                 store.add_track(t).unwrap();
@@ -100,10 +100,6 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         }
         let elapsed = tm.elapsed();
         eprintln!("Merging time: {:?}", elapsed);
-
-        //let elapsed = tm.elapsed();
-        //eprintln!("Voting time: {:?}", elapsed);
-        //thread::sleep(Duration::from_secs(2));
     });
     eprintln!("Store stats: {:?}", store.shard_stats());
 }

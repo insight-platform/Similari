@@ -95,6 +95,21 @@ rustflags = "-C target-cpu=native"
 
 Take a look at [benchmarks](benches) for numbers.
 
+### Numbers
+
+IoU tracking benchmark for N simultaneously observed objects run on 4 cores of 
+Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz. The benchmark doesn't use heuristics
+that separate the observed objects based on object distances.
+
+The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
+
+```
+10 objects   :      261,184 ns/iter (+/- 170,940)      [3800 FPS]
+100 objects  :    1,440,733 ns/iter (+/- 361,937)      [694  FPS]
+500 objects  :  17,705,508 ns/iter (+/- 5,622,983)     [57   FPS]
+1000 objects :  58,834,824 ns/iter (+/- 12,626,173)    [17   FPS]
+```
+
 ## Usage Examples
 
 Take a look at 

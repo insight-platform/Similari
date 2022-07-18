@@ -6,6 +6,7 @@ use crate::track::{
 use crate::Errors;
 use anyhow::Result;
 use crossbeam::channel::{Receiver, Sender};
+use log::{error, warn};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -29,7 +30,13 @@ where
         bool,
         Sender<Results<FA>>,
     ),
-    Merge(Track<TA, M, TAU, FA, N>, Option<Sender<Results<FA>>>),
+    Merge(
+        u64,
+        Track<TA, M, TAU, FA, N>,
+        Vec<u64>,
+        bool,
+        Option<Sender<Results<FA>>>,
+    ),
 }
 
 /// The type that provides lock-ed access to certain shard store
@@ -56,6 +63,34 @@ where
     BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
     MergeResult(Result<()>),
+}
+
+/// Merge future result
+///
+pub struct MergeFutureResponse<FA>
+where
+    FA: ObservationAttributes,
+{
+    receiver: Receiver<Results<FA>>,
+    _sender: Sender<Results<FA>>,
+}
+
+impl<FA> MergeFutureResponse<FA>
+where
+    FA: ObservationAttributes,
+{
+    pub fn get(&self) -> Result<()> {
+        let res = self.receiver.recv();
+        if res.is_err() {
+            res?;
+            unreachable!();
+        }
+        Ok(())
+    }
+
+    pub fn is_ready(&self) -> bool {
+        !self.receiver.is_empty()
+    }
 }
 
 /// Auxiliary type to express distance calculation errors
@@ -237,7 +272,32 @@ where
                         return;
                     }
                 }
-                Commands::Merge(_track, _channel_opt) => {}
+                Commands::Merge(dest_id, src, classes, merge_history, channel_opt) => {
+                    let mut store = store.lock().unwrap();
+                    let dest = store.get_mut(&dest_id);
+
+                    let res = match dest {
+                        Some(dest) => {
+                            if dest_id == src.track_id {
+                                Err(Errors::SameTrackCalculation(dest_id).into())
+                            } else {
+                                let res = if !classes.is_empty() {
+                                    dest.merge(&src, &classes, merge_history)
+                                } else {
+                                    dest.merge(&src, &src.get_feature_classes(), merge_history)
+                                };
+                                res
+                            }
+                        }
+                        None => Err(Errors::TrackNotFound(dest_id).into()),
+                    };
+
+                    if let Some(channel) = channel_opt {
+                        if let Err(send_res) = channel.send(Results::MergeResult(res)) {
+                            warn!("Receiver channel was dropped before the data sent into it. Error is: {:?}", send_res);
+                        }
+                    }
+                }
             }
         }
     }
@@ -431,9 +491,17 @@ where
         res
     }
 
+    /// returns the store shard for id
+    ///
     pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, TA, M, TAU, FA, N> {
-        let store_id = (id % self.num_shards) as usize;
+        let store_id = id % self.num_shards;
         self.stores.as_ref().get(store_id).unwrap().lock().unwrap()
+    }
+
+    /// returns the store shard for id
+    ///
+    pub fn get_executor(&self, id: usize) -> usize {
+        id % self.num_shards
     }
 
     /// Adds external track into storage
@@ -543,6 +611,46 @@ where
         }
     }
 
+    pub fn merge_external_noblock(
+        &mut self,
+        dest_id: u64,
+        src: Track<TA, M, TAU, FA, N>,
+        classes: Option<&[u64]>,
+        merge_history: bool,
+    ) -> Result<MergeFutureResponse<FA>> {
+        let (results_sender, results_receiver) = crossbeam::channel::bounded(1);
+        let executor_id = self.get_executor(dest_id as usize);
+        let (cmd, _) = self.executors.get_mut(executor_id).unwrap();
+
+        let command = Commands::Merge(
+            dest_id,
+            src,
+            if let Some(c) = classes {
+                c.to_vec()
+            } else {
+                vec![]
+            },
+            merge_history,
+            Some(results_sender.clone()),
+        );
+
+        let res = cmd.send(command);
+
+        if res.is_err() {
+            error!(
+                "Executor {} unable to accept the command. Error is: {:?}",
+                executor_id, &res
+            );
+            res?;
+            unreachable!();
+        }
+
+        Ok(MergeFutureResponse {
+            _sender: results_sender,
+            receiver: results_receiver,
+        })
+    }
+
     /// Merge external track with destination stored in store
     ///
     /// * `dest_id` - identifier of destination track
@@ -556,23 +664,12 @@ where
         classes: Option<&[u64]>,
         merge_history: bool,
     ) -> Result<()> {
-        let mut tracks = self.get_store(dest_id as usize);
-        let dest = tracks.get_mut(&dest_id);
-
-        match dest {
-            Some(dest) => {
-                if dest_id == src.track_id {
-                    return Err(Errors::SameTrackCalculation(dest_id).into());
-                }
-                let res = if let Some(classes) = classes {
-                    dest.merge(src, classes, merge_history)
-                } else {
-                    dest.merge(src, &src.get_feature_classes(), merge_history)
-                };
-                res?;
-                Ok(())
-            }
-            None => Err(Errors::TrackNotFound(dest_id).into()),
+        let res = self.merge_external_noblock(dest_id, src.clone(), classes, merge_history);
+        if let Ok(res) = res {
+            res.get()
+        } else {
+            res?;
+            unreachable!();
         }
     }
 }
@@ -909,7 +1006,6 @@ mod tests {
 
         let (dists, errs) = store.owned_track_distances(&[1], 0, true);
         assert!(dists.is_empty());
-        dbg!(&errs);
         assert!(errs.is_empty());
 
         Ok(())
