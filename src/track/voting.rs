@@ -8,10 +8,11 @@ use std::collections::HashMap;
 /// Distance voting engine is used to select winning tracks among distances
 /// resulted from the distance calculation.
 ///
-pub trait Voting<R, FA>
+pub trait Voting<FA>
 where
     FA: ObservationAttributes,
 {
+    type WinnerObject;
     /// Method that selects winning tracks
     ///
     ///
@@ -21,5 +22,8 @@ where
     /// # Return
     /// Map of track_ids -> Vec<Result>
     ///
-    fn winners(&self, distances: &[ObservationMetricResult<FA>]) -> HashMap<u64, Vec<R>>;
+    fn winners(
+        &self,
+        distances: &[ObservationMetricResult<FA>],
+    ) -> HashMap<u64, Vec<Self::WinnerObject>>;
 }

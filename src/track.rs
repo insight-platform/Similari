@@ -127,6 +127,13 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
         prev_length: usize,
         is_merge: bool,
     ) -> Result<()>;
+
+    fn postprocess_distances(
+        &self,
+        unfiltered: Vec<ObservationMetricResult<FA>>,
+    ) -> Vec<ObservationMetricResult<FA>> {
+        unfiltered
+    }
 }
 
 /// Enum which specifies the status of feature tracks in storage. When the feature tracks are collected,

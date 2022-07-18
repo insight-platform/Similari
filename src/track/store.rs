@@ -220,27 +220,29 @@ where
                         .flat_map(|(_, other)| {
                             if !only_baked {
                                 let dists = track.distances(other, feature_class);
-                                if let Err(e) = &dists {
-                                    match e.downcast_ref::<Errors>() {
-                                        Some(Errors::IncompatibleAttributes) => None,
-                                        _ => Some(dists),
+                                match dists {
+                                    Ok(dists) => {
+                                        capacity += dists.len();
+                                        Some(Ok(track.metric.postprocess_distances(dists)))
                                     }
-                                } else {
-                                    capacity += dists.as_ref().unwrap().len();
-                                    Some(dists)
+                                    Err(e) => match e.downcast_ref::<Errors>() {
+                                        Some(Errors::IncompatibleAttributes) => None,
+                                        _ => Some(Err(e)),
+                                    },
                                 }
                             } else {
                                 match other.get_attributes().baked(&other.observations) {
                                     Ok(TrackStatus::Ready) => {
                                         let dists = track.distances(other, feature_class);
-                                        if let Err(e) = &dists {
-                                            match e.downcast_ref::<Errors>() {
-                                                Some(Errors::IncompatibleAttributes) => None,
-                                                _ => Some(dists),
+                                        match dists {
+                                            Ok(dists) => {
+                                                capacity += dists.len();
+                                                Some(Ok(track.metric.postprocess_distances(dists)))
                                             }
-                                        } else {
-                                            capacity += dists.as_ref().unwrap().len();
-                                            Some(dists)
+                                            Err(e) => match e.downcast_ref::<Errors>() {
+                                                Some(Errors::IncompatibleAttributes) => None,
+                                                _ => Some(Err(e)),
+                                            },
                                         }
                                     }
                                     _ => None,

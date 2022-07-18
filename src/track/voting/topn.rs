@@ -65,10 +65,12 @@ impl TopNVotingElt {
     }
 }
 
-impl<X> Voting<TopNVotingElt, X> for TopNVoting<X>
+impl<X> Voting<X> for TopNVoting<X>
 where
     X: ObservationAttributes,
 {
+    type WinnerObject = TopNVotingElt;
+
     fn winners(
         &self,
         distances: &[ObservationMetricResult<X>],

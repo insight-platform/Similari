@@ -103,7 +103,9 @@ pub struct IOUTopNVoting {
     pub min_votes: usize,
 }
 
-impl Voting<TopNVotingElt, BBox> for IOUTopNVoting {
+impl Voting<BBox> for IOUTopNVoting {
+    type WinnerObject = TopNVotingElt;
+
     fn winners(
         &self,
         distances: &[ObservationMetricResult<BBox>],
