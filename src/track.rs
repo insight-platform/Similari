@@ -128,6 +128,9 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
         is_merge: bool,
     ) -> Result<()>;
 
+    /// The postprocessing is run just before the executor returns calculated distances. `self` is a metric object
+    /// kept in track that passed to distance calculation methods.
+    ///
     fn postprocess_distances(
         &self,
         unfiltered: Vec<ObservationMetricResult<FA>>,
