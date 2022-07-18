@@ -13,10 +13,6 @@ The primary purpose of Similari is to provide means to build sophisticated in-me
 
 The framework helps to build various kinds of tracking or similarity search engines - the simplest one that holds vector features and allows comparing new vectors against the ones kept in the database. More sophisticated engines operate over tracks - a series of observations for the same feature collected during the lifecycle. Such systems are often used in video processing or other systems where the observer receives fuzzy or changing observation results.
 
-## Manuals and Articles
-
-* IoU object tracker [primer](https://medium.com/@kudryavtsev_ia/high-performance-object-tracking-engine-with-rust-59ccbc79cdb0) at Medium.
-
 ## Applicability Notes
 
 Although Similari allows building various similarity engines, there are competitive tools that sometime (or often) may be more desirable. The section will explain where it is applicable and what alternatives exist.
@@ -82,6 +78,12 @@ Feature (256@f32) tracking benchmark for N simultaneously observed objects run o
 500 objects:   68,473,203 ns/iter (+/- 6,547,311)      [  14 FPS]
 1000 objects: 317,408,313 ns/iter (+/- 76,469,935)     [   3 FPS]
 ```
+
+## Manuals and Articles
+Collected articles about Similari:
+
+* IoU object tracker [primer](https://medium.com/@kudryavtsev_ia/high-performance-object-tracking-engine-with-rust-59ccbc79cdb0) at Medium.
+
 
 ## Usage Examples
 
