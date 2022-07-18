@@ -1,6 +1,7 @@
 # Similari
 
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
+[![Rust](https://img.shields.io/crates/v/similari.svg)](https://img.shields.io/crates/v/similari.svg)
 
 Similari is a framework that helps build sophisticated tracking systems. The most frequently met operations that can be efficiently implemented with Similari - collecting of observable object features, looking for similar objects, and merging them into tracks based on features and attributes.
 
