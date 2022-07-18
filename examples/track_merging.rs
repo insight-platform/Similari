@@ -378,7 +378,7 @@ fn main() {
         Some(NoopNotifier),
         1,
     );
-    let voting_machine = TopNVoting::new(1, 0.1, 3);
+    let voting_machine: TopNVoting<f32> = TopNVoting::new(1, 0.1, 3);
 
     let mut idx = 0;
     loop {

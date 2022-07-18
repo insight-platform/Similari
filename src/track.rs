@@ -3,6 +3,7 @@ use crate::Errors;
 use anyhow::Result;
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::take;
 use ultraviolet::f32x8;
@@ -15,22 +16,28 @@ pub mod voting;
 /// Return type item for distances between the current track and other track.
 ///
 #[derive(Debug, Clone)]
-pub struct ObservationMetricResult<M> {
+pub struct ObservationMetricResult<M>
+where
+    M: ObservationAttributes,
+{
     /// source track ID
     pub from: u64,
     /// compared track ID
     pub to: u64,
     /// custom feature attribute metric object calculated for pairwise feature attributes
-    pub attribute_metric: Option<M>,
+    pub attribute_metric: Option<M::MetricObject>,
     /// distance calculated for pairwise features
     pub feature_distance: Option<f32>,
 }
 
-impl<M> ObservationMetricResult<M> {
+impl<M> ObservationMetricResult<M>
+where
+    M: ObservationAttributes,
+{
     pub fn new(
         from: u64,
         to: u64,
-        attribute_metric: Option<M>,
+        attribute_metric: Option<M::MetricObject>,
         feature_distance: Option<f32>,
     ) -> Self {
         Self {
@@ -61,7 +68,7 @@ pub type ObservationsDb<T> = HashMap<u64, Vec<ObservationSpec<T>>>;
 
 /// Custom feature attributes object that accompanies the observation itself
 pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 'static {
-    type MetricObject: Default + Send + Sync + Clone + PartialOrd + 'static;
+    type MetricObject: Debug + Default + Send + Sync + Clone + PartialOrd + 'static;
     fn calculate_metric_object(l: &Option<Self>, r: &Option<Self>) -> Option<Self::MetricObject>;
 }
 
@@ -475,7 +482,7 @@ where
         &self,
         other: &Self,
         feature_class: u64,
-    ) -> Result<Vec<ObservationMetricResult<FA::MetricObject>>> {
+    ) -> Result<Vec<ObservationMetricResult<FA>>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {

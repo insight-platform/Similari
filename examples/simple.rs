@@ -73,7 +73,7 @@ fn main() {
     eprintln!("Distances: {:?}", &dists);
     eprintln!("Errs: {:?}", &errs);
 
-    let top1_voting_engine = TopNVoting::new(2, 1.0, 1);
+    let top1_voting_engine: TopNVoting<f32> = TopNVoting::new(2, 1.0, 1);
     let results = top1_voting_engine.winners(&dists);
     eprintln!(
         "Voting results (the less distance, the better result): {:?}",
@@ -81,7 +81,7 @@ fn main() {
     );
 
     // max distance filter set to 0.4
-    let top1_voting_engine_filter = TopNVoting::new(2, 0.4, 1);
+    let top1_voting_engine_filter: TopNVoting<f32> = TopNVoting::new(2, 0.4, 1);
     let results = top1_voting_engine_filter.winners(&dists);
     eprintln!(
         "Voting results (the less distance, the better result): {:?}",

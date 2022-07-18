@@ -384,3 +384,33 @@ mod tests {
         );
     }
 }
+
+pub struct FeatGen {
+    x: f32,
+    len: usize,
+    gen: ThreadRng,
+    dist: Uniform<f32>,
+}
+
+impl FeatGen {
+    pub fn new(x: f32, len: usize, drift: f32) -> Self {
+        Self {
+            x,
+            len,
+            gen: rand::thread_rng(),
+            dist: Uniform::new(-drift, drift),
+        }
+    }
+}
+
+impl Iterator for FeatGen {
+    type Item = ObservationSpec<()>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let v = (0..self.len)
+            .into_iter()
+            .map(|_| self.x + self.gen.sample(&self.dist))
+            .collect::<Vec<_>>();
+        Some(ObservationSpec::<()>(None, Some(Observation::from_vec(v))))
+    }
+}

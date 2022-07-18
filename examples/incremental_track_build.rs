@@ -79,7 +79,7 @@ impl ObservationMetric<NoopAttributes, BBox> for TrackMetric {
 fn main() {
     let mut store: TrackStore<NoopAttributes, NoopAttributesUpdate, TrackMetric, BBox> =
         TrackStore::default();
-    let voting = TopNVoting::new(1, 0.1, 1);
+    let voting: TopNVoting<BBox> = TopNVoting::new(1, 0.1, 1);
     let feature_drift = 0.01;
     let pos_drift = 5.0;
     let box_drift = 2.0;

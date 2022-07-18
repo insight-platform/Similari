@@ -103,10 +103,10 @@ pub struct IOUTopNVoting {
     pub min_votes: usize,
 }
 
-impl Voting<TopNVotingElt, f32> for IOUTopNVoting {
+impl Voting<TopNVotingElt, BBox> for IOUTopNVoting {
     fn winners(
         &self,
-        distances: &[ObservationMetricResult<f32>],
+        distances: &[ObservationMetricResult<BBox>],
     ) -> HashMap<u64, Vec<TopNVotingElt>> {
         let mut tracks: Vec<_> = distances
             .iter()

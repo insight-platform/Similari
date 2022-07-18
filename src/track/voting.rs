@@ -21,8 +21,5 @@ where
     /// # Return
     /// Map of track_ids -> Vec<Result>
     ///
-    fn winners(
-        &self,
-        distances: &[ObservationMetricResult<FA::MetricObject>],
-    ) -> HashMap<u64, Vec<R>>;
+    fn winners(&self, distances: &[ObservationMetricResult<FA>]) -> HashMap<u64, Vec<R>>;
 }

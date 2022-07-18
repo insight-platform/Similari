@@ -57,8 +57,8 @@ where
     FA: ObservationAttributes,
 {
     Distance(
-        Vec<ObservationMetricResult<FA::MetricObject>>,
-        Vec<TrackDistanceError<FA::MetricObject>>,
+        Vec<ObservationMetricResult<FA>>,
+        Vec<TrackDistanceError<FA>>,
     ),
     BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
@@ -418,7 +418,7 @@ where
         tracks: Vec<Track<TA, M, TAU, FA, N>>,
         feature_class: u64,
         only_baked: bool,
-    ) -> TrackDistances<FA::MetricObject> {
+    ) -> TrackDistances<FA> {
         let tracks_count = tracks.len();
 
         let (results_sender, results_receiver) = crossbeam::channel::unbounded();
@@ -467,7 +467,7 @@ where
         tracks: &[u64],
         feature_class: u64,
         only_baked: bool,
-    ) -> TrackDistances<FA::MetricObject> {
+    ) -> TrackDistances<FA> {
         let tracks_vec = self.fetch_tracks(tracks);
 
         if tracks_vec.is_empty() {
