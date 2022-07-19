@@ -2,8 +2,8 @@ use similari::distance::euclidean;
 use similari::store::TrackStore;
 use similari::test_stuff::{current_time_ms, BBox, BoxGen2, FeatGen2};
 use similari::track::{
-    MetricOutput, ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb, Track,
-    TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, ObservationAttributes, ObservationMetric, ObservationMetricResult,
+    ObservationSpec, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -11,31 +11,38 @@ use std::thread;
 use std::time::Duration;
 
 const FEAT0: u64 = 0;
+const MAX_DIST: f32 = 0.1;
 
 #[derive(Debug, Clone, Default)]
-struct NoopAttributes;
+struct BBoxAttributes {
+    bboxes: Vec<BBox>,
+}
 
 #[derive(Clone, Debug)]
-struct NoopAttributesUpdate;
+struct BBoxAttributesUpdate {
+    bbox: BBox,
+}
 
-impl TrackAttributesUpdate<NoopAttributes> for NoopAttributesUpdate {
-    fn apply(&self, _attrs: &mut NoopAttributes) -> anyhow::Result<()> {
+impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
+    fn apply(&self, attrs: &mut BBoxAttributes) -> anyhow::Result<()> {
+        attrs.bboxes.push(self.bbox.clone());
         Ok(())
     }
 }
 
-impl TrackAttributes<NoopAttributes, BBox> for NoopAttributes {
-    type Update = NoopAttributesUpdate;
+impl TrackAttributes<BBoxAttributes, f32> for BBoxAttributes {
+    type Update = BBoxAttributesUpdate;
 
-    fn compatible(&self, _other: &NoopAttributes) -> bool {
+    fn compatible(&self, _other: &BBoxAttributes) -> bool {
         true
     }
 
-    fn merge(&mut self, _other: &NoopAttributes) -> anyhow::Result<()> {
+    fn merge(&mut self, other: &BBoxAttributes) -> anyhow::Result<()> {
+        self.bboxes.extend_from_slice(&other.bboxes);
         Ok(())
     }
 
-    fn baked(&self, _observations: &ObservationsDb<BBox>) -> anyhow::Result<TrackStatus> {
+    fn baked(&self, _observations: &ObservationsDb<f32>) -> anyhow::Result<TrackStatus> {
         Ok(TrackStatus::Ready)
     }
 }
@@ -43,21 +50,16 @@ impl TrackAttributes<NoopAttributes, BBox> for NoopAttributes {
 #[derive(Clone, Default)]
 pub struct TrackMetric;
 
-impl ObservationMetric<NoopAttributes, BBox> for TrackMetric {
+impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
     fn metric(
         _feature_class: u64,
-        _attrs1: &NoopAttributes,
-        _attrs2: &NoopAttributes,
-        e1: &ObservationSpec<BBox>,
-        e2: &ObservationSpec<BBox>,
+        _attrs1: &BBoxAttributes,
+        _attrs2: &BBoxAttributes,
+        e1: &ObservationSpec<f32>,
+        e2: &ObservationSpec<f32>,
     ) -> MetricOutput<f32> {
-        // bbox information (.0) is not used but can be used
-        // to implement additional IoU tracking
-        // one can use None if low IoU
-        // or implement weighted distance based on IoU and euclidean distance
-        //
         Some((
-            BBox::calculate_metric_object(&e1.0, &e2.0),
+            f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
@@ -69,21 +71,35 @@ impl ObservationMetric<NoopAttributes, BBox> for TrackMetric {
         &mut self,
         _feature_class: &u64,
         _merge_history: &[u64],
-        _attrs: &mut NoopAttributes,
-        _observations: &mut Vec<ObservationSpec<BBox>>,
+        _attrs: &mut BBoxAttributes,
+        observations: &mut Vec<ObservationSpec<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> anyhow::Result<()> {
+        observations.reverse();
+        observations.truncate(5);
+        observations.reverse();
         Ok(())
+    }
+
+    fn postprocess_distances(
+        &self,
+        unfiltered: Vec<ObservationMetricResult<f32>>,
+    ) -> Vec<ObservationMetricResult<f32>> {
+        unfiltered
+            .into_iter()
+            .filter(|r| r.feature_distance.unwrap() < MAX_DIST)
+            .collect()
     }
 }
 
 fn main() {
-    let mut store: TrackStore<NoopAttributes, TrackMetric, BBox> = TrackStore::default();
-    let voting: TopNVoting<BBox> = TopNVoting::new(1, 0.1, 1);
+    let mut store: TrackStore<BBoxAttributes, TrackMetric, f32> = TrackStore::default();
+    let voting: TopNVoting<f32> = TopNVoting::new(1, MAX_DIST, 1);
     let feature_drift = 0.01;
     let pos_drift = 5.0;
     let box_drift = 2.0;
+
     let mut p1 = FeatGen2::new(0.0, 0.0, feature_drift);
     let mut b1 = BoxGen2::new(100.0, 100.0, 10.0, 15.0, pos_drift, box_drift);
 
@@ -91,19 +107,32 @@ fn main() {
     let mut b2 = BoxGen2::new(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
 
     for _ in 0..10 {
-        let (obj1f, obj1b) = (p1.next().unwrap().1, b1.next());
-        let mut obj1t: Track<NoopAttributes, TrackMetric, BBox> =
-            Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
-        obj1t.add_observation(FEAT0, obj1b, obj1f, None).unwrap();
+        let (obj1f, obj1b) = (p1.next().unwrap(), b1.next().unwrap());
+        let track_id = u64::try_from(current_time_ms()).unwrap();
+        let mut obj1t = Track::new(track_id, None, None, None);
 
-        let (obj2f, obj2b) = (p2.next().unwrap().1, b2.next());
-        let mut obj2t: Track<NoopAttributes, TrackMetric, BBox> = Track::new(
-            (u64::try_from(current_time_ms()).unwrap()) + 1,
-            None,
-            None,
-            None,
-        );
-        obj2t.add_observation(FEAT0, obj2b, obj2f, None).unwrap();
+        obj1t
+            .add_observation(
+                FEAT0,
+                obj1f.0,
+                obj1f.1,
+                Some(BBoxAttributesUpdate { bbox: obj1b }),
+            )
+            .unwrap();
+
+        let (obj2f, obj2b) = (p2.next().unwrap(), b2.next().unwrap());
+        let track_id = u64::try_from(current_time_ms()).unwrap() + 1;
+        let mut obj2t = Track::new(track_id, None, None, None);
+
+        obj2t
+            .add_observation(
+                FEAT0,
+                obj2f.0,
+                obj2f.1,
+                Some(BBoxAttributesUpdate { bbox: obj2b }),
+            )
+            .unwrap();
+
         thread::sleep(Duration::from_millis(2));
 
         for t in [obj1t, obj2t] {
@@ -130,13 +159,6 @@ fn main() {
     for (t, _) in tracks {
         let t = store.fetch_tracks(&vec![t]);
         eprintln!("Track id: {}", t[0].get_track_id());
-        eprintln!(
-            "Boxes: {:#?}",
-            t[0].get_observations(FEAT0)
-                .unwrap()
-                .iter()
-                .map(|x| x.0.clone())
-                .collect::<Vec<_>>()
-        );
+        eprintln!("Boxes: {:#?}", t[0].get_attributes());
     }
 }
