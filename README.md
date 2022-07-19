@@ -87,8 +87,8 @@ The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs
 ## Manuals and Articles
 Collected articles about Similari:
 
-* IoU object tracker [primer](https://medium.com/@kudryavtsev_ia/high-performance-object-tracking-engine-with-rust-59ccbc79cdb0) at Medium.
-
+* IoU object tracker [example](https://medium.com/@kudryavtsev_ia/high-performance-object-tracking-engine-with-rust-59ccbc79cdb0) at Medium.
+* Re-ID object tracker [example](https://medium.com/@kudryavtsev_ia/feature-based-object-tracker-with-similari-and-rust-25d72d01d2e2) at Medium
 
 ## Usage Examples
 
