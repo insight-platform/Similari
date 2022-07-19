@@ -293,7 +293,7 @@ where
 
     /// Returns current track attributes as mutable reg
     ///
-    pub fn get_attributes_mut(&mut self) -> &mut TA {
+    fn get_attributes_mut(&mut self) -> &mut TA {
         &mut self.attributes
     }
 
@@ -349,6 +349,7 @@ where
         }
 
         if feature.is_none() && feature_attributes.is_none() {
+            self.notifier.send(self.track_id);
             return Ok(());
         }
 

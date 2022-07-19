@@ -91,51 +91,69 @@ fn test_attributes_age_gender() {
 
 // update
 #[derive(Clone, Debug)]
-struct CamTrackingAttributesUpdate {
-    time: u128,
-    gender: Option<Gender>,
-    age: Option<u8>,
-    camera_id: u64,
-    screen_pos: (u16, u16),
+enum CamTrackingAttributesUpdate {
+    DataUpdate {
+        time: u128,
+        gender: Option<Gender>,
+        age: Option<u8>,
+        camera_id: u64,
+        screen_pos: (u16, u16),
+    },
+    BakedPeriodUpdate(u128),
 }
 
 impl TrackAttributesUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdate {
     fn apply(&self, attrs: &mut CamTrackingAttributes) -> Result<()> {
-        // initially, track start time is set to end time
-        if attrs.start_time == 0 {
-            attrs.start_time = self.time;
-        }
+        match self {
+            CamTrackingAttributesUpdate::DataUpdate {
+                time,
+                gender,
+                age,
+                camera_id,
+                screen_pos,
+            } => {
+                // initially, track start time is set to end time
+                if attrs.start_time == 0 {
+                    attrs.start_time = *time;
+                }
 
-        // if future track observation is submited with older timestamp
-        // then it's incorrect situation, timestamp should increase.
-        if attrs.end_time > self.time {
-            return Err(AppErrors::WrongTime(self.time, attrs.end_time).into());
-        }
+                // if future track observation is submited with older timestamp
+                // then it's incorrect situation, timestamp should increase.
+                if attrs.end_time > *time {
+                    return Err(AppErrors::WrongTime(*time, attrs.end_time).into());
+                }
 
-        attrs.end_time = self.time;
+                attrs.end_time = *time;
 
-        // update may be without the gender, if observer cannot determine the
-        // gender within the observation
-        if let Some(gender) = &self.gender {
-            attrs.gender.push(gender.clone());
-        }
+                // update may be without the gender, if observer cannot determine the
+                // gender within the observation
+                if let Some(gender) = gender {
+                    attrs.gender.push(gender.clone());
+                }
 
-        // same for age
-        if let Some(age) = &self.age {
-            attrs.age.push(*age);
-        }
+                // same for age
+                if let Some(age) = age {
+                    attrs.age.push(*age);
+                }
 
-        // track with <id> always goes from the same camera. If camera id changed
-        // it's a wrong case.
-        if let Err(_r) = attrs.camera_id.set(self.camera_id) {
-            if self.camera_id != *attrs.camera_id.get().unwrap() {
-                return Err(
-                    AppErrors::WrongCamID(self.camera_id, *attrs.camera_id.get().unwrap()).into(),
-                );
+                // track with <id> always goes from the same camera. If camera id changed
+                // it's a wrong case.
+                if let Err(_r) = attrs.camera_id.set(*camera_id) {
+                    if *camera_id != *attrs.camera_id.get().unwrap() {
+                        return Err(AppErrors::WrongCamID(
+                            *camera_id,
+                            *attrs.camera_id.get().unwrap(),
+                        )
+                        .into());
+                    }
+                }
+
+                attrs.screen_pos.push(*screen_pos);
+            }
+            CamTrackingAttributesUpdate::BakedPeriodUpdate(p) => {
+                attrs.baked_period_ms = *p;
             }
         }
-
-        attrs.screen_pos.push(self.screen_pos);
 
         Ok(())
     }
@@ -153,7 +171,8 @@ fn cam_tracking_attributes_update_test() {
         gender: Vec::default(),
         screen_pos: Vec::default(),
     };
-    let update = CamTrackingAttributesUpdate {
+
+    let update = CamTrackingAttributesUpdate::DataUpdate {
         time: 10,
         gender: Some(Female),
         age: Some(30),
@@ -163,7 +182,7 @@ fn cam_tracking_attributes_update_test() {
     assert!(update.apply(&mut attrs).is_ok());
 
     // incorrect cam id
-    let update = CamTrackingAttributesUpdate {
+    let update = CamTrackingAttributesUpdate::DataUpdate {
         time: 20,
         gender: Some(Female),
         age: Some(10),
@@ -173,7 +192,7 @@ fn cam_tracking_attributes_update_test() {
     assert!(update.apply(&mut attrs).is_err());
 
     // incorrect time
-    let update = CamTrackingAttributesUpdate {
+    let update = CamTrackingAttributesUpdate::DataUpdate {
         time: 5,
         gender: Some(Female),
         age: Some(10),
@@ -390,7 +409,7 @@ fn main() {
             feature,
         }) = observations.get(idx)
         {
-            let update = CamTrackingAttributesUpdate {
+            let update = CamTrackingAttributesUpdate::DataUpdate {
                 time: current_time_ms(),
                 gender: *gender,
                 age: *age,
@@ -415,7 +434,14 @@ fn main() {
             let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
             if let Ok(TrackStatus::Ready) = s {
                 let search_track = track.clone();
-                track.get_attributes_mut().baked_period_ms = 0;
+                track
+                    .add_observation(
+                        0,
+                        None,
+                        None,
+                        Some(CamTrackingAttributesUpdate::BakedPeriodUpdate(0)),
+                    )
+                    .unwrap();
 
                 let (dists, _errs) =
                     merge_store.foreign_track_distances(vec![search_track], FEATURE0, false);
