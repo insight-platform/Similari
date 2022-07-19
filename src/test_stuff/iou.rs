@@ -24,6 +24,8 @@ impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
 }
 
 impl TrackAttributes<BBoxAttributes, BBox> for BBoxAttributes {
+    type Update = BBoxAttributesUpdate;
+
     fn compatible(&self, _other: &BBoxAttributes) -> bool {
         true
     }

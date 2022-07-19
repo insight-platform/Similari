@@ -1,38 +1,31 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
     Observation, ObservationAttributes, ObservationMetric, ObservationMetricResult,
-    ObservationSpec, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    ObservationSpec, Track, TrackAttributes, TrackStatus,
 };
 use crate::Errors;
 use anyhow::Result;
 use crossbeam::channel::{Receiver, Sender};
 use log::{error, warn};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::{mem, thread};
 
 #[derive(Clone)]
-enum Commands<TA, M, TAU, FA, N>
+enum Commands<TA, M, FA, N>
 where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     M: ObservationMetric<TA, FA>,
-    TAU: TrackAttributesUpdate<TA>,
 {
     Drop(Sender<Results<FA>>),
     FindBaked(Sender<Results<FA>>),
-    Distances(
-        Arc<Track<TA, M, TAU, FA, N>>,
-        u64,
-        bool,
-        Sender<Results<FA>>,
-    ),
+    Distances(Arc<Track<TA, M, FA, N>>, u64, bool, Sender<Results<FA>>),
     Merge(
         u64,
-        Track<TA, M, TAU, FA, N>,
+        Track<TA, M, FA, N>,
         Vec<u64>,
         bool,
         Option<Sender<Results<FA>>>,
@@ -41,13 +34,12 @@ where
 
 /// The type that provides lock-ed access to certain shard store
 ///
-pub type StoreMutexGuard<'a, TA, M, TAU, FA, N> =
-    MutexGuard<'a, HashMap<u64, Track<TA, M, TAU, FA, N>>>;
+pub type StoreMutexGuard<'a, TA, M, FA, N> = MutexGuard<'a, HashMap<u64, Track<TA, M, FA, N>>>;
 
 /// The type that provides the initial track that was in the store before it was merged into
 /// target track
 ///
-pub type OwnedMergeResult<TA, M, TAU, FA, N> = Result<Option<Track<TA, M, TAU, FA, N>>>;
+pub type OwnedMergeResult<TA, M, FA, N> = Result<Option<Track<TA, M, FA, N>>>;
 
 pub type TrackDistances<T> = (Vec<ObservationMetricResult<T>>, Vec<TrackDistanceError<T>>);
 
@@ -109,12 +101,11 @@ pub type TrackDistanceError<M> = Result<Vec<ObservationMetricResult<M>>>;
 /// TrackStore examples can be found at:
 /// [examples/*](https://github.com/insight-platform/Similari/blob/main/examples).
 ///
-pub struct TrackStore<TA, TAU, M, FA, N = NoopNotifier>
+pub struct TrackStore<TA, M, FA, N = NoopNotifier>
 where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    TAU: TrackAttributesUpdate<TA>,
     M: ObservationMetric<TA, FA>,
 {
     attributes: TA,
@@ -122,18 +113,17 @@ where
     notifier: N,
     num_shards: usize,
     #[allow(clippy::type_complexity)]
-    stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
+    stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, FA, N>>>>>,
     // receiver: Receiver<Results<FA>>,
     #[allow(clippy::type_complexity)]
-    executors: Vec<(Sender<Commands<TA, M, TAU, FA, N>>, JoinHandle<()>)>,
+    executors: Vec<(Sender<Commands<TA, M, FA, N>>, JoinHandle<()>)>,
 }
 
-impl<TA, TAU, M, FA, N> Drop for TrackStore<TA, TAU, M, FA, N>
+impl<TA, M, FA, N> Drop for TrackStore<TA, M, FA, N>
 where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    TAU: TrackAttributesUpdate<TA>,
     M: ObservationMetric<TA, FA>,
 {
     fn drop(&mut self) {
@@ -155,12 +145,11 @@ where
     }
 }
 
-impl<TA, TAU, M, FA, N> Default for TrackStore<TA, TAU, M, FA, N>
+impl<TA, M, FA, N> Default for TrackStore<TA, M, FA, N>
 where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    TAU: TrackAttributesUpdate<TA>,
     M: ObservationMetric<TA, FA>,
 {
     fn default() -> Self {
@@ -170,19 +159,18 @@ where
 
 /// The basic implementation should fit to most of needs.
 ///
-impl<TA, TAU, M, FA, N> TrackStore<TA, TAU, M, FA, N>
+impl<TA, M, FA, N> TrackStore<TA, M, FA, N>
 where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
-    TAU: TrackAttributesUpdate<TA>,
     M: ObservationMetric<TA, FA>,
 {
     #[allow(clippy::type_complexity)]
     fn handle_store_ops(
-        stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, TAU, FA, N>>>>>,
+        stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, FA, N>>>>>,
         store_id: usize,
-        commands_receiver: Receiver<Commands<TA, M, TAU, FA, N>>,
+        commands_receiver: Receiver<Commands<TA, M, FA, N>>,
     ) {
         let store = stores.get(store_id).unwrap();
         while let Ok(c) = commands_receiver.recv() {
@@ -396,7 +384,7 @@ where
 
     /// Pulls (and removes) requested tracks from the store.
     ///
-    pub fn fetch_tracks(&mut self, tracks: &[u64]) -> Vec<Track<TA, M, TAU, FA, N>> {
+    pub fn fetch_tracks(&mut self, tracks: &[u64]) -> Vec<Track<TA, M, FA, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
             let mut tracks_shard = self.get_store(*track_id as usize);
@@ -417,7 +405,7 @@ where
     ///
     pub fn foreign_track_distances(
         &mut self,
-        tracks: Vec<Track<TA, M, TAU, FA, N>>,
+        tracks: Vec<Track<TA, M, FA, N>>,
         feature_class: u64,
         only_baked: bool,
     ) -> TrackDistances<FA> {
@@ -487,7 +475,7 @@ where
 
     /// returns the store shard for id
     ///
-    pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, TA, M, TAU, FA, N> {
+    pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, TA, M, FA, N> {
         let store_id = id % self.num_shards;
         self.stores.as_ref().get(store_id).unwrap().lock().unwrap()
     }
@@ -507,7 +495,7 @@ where
     /// * `Ok(track_id)` if added
     /// * `Err(Errors::DuplicateTrackId(track_id))` if failed to add
     ///
-    pub fn add_track(&mut self, track: Track<TA, M, TAU, FA, N>) -> Result<u64> {
+    pub fn add_track(&mut self, track: Track<TA, M, FA, N>) -> Result<u64> {
         let track_id = track.track_id;
         let mut store = self.get_store(track_id as usize);
         if store.get(&track_id).is_none() {
@@ -533,7 +521,7 @@ where
         feature_class: u64,
         feature_attribute: Option<FA>,
         feature: Option<Observation>,
-        attributes_update: Option<TAU>,
+        attributes_update: Option<TA::Update>,
     ) -> Result<()> {
         let mut tracks = self.get_store(track_id as usize);
         #[allow(clippy::significant_drop_in_scrutinee)]
@@ -548,7 +536,6 @@ where
                         vec![ObservationSpec(feature_attribute, feature)],
                     )]),
                     metric: self.metric.clone(),
-                    phantom_attribute_update: PhantomData,
                     merge_history: vec![track_id],
                 };
                 if let Some(attributes_update) = attributes_update {
@@ -589,7 +576,7 @@ where
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
         merge_history: bool,
-    ) -> OwnedMergeResult<TA, M, TAU, FA, N> {
+    ) -> OwnedMergeResult<TA, M, FA, N> {
         let mut src = self.fetch_tracks(&[src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
@@ -626,7 +613,7 @@ where
     pub fn merge_external_noblock(
         &mut self,
         dest_id: u64,
-        src: Track<TA, M, TAU, FA, N>,
+        src: Track<TA, M, FA, N>,
         classes: Option<&[u64]>,
         merge_history: bool,
     ) -> Result<FutureMergeResponse<FA>> {
@@ -678,7 +665,7 @@ where
     pub fn merge_external(
         &mut self,
         dest_id: u64,
-        src: &Track<TA, M, TAU, FA, N>,
+        src: &Track<TA, M, FA, N>,
         classes: Option<&[u64]>,
         merge_history: bool,
     ) -> Result<()> {
@@ -730,6 +717,8 @@ mod tests {
     }
 
     impl TrackAttributes<TimeAttrs, f32> for TimeAttrs {
+        type Update = TimeAttrUpdates;
+
         fn compatible(&self, other: &TimeAttrs) -> bool {
             self.end_time <= other.start_time
         }
@@ -788,8 +777,7 @@ mod tests {
 
     #[test]
     fn new_default_store() -> Result<()> {
-        let default_store: TrackStore<TimeAttrs, TimeAttrUpdates, TimeMetric, f32> =
-            TrackStore::default();
+        let default_store: TrackStore<TimeAttrs, TimeMetric, f32> = TrackStore::default();
         drop(default_store);
         Ok(())
     }

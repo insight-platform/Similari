@@ -4,7 +4,6 @@ use anyhow::Result;
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::mem::take;
 use ultraviolet::f32x8;
 
@@ -161,6 +160,7 @@ pub enum TrackStatus {
 pub trait TrackAttributes<TA, FA: ObservationAttributes>:
     Default + Send + Sync + Clone + 'static
 {
+    type Update: TrackAttributesUpdate<TA>;
     /// The method is used to evaluate attributes of two tracks to determine whether tracks are compatible
     /// for distance calculation. When the attributes are compatible, the method returns `true`.
     ///
@@ -209,32 +209,29 @@ pub trait TrackAttributesUpdate<TA>: Clone + Send + Sync + 'static {
 /// * AttributeUpdate specifies how attributes are update from external sources.
 ///
 #[derive(Default, Clone)]
-pub struct Track<TA, M, TAU, FA, N = NoopNotifier>
+pub struct Track<TA, M, FA, N = NoopNotifier>
 where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     M: ObservationMetric<TA, FA>,
-    TAU: TrackAttributesUpdate<TA>,
 {
     attributes: TA,
     track_id: u64,
     observations: ObservationsDb<FA>,
     metric: M,
-    phantom_attribute_update: PhantomData<TAU>,
     merge_history: Vec<u64>,
     notifier: N,
 }
 
 /// One and only parametrized track implementation.
 ///
-impl<TA, M, TAU, FA, N> Track<TA, M, TAU, FA, N>
+impl<TA, M, FA, N> Track<TA, M, FA, N>
 where
     FA: ObservationAttributes,
     N: ChangeNotifier,
     TA: TrackAttributes<TA, FA>,
     M: ObservationMetric<TA, FA>,
-    TAU: TrackAttributesUpdate<TA>,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
     ///
@@ -264,7 +261,6 @@ where
             } else {
                 M::default()
             },
-            phantom_attribute_update: Default::default(),
             merge_history: vec![track_id],
         };
         v.notifier.send(track_id);
@@ -313,7 +309,7 @@ where
         self.observations.keys().cloned().collect()
     }
 
-    fn update_attributes(&mut self, update: TAU) -> Result<()> {
+    fn update_attributes(&mut self, update: TA::Update) -> Result<()> {
         update.apply(&mut self.attributes)
     }
 
@@ -337,7 +333,7 @@ where
         feature_class: u64,
         feature_attributes: Option<FA>,
         feature: Option<Observation>,
-        track_attributes_update: Option<TAU>,
+        track_attributes_update: Option<TA::Update>,
     ) -> Result<()> {
         let last_attributes = self.attributes.clone();
         let last_observations = self.observations.clone();
@@ -555,6 +551,8 @@ mod tests {
     }
 
     impl TrackAttributes<DefaultAttrs, f32> for DefaultAttrs {
+        type Update = DefaultAttrUpdates;
+
         fn compatible(&self, _other: &DefaultAttrs) -> bool {
             true
         }
@@ -604,14 +602,13 @@ mod tests {
 
     #[test]
     fn init() {
-        let t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> =
-            Track::new(3, None, None, None);
+        let t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::new(3, None, None, None);
         assert_eq!(t1.get_track_id(), 3);
     }
 
     #[test]
     fn track_distances() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
         t1.add_observation(
             0,
             Some(0.3),
@@ -656,7 +653,7 @@ mod tests {
 
     #[test]
     fn merge_same() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
         t1.add_observation(
             0,
             Some(0.3),
@@ -679,7 +676,7 @@ mod tests {
 
     #[test]
     fn merge_other_feature_class() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
         t1.add_observation(
             0,
             Some(0.3),
@@ -725,6 +722,8 @@ mod tests {
         }
 
         impl TrackAttributes<TimeAttrs, f32> for TimeAttrs {
+            type Update = TimeAttrUpdates;
+
             fn compatible(&self, other: &TimeAttrs) -> bool {
                 self.end_time <= other.start_time
             }
@@ -778,7 +777,7 @@ mod tests {
             }
         }
 
-        let mut t1: Track<TimeAttrs, TimeMetric, TimeAttrUpdates, f32> = Track::default();
+        let mut t1: Track<TimeAttrs, TimeMetric, f32> = Track::default();
         t1.track_id = 1;
         t1.add_observation(
             0,
@@ -817,7 +816,7 @@ mod tests {
 
     #[test]
     fn get_classes() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
         t1.add_observation(
             0,
             Some(0.3),
@@ -879,6 +878,8 @@ mod tests {
         }
 
         impl TrackAttributes<DefaultAttrs, f32> for DefaultAttrs {
+            type Update = DefaultAttrUpdates;
+
             fn compatible(&self, _other: &DefaultAttrs) -> bool {
                 true
             }
@@ -928,7 +929,7 @@ mod tests {
             }
         }
 
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
+        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
         assert_eq!(t1.attributes, DefaultAttrs { count: 0 });
         let res = t1.add_observation(
             0,
@@ -959,7 +960,7 @@ mod tests {
 
         assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
 
-        let mut t2: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> = Track::default();
+        let mut t2: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
         assert_eq!(t2.attributes, DefaultAttrs { count: 0 });
         let res = t2.add_observation(
             0,
@@ -986,8 +987,7 @@ mod tests {
 
     #[test]
     fn merge_history() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, DefaultAttrUpdates, f32> =
-            Track::new(0, None, None, None);
+        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::new(0, None, None, None);
         let mut t2 = Track::new(1, None, None, None);
 
         t1.add_observation(
@@ -1029,6 +1029,8 @@ mod tests {
         }
 
         impl TrackAttributes<UnitAttrs, ()> for UnitAttrs {
+            type Update = UnitAttrUpdates;
+
             fn compatible(&self, _other: &UnitAttrs) -> bool {
                 true
             }
@@ -1076,7 +1078,6 @@ mod tests {
             }
         }
 
-        let _t1: Track<UnitAttrs, UnitMetric, UnitAttrUpdates, ()> =
-            Track::new(0, None, None, None);
+        let _t1: Track<UnitAttrs, UnitMetric, ()> = Track::new(0, None, None, None);
     }
 }

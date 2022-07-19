@@ -33,7 +33,7 @@ fn bench_iou_01000_4cores(b: &mut Bencher) {
 }
 
 fn bench_iou(objects: usize, b: &mut Bencher) {
-    let mut store: TrackStore<BBoxAttributes, BBoxAttributesUpdate, IOUMetric, BBox> =
+    let mut store: TrackStore<BBoxAttributes, IOUMetric, BBox> =
         TrackStore::new(None, None, None, 4);
 
     let voting = IOUTopNVoting {
@@ -64,7 +64,7 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         for i in &mut iterators {
             iteration += 1;
             let b = i.next();
-            let mut t: Track<BBoxAttributes, IOUMetric, BBoxAttributesUpdate, BBox> =
+            let mut t: Track<BBoxAttributes, IOUMetric, BBox> =
                 Track::new(iteration, None, None, None);
 
             t.add_observation(FEAT0, b, None, Some(BBoxAttributesUpdate))

@@ -197,6 +197,8 @@ fn feat_gen() {
 }
 
 impl TrackAttributes<CamTrackingAttributes, f32> for CamTrackingAttributes {
+    type Update = CamTrackingAttributesUpdate;
+
     fn compatible(&self, other: &CamTrackingAttributes) -> bool {
         (self.start_time >= other.end_time || self.end_time <= other.start_time)
             && self.camera_id.get().unwrap() == other.camera_id.get().unwrap()
@@ -364,20 +366,16 @@ fn main() {
 
     // merge tracks here until they are initially complete
     let merge_store_baked_period_ms = 60;
-    let mut merge_store: TrackStore<
-        CamTrackingAttributes,
-        CamTrackingAttributesUpdate,
-        CamTrackingAttributesMetric,
-        f32,
-    > = TrackStore::new(
-        Some(CamTrackingAttributesMetric::default()),
-        Some(CamTrackingAttributes {
-            baked_period_ms: merge_store_baked_period_ms,
-            ..Default::default()
-        }),
-        Some(NoopNotifier),
-        1,
-    );
+    let mut merge_store: TrackStore<CamTrackingAttributes, CamTrackingAttributesMetric, f32> =
+        TrackStore::new(
+            Some(CamTrackingAttributesMetric::default()),
+            Some(CamTrackingAttributes {
+                baked_period_ms: merge_store_baked_period_ms,
+                ..Default::default()
+            }),
+            Some(NoopNotifier),
+            1,
+        );
     let voting_machine: TopNVoting<f32> = TopNVoting::new(1, 0.1, 3);
 
     let mut idx = 0;

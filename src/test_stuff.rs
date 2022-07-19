@@ -42,6 +42,8 @@ impl TrackAttributesUpdate<SimpleAttrs> for SimpleAttributeUpdate {
 }
 
 impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
+    type Update = SimpleAttributeUpdate;
+
     fn compatible(&self, other: &SimpleAttrs) -> bool {
         self.set && other.set
     }
@@ -109,6 +111,8 @@ impl TrackAttributesUpdate<UnboundAttrs> for UnboundAttributeUpdate {
 }
 
 impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
+    type Update = UnboundAttributeUpdate;
+
     fn compatible(&self, _other: &UnboundAttrs) -> bool {
         true
     }

@@ -6,8 +6,8 @@ use similari::distance::euclidean;
 use similari::store::TrackStore;
 use similari::test_stuff::FeatGen;
 use similari::track::{
-    MetricOutput, ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
-    TrackAttributesUpdate, TrackStatus,
+    MetricOutput, ObservationMetric, ObservationMetricResult, ObservationSpec, ObservationsDb,
+    Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -29,6 +29,8 @@ impl TrackAttributesUpdate<NoopAttributes> for NoopAttributesUpdate {
 }
 
 impl TrackAttributes<NoopAttributes, ()> for NoopAttributes {
+    type Update = NoopAttributesUpdate;
+
     fn compatible(&self, _other: &NoopAttributes) -> bool {
         true
     }
@@ -76,10 +78,26 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
         observations.reverse();
         Ok(())
     }
+
+    fn postprocess_distances(
+        &self,
+        unfiltered: Vec<ObservationMetricResult<()>>,
+    ) -> Vec<ObservationMetricResult<()>> {
+        unfiltered
+            .into_iter()
+            .filter(|x| {
+                if let Some(d) = x.feature_distance {
+                    d < 100.0
+                } else {
+                    false
+                }
+            })
+            .collect()
+    }
 }
 
 fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
-    let mut store: TrackStore<NoopAttributes, NoopAttributesUpdate, TrackMetric, ()> =
+    let mut store: TrackStore<NoopAttributes, TrackMetric, ()> =
         TrackStore::new(None, None, None, num_cpus::get());
 
     let voting: TopNVoting<()> = TopNVoting::new(1, 100.0, 1);
@@ -98,7 +116,7 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         for i in &mut iterators {
             iteration += 1;
             let b = i.next().unwrap().1;
-            let mut t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, ()> =
+            let mut t: Track<NoopAttributes, TrackMetric, ()> =
                 Track::new(iteration, None, None, None);
 
             t.add_observation(FEAT0, None, b, Some(NoopAttributesUpdate))

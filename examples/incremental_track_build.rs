@@ -25,6 +25,8 @@ impl TrackAttributesUpdate<NoopAttributes> for NoopAttributesUpdate {
 }
 
 impl TrackAttributes<NoopAttributes, BBox> for NoopAttributes {
+    type Update = NoopAttributesUpdate;
+
     fn compatible(&self, _other: &NoopAttributes) -> bool {
         true
     }
@@ -77,8 +79,7 @@ impl ObservationMetric<NoopAttributes, BBox> for TrackMetric {
 }
 
 fn main() {
-    let mut store: TrackStore<NoopAttributes, NoopAttributesUpdate, TrackMetric, BBox> =
-        TrackStore::default();
+    let mut store: TrackStore<NoopAttributes, TrackMetric, BBox> = TrackStore::default();
     let voting: TopNVoting<BBox> = TopNVoting::new(1, 0.1, 1);
     let feature_drift = 0.01;
     let pos_drift = 5.0;
@@ -91,12 +92,12 @@ fn main() {
 
     for _ in 0..10 {
         let (obj1f, obj1b) = (p1.next().unwrap().1, b1.next());
-        let mut obj1t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, BBox> =
+        let mut obj1t: Track<NoopAttributes, TrackMetric, BBox> =
             Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
         obj1t.add_observation(FEAT0, obj1b, obj1f, None).unwrap();
 
         let (obj2f, obj2b) = (p2.next().unwrap().1, b2.next());
-        let mut obj2t: Track<NoopAttributes, TrackMetric, NoopAttributesUpdate, BBox> = Track::new(
+        let mut obj2t: Track<NoopAttributes, TrackMetric, BBox> = Track::new(
             (u64::try_from(current_time_ms()).unwrap()) + 1,
             None,
             None,
