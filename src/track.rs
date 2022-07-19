@@ -291,12 +291,6 @@ where
         self.observations.get(&feature_class)
     }
 
-    /// Returns current track attributes as mutable reg
-    ///
-    fn get_attributes_mut(&mut self) -> &mut TA {
-        &mut self.attributes
-    }
-
     /// Returns the current track merge history for the track
     ///
     pub fn get_merge_history(&self) -> &Vec<u64> {
