@@ -75,6 +75,8 @@ Feature (256 @ f32) tracking benchmark for N simultaneously observed objects run
 Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects 
 based on object distances.
 
+The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs).
+
 ```
 10 objects:       101,465 ns/iter (+/- 10,056)         [9900 FPS]
 100 objects:    4,020,673 ns/iter (+/- 877,444)        [ 250 FPS]
