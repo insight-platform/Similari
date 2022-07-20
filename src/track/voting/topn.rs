@@ -13,19 +13,19 @@ use std::marker::PhantomData;
 /// 4. sorts groups by frequency decreasingly
 /// 5. returns TopN
 ///
-pub struct TopNVoting<X>
+pub struct TopNVoting<OA>
 where
-    X: ObservationAttributes,
+    OA: ObservationAttributes,
 {
     topn: usize,
     max_distance: f32,
     min_votes: usize,
-    _phony: PhantomData<X>,
+    _phony: PhantomData<OA>,
 }
 
-impl<X> TopNVoting<X>
+impl<OA> TopNVoting<OA>
 where
-    X: ObservationAttributes,
+    OA: ObservationAttributes,
 {
     /// Constructs new engine
     ///
@@ -65,15 +65,15 @@ impl TopNVotingElt {
     }
 }
 
-impl<X> Voting<X> for TopNVoting<X>
+impl<OA> Voting<OA> for TopNVoting<OA>
 where
-    X: ObservationAttributes,
+    OA: ObservationAttributes,
 {
     type WinnerObject = TopNVotingElt;
 
     fn winners(
         &self,
-        distances: &[ObservationMetricResult<X>],
+        distances: &[ObservationMetricResult<OA>],
     ) -> HashMap<u64, Vec<TopNVotingElt>> {
         let mut tracks: Vec<_> = distances
             .iter()

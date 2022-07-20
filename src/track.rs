@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::mem::take;
 use ultraviolet::f32x8;
 
+pub mod builder;
 pub mod notify;
 pub mod store;
 pub mod utils;
@@ -79,7 +80,7 @@ pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 's
 pub type MetricOutput<T> = Option<(Option<T>, Option<f32>)>;
 
 /// The trait that implements the methods for features comparison and filtering
-pub trait ObservationMetric<TA, FA: ObservationAttributes>:
+pub trait ObservationMetric<TA, OA: ObservationAttributes>:
     Default + Send + Sync + Clone + 'static
 {
     /// calculates the distance between two features.
@@ -97,9 +98,9 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
         feature_class: u64,
         left_attrs: &TA,
         right_attrs: &TA,
-        left_observation: &ObservationSpec<FA>,
-        right_observation: &ObservationSpec<FA>,
-    ) -> MetricOutput<FA::MetricObject>;
+        left_observation: &ObservationSpec<OA>,
+        right_observation: &ObservationSpec<OA>,
+    ) -> MetricOutput<OA::MetricObject>;
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
     /// two tracks are merged.
@@ -122,7 +123,7 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
         feature_class: &u64,
         merge_history: &[u64],
         attributes: &mut TA,
-        observations: &mut Vec<ObservationSpec<FA>>,
+        observations: &mut Vec<ObservationSpec<OA>>,
         prev_length: usize,
         is_merge: bool,
     ) -> Result<()>;
@@ -132,8 +133,8 @@ pub trait ObservationMetric<TA, FA: ObservationAttributes>:
     ///
     fn postprocess_distances(
         &self,
-        unfiltered: Vec<ObservationMetricResult<FA>>,
-    ) -> Vec<ObservationMetricResult<FA>> {
+        unfiltered: Vec<ObservationMetricResult<OA>>,
+    ) -> Vec<ObservationMetricResult<OA>> {
         unfiltered
     }
 }
@@ -157,7 +158,7 @@ pub enum TrackStatus {
 ///
 /// When the user implements track attributes they has to implement this trait to create a valid attributes object.
 ///
-pub trait TrackAttributes<TA, FA: ObservationAttributes>:
+pub trait TrackAttributes<TA, OA: ObservationAttributes>:
     Default + Send + Sync + Clone + 'static
 {
     type Update: TrackAttributesUpdate<TA>;
@@ -187,7 +188,7 @@ pub trait TrackAttributes<TA, FA: ObservationAttributes>:
     ///     track is ready when
     ///          `now - end_timestamp > 30s` (no features collected during the last 30 seconds).
     ///
-    fn baked(&self, observations: &ObservationsDb<FA>) -> Result<TrackStatus>;
+    fn baked(&self, observations: &ObservationsDb<OA>) -> Result<TrackStatus>;
 }
 
 /// The attribute update information that is sent with new features to the track is represented by the trait.
@@ -209,16 +210,16 @@ pub trait TrackAttributesUpdate<TA>: Clone + Send + Sync + 'static {
 /// * AttributeUpdate specifies how attributes are update from external sources.
 ///
 #[derive(Default, Clone)]
-pub struct Track<TA, M, FA, N = NoopNotifier>
+pub struct Track<TA, M, OA, N = NoopNotifier>
 where
-    FA: ObservationAttributes,
+    TA: TrackAttributes<TA, OA>,
+    M: ObservationMetric<TA, OA>,
+    OA: ObservationAttributes,
     N: ChangeNotifier,
-    TA: TrackAttributes<TA, FA>,
-    M: ObservationMetric<TA, FA>,
 {
     attributes: TA,
     track_id: u64,
-    observations: ObservationsDb<FA>,
+    observations: ObservationsDb<OA>,
     metric: M,
     merge_history: Vec<u64>,
     notifier: N,
@@ -226,12 +227,12 @@ where
 
 /// One and only parametrized track implementation.
 ///
-impl<TA, M, FA, N> Track<TA, M, FA, N>
+impl<TA, M, OA, N> Track<TA, M, OA, N>
 where
-    FA: ObservationAttributes,
+    TA: TrackAttributes<TA, OA>,
+    M: ObservationMetric<TA, OA>,
+    OA: ObservationAttributes,
     N: ChangeNotifier,
-    TA: TrackAttributes<TA, FA>,
-    M: ObservationMetric<TA, FA>,
 {
     /// Creates a new track with id `track_id` with `metric` initializer object and `attributes` initializer object.
     ///
@@ -287,7 +288,7 @@ where
         &self.attributes
     }
 
-    pub fn get_observations(&self, feature_class: u64) -> Option<&Vec<ObservationSpec<FA>>> {
+    pub fn get_observations(&self, feature_class: u64) -> Option<&Vec<ObservationSpec<OA>>> {
         self.observations.get(&feature_class)
     }
 
@@ -325,7 +326,7 @@ where
     pub fn add_observation(
         &mut self,
         feature_class: u64,
-        feature_attributes: Option<FA>,
+        feature_attributes: Option<OA>,
         feature: Option<Observation>,
         track_attributes_update: Option<TA::Update>,
     ) -> Result<()> {
@@ -483,7 +484,7 @@ where
         &self,
         other: &Self,
         feature_class: u64,
-    ) -> Result<Vec<ObservationMetricResult<FA>>> {
+    ) -> Result<Vec<ObservationMetricResult<OA>>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {
