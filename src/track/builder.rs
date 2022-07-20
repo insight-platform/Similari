@@ -30,7 +30,7 @@ where
     ///
     pub fn new(feature_class: u64) -> Self {
         Self {
-            feature_class: feature_class,
+            feature_class,
             observation_attributes: None,
             observation: None,
             track_attributes_update: None,
