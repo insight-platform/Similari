@@ -366,8 +366,8 @@ where
     /// Method is used to find ready to use tracks within the store.
     ///
     /// The search is parallelized with Rayon. The results returned for tracks with
-    /// * `TrackBakingStatus::Ready`,
-    /// * `TrackBakingStatus::Wasted` or
+    /// * `TrackStatus::Ready`,
+    /// * `TrackStatus::Wasted` or
     /// * `Err(e)`
     ///
     pub fn find_usable(&mut self) -> Vec<(u64, Result<TrackStatus>)> {
@@ -697,12 +697,9 @@ where
         }
     }
 
-    /// Method is used to find ready to use tracks within the store.
+    /// Method is used to find tracks that match lookup query.
     ///
-    /// The search is parallelized with Rayon. The results returned for tracks with
-    /// * `TrackBakingStatus::Ready`,
-    /// * `TrackBakingStatus::Wasted` or
-    /// * `Err(e)`
+    /// The search is parallelized with Rayon. The results returned for tracks with their statuses.
     ///
     pub fn lookup(&mut self, q: TA::Lookup) -> Vec<(u64, Result<TrackStatus>)> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
