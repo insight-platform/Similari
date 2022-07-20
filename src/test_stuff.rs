@@ -3,8 +3,8 @@ pub mod iou;
 use crate::distance::euclidean;
 use crate::track::utils::FromVec;
 use crate::track::{
-    MetricOutput, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
-    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
+    ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::EPS;
 use anyhow::Result;
@@ -43,6 +43,7 @@ impl TrackAttributesUpdate<SimpleAttrs> for SimpleAttributeUpdate {
 
 impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
     type Update = SimpleAttributeUpdate;
+    type Lookup = NoopLookup<SimpleAttrs, f32>;
 
     fn compatible(&self, other: &SimpleAttrs) -> bool {
         self.set && other.set
@@ -112,6 +113,7 @@ impl TrackAttributesUpdate<UnboundAttrs> for UnboundAttributeUpdate {
 
 impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
     type Update = UnboundAttributeUpdate;
+    type Lookup = NoopLookup<UnboundAttrs, f32>;
 
     fn compatible(&self, _other: &UnboundAttrs) -> bool {
         true
