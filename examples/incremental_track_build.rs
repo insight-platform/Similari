@@ -1,9 +1,9 @@
 use similari::distance::euclidean;
-use similari::store::TrackStore;
-use similari::test_stuff::{current_time_ms, BBox, BoxGen2, FeatGen2};
+use similari::prelude::*;
+use similari::test_stuff::{BBox, BoxGen2, FeatGen2};
 use similari::track::{
     MetricOutput, ObservationAttributes, ObservationMetric, ObservationMetricResult,
-    ObservationSpec, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -94,7 +94,7 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
 }
 
 fn main() {
-    let mut store: TrackStore<BBoxAttributes, TrackMetric, f32> = TrackStore::default();
+    let mut store = TrackStoreBuilder::<BBoxAttributes, TrackMetric, f32>::default().build();
     let voting: TopNVoting<f32> = TopNVoting::new(1, MAX_DIST, 1);
     let feature_drift = 0.01;
     let pos_drift = 5.0;
@@ -108,29 +108,29 @@ fn main() {
 
     for _ in 0..10 {
         let (obj1f, obj1b) = (p1.next().unwrap(), b1.next().unwrap());
-        let track_id = u64::try_from(current_time_ms()).unwrap();
-        let mut obj1t = Track::new(track_id, None, None, None);
 
-        obj1t
-            .add_observation(
-                FEAT0,
-                obj1f.0,
-                obj1f.1,
-                Some(BBoxAttributesUpdate { bbox: obj1b }),
+        let obj1t = TrackBuilder::default()
+            .observation(
+                ObservationBuilder::new(FEAT0)
+                    .observation_attributes(obj1f.0.unwrap())
+                    .observation(obj1f.1.unwrap())
+                    .track_attributes_update(BBoxAttributesUpdate { bbox: obj1b })
+                    .build(),
             )
+            .build()
             .unwrap();
 
         let (obj2f, obj2b) = (p2.next().unwrap(), b2.next().unwrap());
-        let track_id = u64::try_from(current_time_ms()).unwrap() + 1;
-        let mut obj2t = Track::new(track_id, None, None, None);
 
-        obj2t
-            .add_observation(
-                FEAT0,
-                obj2f.0,
-                obj2f.1,
-                Some(BBoxAttributesUpdate { bbox: obj2b }),
+        let obj2t = TrackBuilder::default()
+            .observation(
+                ObservationBuilder::new(FEAT0)
+                    .observation_attributes(obj2f.0.unwrap())
+                    .observation(obj2f.1.unwrap())
+                    .track_attributes_update(BBoxAttributesUpdate { bbox: obj2b })
+                    .build(),
             )
+            .build()
             .unwrap();
 
         thread::sleep(Duration::from_millis(2));

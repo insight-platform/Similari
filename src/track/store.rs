@@ -1,3 +1,5 @@
+pub mod builder;
+
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
     Observation, ObservationAttributes, ObservationMetric, ObservationMetricResult,
@@ -13,22 +15,22 @@ use std::thread::JoinHandle;
 use std::{mem, thread};
 
 #[derive(Clone)]
-enum Commands<TA, M, FA, N>
+enum Commands<TA, M, OA, N>
 where
-    FA: ObservationAttributes,
+    TA: TrackAttributes<TA, OA>,
+    M: ObservationMetric<TA, OA>,
+    OA: ObservationAttributes,
     N: ChangeNotifier,
-    TA: TrackAttributes<TA, FA>,
-    M: ObservationMetric<TA, FA>,
 {
-    Drop(Sender<Results<FA>>),
-    FindBaked(Sender<Results<FA>>),
-    Distances(Arc<Track<TA, M, FA, N>>, u64, bool, Sender<Results<FA>>),
+    Drop(Sender<Results<OA>>),
+    FindBaked(Sender<Results<OA>>),
+    Distances(Arc<Track<TA, M, OA, N>>, u64, bool, Sender<Results<OA>>),
     Merge(
         u64,
-        Track<TA, M, FA, N>,
+        Track<TA, M, OA, N>,
         Vec<u64>,
         bool,
-        Option<Sender<Results<FA>>>,
+        Option<Sender<Results<OA>>>,
     ),
 }
 
@@ -44,13 +46,13 @@ pub type OwnedMergeResult<TA, M, FA, N> = Result<Option<Track<TA, M, FA, N>>>;
 pub type TrackDistances<T> = (Vec<ObservationMetricResult<T>>, Vec<TrackDistanceError<T>>);
 
 #[derive(Debug)]
-enum Results<FA>
+enum Results<OA>
 where
-    FA: ObservationAttributes,
+    OA: ObservationAttributes,
 {
     Distance(
-        Vec<ObservationMetricResult<FA>>,
-        Vec<TrackDistanceError<FA>>,
+        Vec<ObservationMetricResult<OA>>,
+        Vec<TrackDistanceError<OA>>,
     ),
     BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
@@ -59,17 +61,17 @@ where
 
 /// Merge future result
 ///
-pub struct FutureMergeResponse<FA>
+pub struct FutureMergeResponse<OA>
 where
-    FA: ObservationAttributes,
+    OA: ObservationAttributes,
 {
-    receiver: Receiver<Results<FA>>,
-    _sender: Sender<Results<FA>>,
+    receiver: Receiver<Results<OA>>,
+    _sender: Sender<Results<OA>>,
 }
 
-impl<FA> FutureMergeResponse<FA>
+impl<OA> FutureMergeResponse<OA>
 where
-    FA: ObservationAttributes,
+    OA: ObservationAttributes,
 {
     pub fn get(&self) -> Result<()> {
         let res = self.receiver.recv();
@@ -101,30 +103,30 @@ pub type TrackDistanceError<M> = Result<Vec<ObservationMetricResult<M>>>;
 /// TrackStore examples can be found at:
 /// [examples/*](https://github.com/insight-platform/Similari/blob/main/examples).
 ///
-pub struct TrackStore<TA, M, FA, N = NoopNotifier>
+pub struct TrackStore<TA, M, OA, N = NoopNotifier>
 where
-    FA: ObservationAttributes,
+    TA: TrackAttributes<TA, OA>,
+    M: ObservationMetric<TA, OA>,
+    OA: ObservationAttributes,
     N: ChangeNotifier,
-    TA: TrackAttributes<TA, FA>,
-    M: ObservationMetric<TA, FA>,
 {
     attributes: TA,
     metric: M,
     notifier: N,
     num_shards: usize,
     #[allow(clippy::type_complexity)]
-    stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, FA, N>>>>>,
+    stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, OA, N>>>>>,
     // receiver: Receiver<Results<FA>>,
     #[allow(clippy::type_complexity)]
-    executors: Vec<(Sender<Commands<TA, M, FA, N>>, JoinHandle<()>)>,
+    executors: Vec<(Sender<Commands<TA, M, OA, N>>, JoinHandle<()>)>,
 }
 
-impl<TA, M, FA, N> Drop for TrackStore<TA, M, FA, N>
+impl<TA, M, OA, N> Drop for TrackStore<TA, M, OA, N>
 where
-    FA: ObservationAttributes,
+    TA: TrackAttributes<TA, OA>,
+    M: ObservationMetric<TA, OA>,
+    OA: ObservationAttributes,
     N: ChangeNotifier,
-    TA: TrackAttributes<TA, FA>,
-    M: ObservationMetric<TA, FA>,
 {
     fn drop(&mut self) {
         let executors = mem::take(&mut self.executors);
@@ -145,12 +147,12 @@ where
     }
 }
 
-impl<TA, M, FA, N> Default for TrackStore<TA, M, FA, N>
+impl<TA, M, OA, N> Default for TrackStore<TA, M, OA, N>
 where
-    FA: ObservationAttributes,
+    TA: TrackAttributes<TA, OA>,
+    M: ObservationMetric<TA, OA>,
+    OA: ObservationAttributes,
     N: ChangeNotifier,
-    TA: TrackAttributes<TA, FA>,
-    M: ObservationMetric<TA, FA>,
 {
     fn default() -> Self {
         Self::new(None, None, None, 1)
@@ -159,18 +161,18 @@ where
 
 /// The basic implementation should fit to most of needs.
 ///
-impl<TA, M, FA, N> TrackStore<TA, M, FA, N>
+impl<TA, M, OA, N> TrackStore<TA, M, OA, N>
 where
-    FA: ObservationAttributes,
+    TA: TrackAttributes<TA, OA>,
+    M: ObservationMetric<TA, OA>,
+    OA: ObservationAttributes,
     N: ChangeNotifier,
-    TA: TrackAttributes<TA, FA>,
-    M: ObservationMetric<TA, FA>,
 {
     #[allow(clippy::type_complexity)]
     fn handle_store_ops(
-        stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, FA, N>>>>>,
+        stores: Arc<Vec<Mutex<HashMap<u64, Track<TA, M, OA, N>>>>>,
         store_id: usize,
-        commands_receiver: Receiver<Commands<TA, M, FA, N>>,
+        commands_receiver: Receiver<Commands<TA, M, OA, N>>,
     ) {
         let store = stores.get(store_id).unwrap();
         while let Ok(c) = commands_receiver.recv() {
@@ -384,7 +386,7 @@ where
 
     /// Pulls (and removes) requested tracks from the store.
     ///
-    pub fn fetch_tracks(&mut self, tracks: &[u64]) -> Vec<Track<TA, M, FA, N>> {
+    pub fn fetch_tracks(&mut self, tracks: &[u64]) -> Vec<Track<TA, M, OA, N>> {
         let mut res = Vec::default();
         for track_id in tracks {
             let mut tracks_shard = self.get_store(*track_id as usize);
@@ -405,10 +407,10 @@ where
     ///
     pub fn foreign_track_distances(
         &mut self,
-        tracks: Vec<Track<TA, M, FA, N>>,
+        tracks: Vec<Track<TA, M, OA, N>>,
         feature_class: u64,
         only_baked: bool,
-    ) -> TrackDistances<FA> {
+    ) -> TrackDistances<OA> {
         let tracks_count = tracks.len();
 
         let (results_sender, results_receiver) = crossbeam::channel::unbounded();
@@ -457,7 +459,7 @@ where
         tracks: &[u64],
         feature_class: u64,
         only_baked: bool,
-    ) -> TrackDistances<FA> {
+    ) -> TrackDistances<OA> {
         let tracks_vec = self.fetch_tracks(tracks);
 
         if tracks_vec.is_empty() {
@@ -475,7 +477,7 @@ where
 
     /// returns the store shard for id
     ///
-    pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, TA, M, FA, N> {
+    pub fn get_store(&self, id: usize) -> StoreMutexGuard<'_, TA, M, OA, N> {
         let store_id = id % self.num_shards;
         self.stores.as_ref().get(store_id).unwrap().lock().unwrap()
     }
@@ -495,7 +497,7 @@ where
     /// * `Ok(track_id)` if added
     /// * `Err(Errors::DuplicateTrackId(track_id))` if failed to add
     ///
-    pub fn add_track(&mut self, track: Track<TA, M, FA, N>) -> Result<u64> {
+    pub fn add_track(&mut self, track: Track<TA, M, OA, N>) -> Result<u64> {
         let track_id = track.track_id;
         let mut store = self.get_store(track_id as usize);
         if store.get(&track_id).is_none() {
@@ -519,7 +521,7 @@ where
         &mut self,
         track_id: u64,
         feature_class: u64,
-        feature_attribute: Option<FA>,
+        feature_attribute: Option<OA>,
         feature: Option<Observation>,
         attributes_update: Option<TA::Update>,
     ) -> Result<()> {
@@ -576,7 +578,7 @@ where
         classes: Option<&[u64]>,
         remove_src_if_ok: bool,
         merge_history: bool,
-    ) -> OwnedMergeResult<TA, M, FA, N> {
+    ) -> OwnedMergeResult<TA, M, OA, N> {
         let mut src = self.fetch_tracks(&[src_id]);
         if src.is_empty() {
             return Err(Errors::TrackNotFound(src_id).into());
@@ -613,10 +615,10 @@ where
     pub fn merge_external_noblock(
         &mut self,
         dest_id: u64,
-        src: Track<TA, M, FA, N>,
+        src: Track<TA, M, OA, N>,
         classes: Option<&[u64]>,
         merge_history: bool,
-    ) -> Result<FutureMergeResponse<FA>> {
+    ) -> Result<FutureMergeResponse<OA>> {
         let (results_sender, results_receiver) = crossbeam::channel::bounded(1);
         let executor_id = self.get_executor(dest_id as usize);
         let (cmd, _) = self.executors.get_mut(executor_id).unwrap();
@@ -665,7 +667,7 @@ where
     pub fn merge_external(
         &mut self,
         dest_id: u64,
-        src: &Track<TA, M, FA, N>,
+        src: &Track<TA, M, OA, N>,
         classes: Option<&[u64]>,
         merge_history: bool,
     ) -> Result<()> {
