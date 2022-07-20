@@ -141,14 +141,14 @@ mod tests {
     fn default_voting() {
         let v: TopNVoting<()> = TopNVoting::new(5, 0.32, 1);
 
-        let candidates = v.winners(vec![ObservationMetricResult::new(0, 1, None, Some(0.2))]);
+        let candidates = v.winners([ObservationMetricResult::new(0, 1, None, Some(0.2))]);
 
         assert_eq!(
             candidates,
             HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 1)])])
         );
 
-        let candidates = v.winners(vec![
+        let candidates = v.winners([
             ObservationMetricResult::new(0, 1, None, Some(0.2)),
             ObservationMetricResult::new(0, 1, None, Some(0.3)),
         ]);
@@ -158,7 +158,7 @@ mod tests {
             HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 2)])])
         );
 
-        let candidates = v.winners(vec![
+        let candidates = v.winners([
             ObservationMetricResult::new(0, 1, None, Some(0.2)),
             ObservationMetricResult::new(0, 1, None, Some(0.4)),
         ]);
@@ -168,7 +168,7 @@ mod tests {
             HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 1)])])
         );
 
-        let mut candidates = v.winners(vec![
+        let mut candidates = v.winners([
             ObservationMetricResult::new(0, 1, None, Some(0.2)),
             ObservationMetricResult::new(0, 2, None, Some(0.2)),
         ]);
@@ -186,7 +186,7 @@ mod tests {
             )])
         );
 
-        let mut candidates = v.winners(vec![
+        let mut candidates = v.winners([
             ObservationMetricResult::new(0, 1, None, Some(0.2)),
             ObservationMetricResult::new(0, 1, None, Some(0.22)),
             ObservationMetricResult::new(0, 2, None, Some(0.21)),
@@ -225,7 +225,7 @@ mod tests {
     fn two_query_vecs() {
         let v: TopNVoting<f32> = TopNVoting::new(5, 0.32, 1);
 
-        let mut candidates = v.winners(vec![
+        let mut candidates = v.winners([
             ObservationMetricResult::new(0, 1, None, Some(0.2)),
             ObservationMetricResult::new(0, 1, None, Some(0.22)),
             ObservationMetricResult::new(0, 2, None, Some(0.21)),
