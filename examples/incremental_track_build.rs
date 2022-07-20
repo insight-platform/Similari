@@ -94,7 +94,7 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
 }
 
 fn main() {
-    let mut store = TrackStoreBuilder::<BBoxAttributes, TrackMetric, f32>::new().build();
+    let mut store = TrackStoreBuilder::<BBoxAttributes, TrackMetric, f32>::default().build();
     let voting: TopNVoting<f32> = TopNVoting::new(1, MAX_DIST, 1);
     let feature_drift = 0.01;
     let pos_drift = 5.0;
@@ -109,7 +109,7 @@ fn main() {
     for _ in 0..10 {
         let (obj1f, obj1b) = (p1.next().unwrap(), b1.next().unwrap());
 
-        let obj1t = TrackBuilder::new()
+        let obj1t = TrackBuilder::default()
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj1f.0.unwrap())
@@ -122,7 +122,7 @@ fn main() {
 
         let (obj2f, obj2b) = (p2.next().unwrap(), b2.next().unwrap());
 
-        let obj2t = TrackBuilder::new()
+        let obj2t = TrackBuilder::default()
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj2f.0.unwrap())
