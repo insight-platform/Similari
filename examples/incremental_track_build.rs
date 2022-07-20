@@ -2,7 +2,7 @@ use similari::distance::euclidean;
 use similari::prelude::*;
 use similari::test_stuff::{BBox, BoxGen2, FeatGen2};
 use similari::track::{
-    MetricOutput, ObservationAttributes, ObservationMetric, ObservationMetricResult,
+    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricResult,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
@@ -32,6 +32,7 @@ impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
 
 impl TrackAttributes<BBoxAttributes, f32> for BBoxAttributes {
     type Update = BBoxAttributesUpdate;
+    type Lookup = NoopLookup<BBoxAttributes, f32>;
 
     fn compatible(&self, _other: &BBoxAttributes) -> bool {
         true

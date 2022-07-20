@@ -8,8 +8,8 @@ use similari::test_stuff::current_time_ms;
 use similari::test_stuff::FeatGen2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
-    MetricOutput, ObservationAttributes, ObservationMetric, ObservationSpec, ObservationsDb,
-    TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
+    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -217,6 +217,7 @@ fn feat_gen() {
 
 impl TrackAttributes<CamTrackingAttributes, f32> for CamTrackingAttributes {
     type Update = CamTrackingAttributesUpdate;
+    type Lookup = NoopLookup<CamTrackingAttributes, f32>;
 
     fn compatible(&self, other: &CamTrackingAttributes) -> bool {
         (self.start_time >= other.end_time || self.end_time <= other.start_time)

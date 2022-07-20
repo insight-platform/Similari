@@ -6,8 +6,8 @@ use similari::distance::euclidean;
 use similari::store::TrackStore;
 use similari::test_stuff::FeatGen;
 use similari::track::{
-    MetricOutput, ObservationMetric, ObservationMetricResult, ObservationSpec, ObservationsDb,
-    Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, NoopLookup, ObservationMetric, ObservationMetricResult, ObservationSpec,
+    ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -30,6 +30,7 @@ impl TrackAttributesUpdate<NoopAttributes> for NoopAttributesUpdate {
 
 impl TrackAttributes<NoopAttributes, ()> for NoopAttributes {
     type Update = NoopAttributesUpdate;
+    type Lookup = NoopLookup<NoopAttributes, ()>;
 
     fn compatible(&self, _other: &NoopAttributes) -> bool {
         true

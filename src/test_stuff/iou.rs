@@ -1,6 +1,6 @@
 use crate::test_stuff::BBox;
 use crate::track::{
-    MetricOutput, ObservationAttributes, ObservationMetric, ObservationMetricResult,
+    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricResult,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::voting::topn::TopNVotingElt;
@@ -25,6 +25,7 @@ impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
 
 impl TrackAttributes<BBoxAttributes, BBox> for BBoxAttributes {
     type Update = BBoxAttributesUpdate;
+    type Lookup = NoopLookup<BBoxAttributes, BBox>;
 
     fn compatible(&self, _other: &BBoxAttributes) -> bool {
         true

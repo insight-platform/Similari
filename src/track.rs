@@ -4,6 +4,7 @@ use anyhow::Result;
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::mem::take;
 use ultraviolet::f32x8;
 
@@ -153,15 +154,89 @@ pub enum TrackStatus {
     Wasted,
 }
 
+/// Trait that must be implemented to run searches over the store
+///
+pub trait LookupRequest<TA, OA>: Default + Send + Sync + Clone + 'static
+where
+    TA: TrackAttributes<TA, OA>,
+    OA: ObservationAttributes,
+{
+    fn lookup(
+        &self,
+        _attributes: &TA,
+        _observations: &ObservationsDb<OA>,
+        _merge_history: &[u64],
+    ) -> bool {
+        false
+    }
+}
+
+/// Do nothing lookup implementation that can be put anywhere lookup is required.
+///
+/// It is compatible with all TA, OA. Const parameter defines what lookup returns:
+/// * `false` - all lookup elements are ignored
+/// * `true` - all lookup elements are returned
+///
+pub struct NoopLookup<TA, OA, const RES: bool = false>
+where
+    TA: TrackAttributes<TA, OA>,
+    OA: ObservationAttributes,
+{
+    _ta: PhantomData<TA>,
+    _oa: PhantomData<OA>,
+}
+
+impl<TA, OA, const RES: bool> Clone for NoopLookup<TA, OA, RES>
+where
+    TA: TrackAttributes<TA, OA>,
+    OA: ObservationAttributes,
+{
+    fn clone(&self) -> Self {
+        NoopLookup {
+            _ta: PhantomData,
+            _oa: PhantomData,
+        }
+    }
+}
+
+impl<TA, OA, const RES: bool> Default for NoopLookup<TA, OA, RES>
+where
+    TA: TrackAttributes<TA, OA>,
+    OA: ObservationAttributes,
+{
+    fn default() -> Self {
+        NoopLookup {
+            _ta: PhantomData,
+            _oa: PhantomData,
+        }
+    }
+}
+
+impl<TA, OA, const RES: bool> LookupRequest<TA, OA> for NoopLookup<TA, OA, RES>
+where
+    TA: TrackAttributes<TA, OA>,
+    OA: ObservationAttributes,
+{
+    fn lookup(
+        &self,
+        _attributes: &TA,
+        _observations: &ObservationsDb<OA>,
+        _merge_history: &[u64],
+    ) -> bool {
+        RES
+    }
+}
+
 /// The trait represents user defined Track Attributes. It is used to define custom attributes that
 /// fit a domain field where tracking implemented.
 ///
 /// When the user implements track attributes they has to implement this trait to create a valid attributes object.
 ///
-pub trait TrackAttributes<TA, OA: ObservationAttributes>:
+pub trait TrackAttributes<TA: TrackAttributes<TA, OA>, OA: ObservationAttributes>:
     Default + Send + Sync + Clone + 'static
 {
     type Update: TrackAttributesUpdate<TA>;
+    type Lookup: LookupRequest<TA, OA>;
     /// The method is used to evaluate attributes of two tracks to determine whether tracks are compatible
     /// for distance calculation. When the attributes are compatible, the method returns `true`.
     ///
@@ -520,16 +595,22 @@ where
             }
         }
     }
+
+    pub fn lookup(&self, query: &TA::Lookup) -> bool {
+        query.lookup(&self.attributes, &self.observations, &self.merge_history)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::distance::euclidean;
+    use crate::prelude::TrackBuilder;
     use crate::test_stuff::current_time_sec;
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
-        MetricOutput, Observation, ObservationAttributes, ObservationMetric, ObservationSpec,
-        ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+        LookupRequest, MetricOutput, NoopLookup, Observation, ObservationAttributes,
+        ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
+        TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -548,6 +629,7 @@ mod tests {
 
     impl TrackAttributes<DefaultAttrs, f32> for DefaultAttrs {
         type Update = DefaultAttrUpdates;
+        type Lookup = NoopLookup<DefaultAttrs, f32>;
 
         fn compatible(&self, _other: &DefaultAttrs) -> bool {
             true
@@ -719,6 +801,7 @@ mod tests {
 
         impl TrackAttributes<TimeAttrs, f32> for TimeAttrs {
             type Update = TimeAttrUpdates;
+            type Lookup = NoopLookup<TimeAttrs, f32>;
 
             fn compatible(&self, other: &TimeAttrs) -> bool {
                 self.end_time <= other.start_time
@@ -875,6 +958,7 @@ mod tests {
 
         impl TrackAttributes<DefaultAttrs, f32> for DefaultAttrs {
             type Update = DefaultAttrUpdates;
+            type Lookup = NoopLookup<DefaultAttrs, f32>;
 
             fn compatible(&self, _other: &DefaultAttrs) -> bool {
                 true
@@ -1026,6 +1110,7 @@ mod tests {
 
         impl TrackAttributes<UnitAttrs, ()> for UnitAttrs {
             type Update = UnitAttrUpdates;
+            type Lookup = NoopLookup<UnitAttrs, ()>;
 
             fn compatible(&self, _other: &UnitAttrs) -> bool {
                 true
@@ -1075,5 +1160,86 @@ mod tests {
         }
 
         let _t1: Track<UnitAttrs, UnitMetric, ()> = Track::new(0, None, None, None);
+    }
+
+    #[test]
+    fn lookup() {
+        #[derive(Default, Clone)]
+        struct Lookup;
+        impl LookupRequest<LookupAttrs, f32> for Lookup {
+            fn lookup(
+                &self,
+                _attributes: &LookupAttrs,
+                _observations: &ObservationsDb<f32>,
+                _merge_history: &[u64],
+            ) -> bool {
+                true
+            }
+        }
+
+        #[derive(Debug, Clone, Default)]
+        struct LookupAttrs;
+
+        #[derive(Default, Clone)]
+        pub struct LookupAttributeUpdate;
+
+        impl TrackAttributesUpdate<LookupAttrs> for LookupAttributeUpdate {
+            fn apply(&self, _attrs: &mut LookupAttrs) -> Result<()> {
+                Ok(())
+            }
+        }
+
+        impl TrackAttributes<LookupAttrs, f32> for LookupAttrs {
+            type Update = LookupAttributeUpdate;
+            type Lookup = Lookup;
+
+            fn compatible(&self, _other: &LookupAttrs) -> bool {
+                true
+            }
+
+            fn merge(&mut self, _other: &LookupAttrs) -> Result<()> {
+                Ok(())
+            }
+
+            fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
+                Ok(TrackStatus::Ready)
+            }
+        }
+
+        #[derive(Default, Clone)]
+        pub struct LookupMetric;
+
+        impl ObservationMetric<LookupAttrs, f32> for LookupMetric {
+            fn metric(
+                _feature_class: u64,
+                _attrs1: &LookupAttrs,
+                _attrs2: &LookupAttrs,
+                e1: &ObservationSpec<f32>,
+                e2: &ObservationSpec<f32>,
+            ) -> MetricOutput<f32> {
+                Some((
+                    f32::calculate_metric_object(&e1.0, &e2.0),
+                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                        (Some(x), Some(y)) => Some(euclidean(x, y)),
+                        _ => None,
+                    },
+                ))
+            }
+
+            fn optimize(
+                &mut self,
+                _feature_class: &u64,
+                _merge_history: &[u64],
+                _attrs: &mut LookupAttrs,
+                _features: &mut Vec<ObservationSpec<f32>>,
+                _prev_length: usize,
+                _is_merge: bool,
+            ) -> Result<()> {
+                Ok(())
+            }
+        }
+
+        let t: Track<LookupAttrs, LookupMetric, f32> = TrackBuilder::default().build().unwrap();
+        assert_eq!(t.lookup(&Lookup), true);
     }
 }
