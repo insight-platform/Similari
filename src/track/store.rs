@@ -1,3 +1,5 @@
+pub mod builder;
+
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
     Observation, ObservationAttributes, ObservationMetric, ObservationMetricResult,
