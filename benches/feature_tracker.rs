@@ -136,7 +136,7 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         eprintln!("Lookup time: {:?}", elapsed);
 
         let tm = Instant::now();
-        let winners = voting.winners(&dists);
+        let winners = voting.winners(dists);
         let elapsed = tm.elapsed();
         eprintln!("Voting time: {:?}", elapsed);
 

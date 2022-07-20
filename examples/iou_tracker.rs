@@ -51,7 +51,7 @@ fn main() {
             let search_track = t.clone();
             let (dists, errs) = store.foreign_track_distances(vec![search_track], FEAT0, false);
             assert!(errs.is_empty());
-            let mut winners = voting.winners(&dists);
+            let mut winners = voting.winners(dists);
             if winners.is_empty() {
                 store.add_track(t).unwrap();
             } else {

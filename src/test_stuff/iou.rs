@@ -109,12 +109,12 @@ pub struct IOUTopNVoting {
 impl Voting<BBox> for IOUTopNVoting {
     type WinnerObject = TopNVotingElt;
 
-    fn winners(
-        &self,
-        distances: &[ObservationMetricResult<BBox>],
-    ) -> HashMap<u64, Vec<TopNVotingElt>> {
+    fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<TopNVotingElt>>
+    where
+        T: IntoIterator<Item = ObservationMetricResult<BBox>>,
+    {
         let mut tracks: Vec<_> = distances
-            .iter()
+            .into_iter()
             .filter(
                 |ObservationMetricResult {
                      from: _,
@@ -143,8 +143,8 @@ impl Voting<BBox> for IOUTopNVoting {
             .into_iter()
             .filter(|(_, count)| *count >= self.min_votes)
             .map(|((q, w), c)| TopNVotingElt {
-                query_track: *q,
-                winner_track: *w,
+                query_track: q,
+                winner_track: w,
                 votes: c,
             })
             .collect::<Vec<_>>();
