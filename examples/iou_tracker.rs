@@ -1,7 +1,8 @@
 use similari::store::TrackStore;
-use similari::test_stuff::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric, IOUTopNVoting};
-use similari::test_stuff::{current_time_ms, BBox, BoxGen2};
+use similari::test_stuff::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
+use similari::test_stuff::{current_time_ms, BoxGen2};
 use similari::track::Track;
+use similari::utils::bbox::{BBox, IOUTopNVoting};
 use similari::voting::Voting;
 use std::thread;
 use std::time::Duration;

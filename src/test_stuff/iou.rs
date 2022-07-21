@@ -1,13 +1,9 @@
-use crate::test_stuff::BBox;
 use crate::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
-    ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
+    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
-use crate::voting::topn::TopNVotingElt;
-use crate::voting::Voting;
+use crate::utils::bbox::BBox;
 use anyhow::Result;
-use itertools::Itertools;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct BBoxAttributes {
@@ -97,69 +93,5 @@ impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
         //     &attrs.bboxes.len()
         // );
         Ok(())
-    }
-}
-
-pub struct IOUTopNVoting {
-    pub topn: usize,
-    pub min_distance: f32,
-    pub min_votes: usize,
-}
-
-impl Voting<BBox> for IOUTopNVoting {
-    type WinnerObject = TopNVotingElt;
-
-    fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<TopNVotingElt>>
-    where
-        T: IntoIterator<Item = ObservationMetricOk<BBox>>,
-    {
-        let counts: Vec<_> = distances
-            .into_iter()
-            .filter(
-                |ObservationMetricOk {
-                     from: _,
-                     to: _track,
-                     attribute_metric: attr_dist,
-                     feature_distance: _,
-                 }| match attr_dist {
-                    Some(e) => *e >= self.min_distance,
-                    _ => false,
-                },
-            )
-            .map(
-                |ObservationMetricOk {
-                     from: src_track,
-                     to: dest_track,
-                     attribute_metric: _,
-                     feature_distance: _,
-                 }| (src_track, dest_track),
-            )
-            .counts()
-            .into_iter()
-            .filter(|(_, count)| *count >= self.min_votes)
-            .map(|((q, w), c)| TopNVotingElt {
-                query_track: q,
-                winner_track: w,
-                votes: c,
-            })
-            .collect::<Vec<_>>();
-
-        let mut results: HashMap<u64, Vec<TopNVotingElt>> = HashMap::new();
-
-        for c in counts {
-            let key = c.query_track;
-            if let Some(val) = results.get_mut(&key) {
-                val.push(c);
-            } else {
-                results.insert(key, vec![c]);
-            }
-        }
-
-        for counts in results.values_mut() {
-            counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
-            counts.truncate(self.topn);
-        }
-
-        results
     }
 }

@@ -1,10 +1,11 @@
 use similari::distance::euclidean;
 use similari::prelude::*;
-use similari::test_stuff::{BBox, BoxGen2, FeatGen2};
+use similari::test_stuff::{BoxGen2, FeatGen2};
 use similari::track::{
     MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
+use similari::utils::bbox::BBox;
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
 use std::thread;
