@@ -79,13 +79,13 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         let tm = Instant::now();
         let (dists, errs) = store.foreign_track_distances(search_tracks, FEAT0, false);
         let elapsed = tm.elapsed();
-        assert!(errs.is_empty());
         eprintln!("Lookup time: {:?}", elapsed);
 
         let tm = Instant::now();
-        let winners = voting.winners(&dists);
+        let winners = voting.winners(dists);
         let elapsed = tm.elapsed();
         eprintln!("Voting time: {:?}", elapsed);
+        assert!(errs.all().is_empty());
 
         let tm = Instant::now();
         for t in tracks {

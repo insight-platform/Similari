@@ -50,8 +50,8 @@ fn main() {
         for t in [obj1t, obj2t] {
             let search_track = t.clone();
             let (dists, errs) = store.foreign_track_distances(vec![search_track], FEAT0, false);
-            assert!(errs.is_empty());
-            let mut winners = voting.winners(&dists);
+            assert!(errs.all().is_empty());
+            let mut winners = voting.winners(dists.all());
             if winners.is_empty() {
                 store.add_track(t).unwrap();
             } else {

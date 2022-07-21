@@ -2,7 +2,7 @@ use similari::distance::euclidean;
 use similari::prelude::*;
 use similari::test_stuff::{BBox, BoxGen2, FeatGen2};
 use similari::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricResult,
+    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
@@ -85,8 +85,8 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
 
     fn postprocess_distances(
         &self,
-        unfiltered: Vec<ObservationMetricResult<f32>>,
-    ) -> Vec<ObservationMetricResult<f32>> {
+        unfiltered: Vec<ObservationMetricOk<f32>>,
+    ) -> Vec<ObservationMetricOk<f32>> {
         unfiltered
             .into_iter()
             .filter(|r| r.feature_distance.unwrap() < MAX_DIST)
@@ -139,8 +139,8 @@ fn main() {
         for t in [obj1t, obj2t] {
             let search_track = t.clone();
             let (dists, errs) = store.foreign_track_distances(vec![search_track], FEAT0, false);
-            assert!(errs.is_empty());
-            let winners = voting.winners(&dists);
+            assert!(errs.all().is_empty());
+            let winners = voting.winners(dists);
             if winners.is_empty() {
                 store.add_track(t).unwrap();
             } else {

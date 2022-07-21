@@ -1,10 +1,11 @@
 pub mod builder;
-mod store_tests;
+mod tests;
+pub mod track_distance;
 
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    Observation, ObservationAttributes, ObservationMetric, ObservationMetricResult,
-    ObservationSpec, Track, TrackAttributes, TrackStatus,
+    Observation, ObservationAttributes, ObservationMetric, ObservationMetricOk, ObservationSpec,
+    Track, TrackAttributes, TrackStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -14,6 +15,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::{mem, thread};
+use track_distance::{TrackDistanceErr, TrackDistanceOk};
 
 #[derive(Clone)]
 enum Commands<TA, M, OA, N>
@@ -25,7 +27,13 @@ where
 {
     Drop(Sender<Results<OA>>),
     FindBaked(Sender<Results<OA>>),
-    Distances(Arc<Track<TA, M, OA, N>>, u64, bool, Sender<Results<OA>>),
+    Distances(
+        Arc<Track<TA, M, OA, N>>,
+        u64,
+        bool,
+        Sender<Results<OA>>,
+        Sender<Results<OA>>,
+    ),
     Lookup(TA::Lookup, Sender<Results<OA>>),
     Merge(
         u64,
@@ -45,17 +53,13 @@ pub type StoreMutexGuard<'a, TA, M, FA, N> = MutexGuard<'a, HashMap<u64, Track<T
 ///
 pub type OwnedMergeResult<TA, M, FA, N> = Result<Option<Track<TA, M, FA, N>>>;
 
-pub type TrackDistances<T> = (Vec<ObservationMetricResult<T>>, Vec<TrackDistanceError<T>>);
-
 #[derive(Debug)]
-enum Results<OA>
+pub(crate) enum Results<OA>
 where
     OA: ObservationAttributes,
 {
-    Distance(
-        Vec<ObservationMetricResult<OA>>,
-        Vec<TrackDistanceError<OA>>,
-    ),
+    DistanceOk(Vec<ObservationMetricOk<OA>>),
+    DistanceErr(Vec<ObservationMetricErr<OA>>),
     BakedStatus(Vec<(u64, Result<TrackStatus>)>),
     Dropped,
     MergeResult(Result<()>),
@@ -90,7 +94,7 @@ where
 }
 
 /// Auxiliary type to express distance calculation errors
-pub type TrackDistanceError<M> = Result<Vec<ObservationMetricResult<M>>>;
+pub type ObservationMetricErr<OA> = Result<Vec<ObservationMetricOk<OA>>>;
 
 /// Track store container with accelerated similarity operations.
 ///
@@ -203,13 +207,17 @@ where
                         return;
                     }
                 }
-                Commands::Distances(track, feature_class, only_baked, channel) => {
+                Commands::Distances(track, feature_class, only_baked, channel_ok, channel_err) => {
                     let mut capacity = 0;
                     let res = store
                         .lock()
                         .unwrap()
                         .iter()
                         .flat_map(|(_, other)| {
+                            if track.track_id == other.track_id {
+                                return None;
+                            }
+
                             if !only_baked {
                                 let dists = track.distances(other, feature_class);
                                 match dists {
@@ -255,9 +263,14 @@ where
                         }
                     }
 
-                    let r = channel.send(Results::Distance(distances, errors));
-                    if let Err(_e) = r {
-                        return;
+                    let r = channel_ok.send(Results::DistanceOk(distances));
+                    if let Err(e) = r {
+                        warn!("Unable to send data back to caller. Channel error: {:?}", e);
+                    }
+
+                    let r = channel_err.send(Results::DistanceErr(errors));
+                    if let Err(e) = r {
+                        warn!("Unable to send data back to caller. Channel error: {:?}", e);
                     }
                 }
                 Commands::Merge(dest_id, src, classes, merge_history, channel_opt) => {
@@ -427,12 +440,11 @@ where
         tracks: Vec<Track<TA, M, OA, N>>,
         feature_class: u64,
         only_baked: bool,
-    ) -> TrackDistances<OA> {
+    ) -> (TrackDistanceOk<OA>, TrackDistanceErr<OA>) {
         let tracks_count = tracks.len();
 
-        let (results_sender, results_receiver) = crossbeam::channel::unbounded();
-        let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
-        let mut errors = Vec::new();
+        let (results_ok_sender, results_ok_receiver) = crossbeam::channel::unbounded();
+        let (results_err_sender, results_err_receiver) = crossbeam::channel::unbounded();
 
         for track in tracks {
             let track = Arc::new(track);
@@ -441,25 +453,19 @@ where
                     track.clone(),
                     feature_class,
                     only_baked,
-                    results_sender.clone(),
+                    results_ok_sender.clone(),
+                    results_err_sender.clone(),
                 ))
                 .unwrap();
             }
         }
 
-        for _ in 0..(self.executors.len() * tracks_count) {
-            let res = results_receiver.recv().unwrap();
-            match res {
-                Results::Distance(r, e) => {
-                    results.extend_from_slice(&r);
-                    errors.extend(e);
-                }
-                _ => {
-                    unreachable!();
-                }
-            }
-        }
-        (results, errors)
+        let count = self.executors.len() * tracks_count;
+
+        (
+            TrackDistanceOk::new(count, results_ok_receiver),
+            TrackDistanceErr::new(count, results_err_receiver),
+        )
     }
 
     /// Calculates track distances for a track within the store
@@ -476,12 +482,8 @@ where
         tracks: &[u64],
         feature_class: u64,
         only_baked: bool,
-    ) -> TrackDistances<OA> {
+    ) -> (TrackDistanceOk<OA>, TrackDistanceErr<OA>) {
         let tracks_vec = self.fetch_tracks(tracks);
-
-        if tracks_vec.is_empty() {
-            return (vec![], vec![Err(Errors::TracksNotFound.into())]);
-        }
 
         let res = self.foreign_track_distances(tracks_vec.clone(), feature_class, only_baked);
 

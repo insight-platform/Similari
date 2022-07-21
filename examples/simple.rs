@@ -68,13 +68,15 @@ fn main() {
     assert!(res.is_ok());
 
     let (dists, errs) = db.foreign_track_distances(vec![ext_track], 0, true);
+    let dists = dists.all();
+    let errs = errs.all();
     assert_eq!(errs.len(), 0);
 
     eprintln!("Distances: {:?}", &dists);
     eprintln!("Errs: {:?}", &errs);
 
     let top1_voting_engine: TopNVoting<f32> = TopNVoting::new(2, 1.0, 1);
-    let results = top1_voting_engine.winners(&dists);
+    let results = top1_voting_engine.winners(dists.clone());
     eprintln!(
         "Voting results (the less distance, the better result): {:?}",
         &results
@@ -82,7 +84,7 @@ fn main() {
 
     // max distance filter set to 0.4
     let top1_voting_engine_filter: TopNVoting<f32> = TopNVoting::new(2, 0.4, 1);
-    let results = top1_voting_engine_filter.winners(&dists);
+    let results = top1_voting_engine_filter.winners(dists);
     eprintln!(
         "Voting results (the less distance, the better result): {:?}",
         &results
