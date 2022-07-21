@@ -164,7 +164,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::test_stuff::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
+    use crate::examples::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
     use crate::track::builder::{ObservationBuilder, TrackBuilder};
     use crate::track::notify::NoopNotifier;
     use crate::track::utils::FromVec;

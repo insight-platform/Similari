@@ -3,8 +3,8 @@
 extern crate test;
 
 use similari::distance::euclidean;
+use similari::examples::FeatGen;
 use similari::store::TrackStore;
-use similari::test_stuff::FeatGen;
 use similari::track::{
     MetricOutput, NoopLookup, ObservationMetric, ObservationMetricOk, ObservationSpec,
     ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,

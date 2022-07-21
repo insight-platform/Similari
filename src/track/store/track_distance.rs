@@ -230,8 +230,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::distance::euclidean;
+    use crate::examples::vec2;
     use crate::prelude::{ObservationBuilder, TrackBuilder, TrackStoreBuilder};
-    use crate::test_stuff::vec2;
     use crate::track::{
         MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
         ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,

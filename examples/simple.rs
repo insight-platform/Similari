@@ -1,5 +1,5 @@
+use similari::examples::{vec2, SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::store;
-use similari::test_stuff::{vec2, SimpleAttributeUpdate, SimpleAttrs, SimpleMetric};
 use similari::track::notify::NoopNotifier;
 use similari::track::Track;
 use similari::voting::topn::TopNVoting;

@@ -1,6 +1,6 @@
+use similari::examples::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
+use similari::examples::{current_time_ms, BoxGen2};
 use similari::store::TrackStore;
-use similari::test_stuff::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
-use similari::test_stuff::{current_time_ms, BoxGen2};
 use similari::track::Track;
 use similari::utils::bbox::{BBox, IOUTopNVoting};
 use similari::voting::Voting;

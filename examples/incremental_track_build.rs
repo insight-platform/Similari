@@ -1,6 +1,6 @@
 use similari::distance::euclidean;
+use similari::examples::{BoxGen2, FeatGen2};
 use similari::prelude::*;
-use similari::test_stuff::{BoxGen2, FeatGen2};
 use similari::track::{
     MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
