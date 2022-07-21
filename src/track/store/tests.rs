@@ -217,8 +217,8 @@ mod tests {
             time_attrs_current_ts(),
         )?;
         let (dists, errs) = store.owned_track_distances(&[0], 0, false);
-        assert!(dists.is_empty());
-        assert!(errs.is_empty());
+        assert!(dists.all().is_empty());
+        assert!(errs.all().is_empty());
         thread::sleep(Duration::from_millis(10));
         store.add(
             1,
@@ -229,6 +229,9 @@ mod tests {
         )?;
 
         let (dists, errs) = store.owned_track_distances(&[0], 0, false);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].to, 1);
         assert!(dists[0].feature_distance.is_some());
@@ -236,6 +239,9 @@ mod tests {
         assert!(errs.is_empty());
 
         let (dists, errs) = store.owned_track_distances(&[1], 0, false);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 0);
 
@@ -243,6 +249,9 @@ mod tests {
 
         let v = v.pop().unwrap();
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert_eq!(dists.len(), 1);
         assert_eq!(dists[0].to, 1);
         assert!(dists[0].feature_distance.is_some());
@@ -255,6 +264,9 @@ mod tests {
         v.attributes.end_time = current_time_ms();
 
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 0);
 
@@ -270,6 +282,9 @@ mod tests {
         let mut v = v.clone();
         v.attributes.end_time = store.get_store(1).get(&1).unwrap().attributes.start_time - 1;
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert_eq!(dists.len(), 2);
         assert_eq!(dists[0].to, 1);
         assert!(dists[0].feature_distance.is_some());
@@ -321,6 +336,9 @@ mod tests {
         )?;
 
         let (dists, errs) = store.foreign_track_distances(vec![ext_track.clone()], 0, true);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert!(dists.is_empty());
         assert!(errs.is_empty());
         thread::sleep(Duration::from_millis(10));
@@ -333,6 +351,10 @@ mod tests {
         )?;
 
         let (dists, errs) = store.owned_track_distances(&[1], 0, true);
+        let dists = dists.all();
+        let errs = errs.all();
+
+        dbg!(&dists);
         assert!(dists.is_empty());
         assert!(errs.is_empty());
 
@@ -378,6 +400,9 @@ mod tests {
         )?;
 
         let (dists, errs) = store.foreign_track_distances(vec![ext_track.clone()], 0, false);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 
@@ -391,6 +416,9 @@ mod tests {
         )?;
 
         let (dists, errs) = store.owned_track_distances(&[1], 0, false);
+        let dists = dists.all();
+        let errs = errs.all();
+
         assert_eq!(dists.len(), 1);
         assert!(errs.is_empty());
 

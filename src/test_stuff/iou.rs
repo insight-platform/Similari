@@ -1,6 +1,6 @@
 use crate::test_stuff::BBox;
 use crate::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricResult,
+    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::voting::topn::TopNVotingElt;
@@ -111,12 +111,12 @@ impl Voting<BBox> for IOUTopNVoting {
 
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<TopNVotingElt>>
     where
-        T: IntoIterator<Item = ObservationMetricResult<BBox>>,
+        T: IntoIterator<Item = ObservationMetricOk<BBox>>,
     {
-        let mut tracks: Vec<_> = distances
+        let counts: Vec<_> = distances
             .into_iter()
             .filter(
-                |ObservationMetricResult {
+                |ObservationMetricOk {
                      from: _,
                      to: _track,
                      attribute_metric: attr_dist,
@@ -127,18 +127,13 @@ impl Voting<BBox> for IOUTopNVoting {
                 },
             )
             .map(
-                |ObservationMetricResult {
+                |ObservationMetricOk {
                      from: src_track,
                      to: dest_track,
                      attribute_metric: _,
                      feature_distance: _,
                  }| (src_track, dest_track),
             )
-            .collect();
-        tracks.sort_unstable();
-
-        let counts = tracks
-            .into_iter()
             .counts()
             .into_iter()
             .filter(|(_, count)| *count >= self.min_votes)

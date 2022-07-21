@@ -6,7 +6,7 @@ use similari::distance::euclidean;
 use similari::store::TrackStore;
 use similari::test_stuff::FeatGen;
 use similari::track::{
-    MetricOutput, NoopLookup, ObservationMetric, ObservationMetricResult, ObservationSpec,
+    MetricOutput, NoopLookup, ObservationMetric, ObservationMetricOk, ObservationSpec,
     ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
@@ -82,8 +82,8 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
 
     fn postprocess_distances(
         &self,
-        unfiltered: Vec<ObservationMetricResult<()>>,
-    ) -> Vec<ObservationMetricResult<()>> {
+        unfiltered: Vec<ObservationMetricOk<()>>,
+    ) -> Vec<ObservationMetricOk<()>> {
         unfiltered
             .into_iter()
             .filter(|x| {
@@ -132,13 +132,13 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         let tm = Instant::now();
         let (dists, errs) = store.foreign_track_distances(search_tracks, FEAT0, false);
         let elapsed = tm.elapsed();
-        assert!(errs.is_empty());
         eprintln!("Lookup time: {:?}", elapsed);
 
         let tm = Instant::now();
         let winners = voting.winners(dists);
         let elapsed = tm.elapsed();
         eprintln!("Voting time: {:?}", elapsed);
+        assert!(errs.all().is_empty());
 
         let tm = Instant::now();
         for t in tracks {

@@ -17,21 +17,21 @@ pub mod voting;
 /// Return type item for distances between the current track and other track.
 ///
 #[derive(Debug, Clone)]
-pub struct ObservationMetricResult<M>
+pub struct ObservationMetricOk<OA>
 where
-    M: ObservationAttributes,
+    OA: ObservationAttributes,
 {
     /// source track ID
     pub from: u64,
     /// compared track ID
     pub to: u64,
     /// custom feature attribute metric object calculated for pairwise feature attributes
-    pub attribute_metric: Option<M::MetricObject>,
+    pub attribute_metric: Option<OA::MetricObject>,
     /// distance calculated for pairwise features
     pub feature_distance: Option<f32>,
 }
 
-impl<M> ObservationMetricResult<M>
+impl<M> ObservationMetricOk<M>
 where
     M: ObservationAttributes,
 {
@@ -134,8 +134,8 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>:
     ///
     fn postprocess_distances(
         &self,
-        unfiltered: Vec<ObservationMetricResult<OA>>,
-    ) -> Vec<ObservationMetricResult<OA>> {
+        unfiltered: Vec<ObservationMetricOk<OA>>,
+    ) -> Vec<ObservationMetricOk<OA>> {
         unfiltered
     }
 }
@@ -559,7 +559,7 @@ where
         &self,
         other: &Self,
         feature_class: u64,
-    ) -> Result<Vec<ObservationMetricResult<OA>>> {
+    ) -> Result<Vec<ObservationMetricOk<OA>>> {
         if !self.attributes.compatible(&other.attributes) {
             Err(Errors::IncompatibleAttributes.into())
         } else {
@@ -578,7 +578,7 @@ where
                             l,
                             r,
                         )?;
-                        Some(ObservationMetricResult {
+                        Some(ObservationMetricOk {
                             from: self.track_id,
                             to: other.track_id,
                             attribute_metric,

@@ -1,6 +1,6 @@
 pub mod topn;
 
-use crate::track::{ObservationAttributes, ObservationMetricResult};
+use crate::track::{ObservationAttributes, ObservationMetricOk};
 use std::collections::HashMap;
 
 /// Trait to implement distance voting engines.
@@ -24,5 +24,5 @@ where
     ///
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<Self::WinnerObject>>
     where
-        T: IntoIterator<Item = ObservationMetricResult<OA>>;
+        T: IntoIterator<Item = ObservationMetricOk<OA>>;
 }

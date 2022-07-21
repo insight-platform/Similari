@@ -1,4 +1,4 @@
-use crate::track::{ObservationAttributes, ObservationMetricResult};
+use crate::track::{ObservationAttributes, ObservationMetricOk};
 use crate::voting::Voting;
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -73,12 +73,12 @@ where
 
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<TopNVotingElt>>
     where
-        T: IntoIterator<Item = ObservationMetricResult<OA>>,
+        T: IntoIterator<Item = ObservationMetricOk<OA>>,
     {
-        let mut tracks: Vec<_> = distances
+        let counts: Vec<_> = distances
             .into_iter()
             .filter(
-                |ObservationMetricResult {
+                |ObservationMetricOk {
                      from: _,
                      to: _track,
                      attribute_metric: _f_attr_dist,
@@ -89,18 +89,13 @@ where
                 },
             )
             .map(
-                |ObservationMetricResult {
+                |ObservationMetricOk {
                      from: src_track,
                      to: dest_track,
                      attribute_metric: _f_attr_dist,
                      feature_distance: _feat_dist,
                  }| (src_track, dest_track),
             )
-            .collect();
-        tracks.sort_unstable();
-
-        let counts = tracks
-            .into_iter()
             .counts()
             .into_iter()
             .filter(|(_, count)| *count >= self.min_votes)
@@ -134,14 +129,14 @@ where
 #[cfg(test)]
 mod tests {
     use crate::track::voting::topn::{TopNVoting, TopNVotingElt, Voting};
-    use crate::track::ObservationMetricResult;
+    use crate::track::ObservationMetricOk;
     use std::collections::HashMap;
 
     #[test]
     fn default_voting() {
         let v: TopNVoting<()> = TopNVoting::new(5, 0.32, 1);
 
-        let candidates = v.winners([ObservationMetricResult::new(0, 1, None, Some(0.2))]);
+        let candidates = v.winners([ObservationMetricOk::new(0, 1, None, Some(0.2))]);
 
         assert_eq!(
             candidates,
@@ -149,8 +144,8 @@ mod tests {
         );
 
         let candidates = v.winners([
-            ObservationMetricResult::new(0, 1, None, Some(0.2)),
-            ObservationMetricResult::new(0, 1, None, Some(0.3)),
+            ObservationMetricOk::new(0, 1, None, Some(0.2)),
+            ObservationMetricOk::new(0, 1, None, Some(0.3)),
         ]);
 
         assert_eq!(
@@ -159,8 +154,8 @@ mod tests {
         );
 
         let candidates = v.winners([
-            ObservationMetricResult::new(0, 1, None, Some(0.2)),
-            ObservationMetricResult::new(0, 1, None, Some(0.4)),
+            ObservationMetricOk::new(0, 1, None, Some(0.2)),
+            ObservationMetricOk::new(0, 1, None, Some(0.4)),
         ]);
 
         assert_eq!(
@@ -169,8 +164,8 @@ mod tests {
         );
 
         let mut candidates = v.winners([
-            ObservationMetricResult::new(0, 1, None, Some(0.2)),
-            ObservationMetricResult::new(0, 2, None, Some(0.2)),
+            ObservationMetricOk::new(0, 1, None, Some(0.2)),
+            ObservationMetricOk::new(0, 2, None, Some(0.2)),
         ]);
 
         candidates
@@ -187,18 +182,18 @@ mod tests {
         );
 
         let mut candidates = v.winners([
-            ObservationMetricResult::new(0, 1, None, Some(0.2)),
-            ObservationMetricResult::new(0, 1, None, Some(0.22)),
-            ObservationMetricResult::new(0, 2, None, Some(0.21)),
-            ObservationMetricResult::new(0, 2, None, Some(0.2)),
-            ObservationMetricResult::new(0, 3, None, Some(0.22)),
-            ObservationMetricResult::new(0, 3, None, Some(0.2)),
-            ObservationMetricResult::new(0, 4, None, Some(0.23)),
-            ObservationMetricResult::new(0, 4, None, Some(0.3)),
-            ObservationMetricResult::new(0, 5, None, Some(0.24)),
-            ObservationMetricResult::new(0, 5, None, Some(0.3)),
-            ObservationMetricResult::new(0, 6, None, Some(0.25)),
-            ObservationMetricResult::new(0, 6, None, Some(0.5)),
+            ObservationMetricOk::new(0, 1, None, Some(0.2)),
+            ObservationMetricOk::new(0, 1, None, Some(0.22)),
+            ObservationMetricOk::new(0, 2, None, Some(0.21)),
+            ObservationMetricOk::new(0, 2, None, Some(0.2)),
+            ObservationMetricOk::new(0, 3, None, Some(0.22)),
+            ObservationMetricOk::new(0, 3, None, Some(0.2)),
+            ObservationMetricOk::new(0, 4, None, Some(0.23)),
+            ObservationMetricOk::new(0, 4, None, Some(0.3)),
+            ObservationMetricOk::new(0, 5, None, Some(0.24)),
+            ObservationMetricOk::new(0, 5, None, Some(0.3)),
+            ObservationMetricOk::new(0, 6, None, Some(0.25)),
+            ObservationMetricOk::new(0, 6, None, Some(0.5)),
         ]);
 
         candidates
@@ -226,18 +221,18 @@ mod tests {
         let v: TopNVoting<f32> = TopNVoting::new(5, 0.32, 1);
 
         let mut candidates = v.winners([
-            ObservationMetricResult::new(0, 1, None, Some(0.2)),
-            ObservationMetricResult::new(0, 1, None, Some(0.22)),
-            ObservationMetricResult::new(0, 2, None, Some(0.21)),
-            ObservationMetricResult::new(0, 2, None, Some(0.2)),
-            ObservationMetricResult::new(0, 3, None, Some(0.22)),
-            ObservationMetricResult::new(0, 3, None, Some(0.2)),
-            ObservationMetricResult::new(7, 4, None, Some(0.23)),
-            ObservationMetricResult::new(7, 4, None, Some(0.3)),
-            ObservationMetricResult::new(7, 5, None, Some(0.24)),
-            ObservationMetricResult::new(7, 5, None, Some(0.3)),
-            ObservationMetricResult::new(7, 6, None, Some(0.25)),
-            ObservationMetricResult::new(7, 6, None, Some(0.5)),
+            ObservationMetricOk::new(0, 1, None, Some(0.2)),
+            ObservationMetricOk::new(0, 1, None, Some(0.22)),
+            ObservationMetricOk::new(0, 2, None, Some(0.21)),
+            ObservationMetricOk::new(0, 2, None, Some(0.2)),
+            ObservationMetricOk::new(0, 3, None, Some(0.22)),
+            ObservationMetricOk::new(0, 3, None, Some(0.2)),
+            ObservationMetricOk::new(7, 4, None, Some(0.23)),
+            ObservationMetricOk::new(7, 4, None, Some(0.3)),
+            ObservationMetricOk::new(7, 5, None, Some(0.24)),
+            ObservationMetricOk::new(7, 5, None, Some(0.3)),
+            ObservationMetricOk::new(7, 6, None, Some(0.25)),
+            ObservationMetricOk::new(7, 6, None, Some(0.5)),
         ]);
 
         candidates
