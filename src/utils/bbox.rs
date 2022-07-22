@@ -14,6 +14,37 @@ pub struct BBox {
     pub height: f32,
 }
 
+#[derive(Clone, Default, Debug)]
+pub struct AspectBBox {
+    pub x: f32,
+    pub y: f32,
+    pub aspect: f32,
+    pub height: f32,
+}
+
+impl From<BBox> for AspectBBox {
+    fn from(f: BBox) -> Self {
+        AspectBBox {
+            x: f.x + f.width / 2.0,
+            y: f.y + f.height / 2.0,
+            aspect: f.width / f.height,
+            height: f.height,
+        }
+    }
+}
+
+impl From<AspectBBox> for BBox {
+    fn from(f: AspectBBox) -> Self {
+        let width = f.height * f.aspect;
+        BBox {
+            x: f.x - width / 2.0,
+            y: f.y - f.height / 2.0,
+            width,
+            height: f.height,
+        }
+    }
+}
+
 impl ObservationAttributes for BBox {
     type MetricObject = f32;
 
