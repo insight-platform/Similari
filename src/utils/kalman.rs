@@ -234,9 +234,9 @@ mod tests {
                 width: 15.1,
                 height: 100.1,
             };
+            state = f.predict(state);
             let bb_xyah = bb.clone().into();
             state = f.update(state, bb_xyah);
-            state = f.predict(state);
         }
         eprintln!("Elapsed: {:?}", now.elapsed());
     }
