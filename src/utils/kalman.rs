@@ -174,10 +174,8 @@ impl KalmanFilter {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean.clone(), covariance.clone());
         let (projected_mean, projected_cov) = (projected_state.mean, projected_state.covariance);
-        let choletsky_factor = projected_cov.cholesky().unwrap().l();
-        let kalman_gain = choletsky_factor
-            .solve_lower_triangular(&(covariance * self.update_matrix.transpose()).transpose())
-            .unwrap();
+        let b = (covariance * self.update_matrix.transpose()).transpose();
+        let kalman_gain = projected_cov.solve_lower_triangular(&b).unwrap();
 
         let innovation = SVector::from_vec(vec![
             measurement.x,
@@ -196,10 +194,9 @@ impl KalmanFilter {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::bbox::BBox;
+    use crate::utils::bbox::{AspectBBox, BBox};
     use crate::utils::kalman::KalmanFilter;
-
-    /// convert an nalgebra array to a String
+    use std::time::Instant;
 
     #[test]
     fn constructor() {
@@ -227,12 +224,10 @@ mod tests {
         };
 
         let mut state = f.initiate(bbox.clone().into());
+        eprintln!("Initiate: {:?}", AspectBBox::from(bbox.clone()));
         state.dump();
-
-        let int_state = f.project(state.mean, state.covariance);
-        int_state.dump();
-
-        for i in 0..50 {
+        let now = Instant::now();
+        for i in 0..100000 {
             let bb = BBox {
                 x: 1.2 + i as f32,
                 y: 2.3 + i as f32,
@@ -240,31 +235,9 @@ mod tests {
                 height: 100.1,
             };
             let bb_xyah = bb.clone().into();
-            dbg!(&bb_xyah);
-
             state = f.update(state, bb_xyah);
-            state.dump();
-
             state = f.predict(state);
-            eprintln!("Orig={:?}, Predict={:?}", bb, &state.bbox());
-            state.dump();
         }
-
-        let mut range: Vec<_> = (10..50).into_iter().collect();
-        range.reverse();
-
-        for i in range {
-            let bb = BBox {
-                x: 1.2 + i as f32,
-                y: 2.3 + i as f32,
-                width: 15.1,
-                height: 20.1,
-            };
-
-            state = f.update(state, bb.clone().into());
-
-            state = f.predict(state);
-            eprintln!("Orig={:?}, Predict={:?}", bb, &state.bbox());
-        }
+        eprintln!("Elapsed: {:?}", now.elapsed());
     }
 }
