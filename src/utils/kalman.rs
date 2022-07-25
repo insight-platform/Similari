@@ -172,7 +172,7 @@ impl KalmanFilter {
 
     pub fn update(&self, state: State<DIM_X2>, measurement: AspectBBox) -> State<DIM_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
-        let projected_state = self.project(mean.clone(), covariance.clone());
+        let projected_state = self.project(mean, covariance);
         let (projected_mean, projected_cov) = (projected_state.mean, projected_state.covariance);
         let b = (covariance * self.update_matrix.transpose()).transpose();
         let kalman_gain = projected_cov.solve_lower_triangular(&b).unwrap();
