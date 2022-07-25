@@ -12,7 +12,7 @@ pub mod distance;
 
 /// Various auxiliary testing and example components
 ///
-pub mod test_stuff;
+pub mod examples;
 
 pub mod prelude;
 /// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions. It defines the track's
@@ -20,6 +20,7 @@ pub mod prelude;
 /// calculate feature distances between pair of tracks.
 ///
 pub mod track;
+pub mod utils;
 
 pub use track::store;
 pub use track::voting;

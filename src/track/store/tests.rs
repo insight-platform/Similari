@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::distance::euclidean;
+    use crate::examples::{current_time_ms, vec2};
     use crate::prelude::{TrackBuilder, TrackStoreBuilder};
-    use crate::test_stuff::{current_time_ms, vec2};
     use crate::track::store::TrackStore;
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::{

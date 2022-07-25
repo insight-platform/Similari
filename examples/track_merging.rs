@@ -3,9 +3,9 @@ use anyhow::Result;
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
 use similari::distance::euclidean;
+use similari::examples::current_time_ms;
+use similari::examples::FeatGen2;
 use similari::store::TrackStore;
-use similari::test_stuff::current_time_ms;
-use similari::test_stuff::FeatGen2;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
     MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
@@ -204,7 +204,7 @@ fn cam_tracking_attributes_update_test() {
 
 #[test]
 fn feat_gen() {
-    use similari::test_stuff::FeatGen2;
+    use similari::examples::FeatGen2;
     use std::ops::Sub;
     use ultraviolet::f32x8;
 

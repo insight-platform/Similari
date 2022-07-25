@@ -604,8 +604,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::distance::euclidean;
+    use crate::examples::current_time_sec;
     use crate::prelude::TrackBuilder;
-    use crate::test_stuff::current_time_sec;
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
         LookupRequest, MetricOutput, NoopLookup, Observation, ObservationAttributes,

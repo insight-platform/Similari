@@ -3,8 +3,8 @@
 extern crate test;
 
 use rand::{distributions::Uniform, Rng};
+use similari::examples::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
 use similari::store;
-use similari::test_stuff::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
 use similari::track::notify::NoopNotifier;
 use similari::track::utils::FromVec;
 use similari::track::{Observation, Track};

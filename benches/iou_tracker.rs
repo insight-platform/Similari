@@ -2,10 +2,11 @@
 
 extern crate test;
 
+use similari::examples::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
+use similari::examples::BoxGen2;
 use similari::store::TrackStore;
-use similari::test_stuff::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric, IOUTopNVoting};
-use similari::test_stuff::{BBox, BoxGen2};
 use similari::track::Track;
+use similari::utils::bbox::{BBox, IOUTopNVoting};
 use similari::voting::Voting;
 use std::time::Instant;
 use test::Bencher;

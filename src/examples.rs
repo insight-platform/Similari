@@ -6,12 +6,11 @@ use crate::track::{
     MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
-use crate::EPS;
+use crate::utils::bbox::BBox;
 use anyhow::Result;
 use rand::distributions::Uniform;
 use rand::prelude::ThreadRng;
 use rand::Rng;
-use std::cmp::Ordering;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
@@ -165,31 +164,6 @@ pub fn vec2(x: f32, y: f32) -> Observation {
     Observation::from_vec(vec![x, y])
 }
 
-impl ObservationAttributes for f32 {
-    type MetricObject = f32;
-
-    fn calculate_metric_object(
-        left: &Option<Self>,
-        right: &Option<Self>,
-    ) -> Option<Self::MetricObject> {
-        if let (Some(left), Some(right)) = (left, right) {
-            Some((left - right).abs())
-        } else {
-            None
-        }
-    }
-}
-impl ObservationAttributes for () {
-    type MetricObject = ();
-
-    fn calculate_metric_object(
-        _left: &Option<Self>,
-        _right: &Option<Self>,
-    ) -> Option<Self::MetricObject> {
-        None
-    }
-}
-
 pub struct FeatGen2 {
     x: f32,
     y: f32,
@@ -284,111 +258,6 @@ pub fn current_time_ms() -> u128 {
 #[inline]
 pub fn current_time_sec() -> u64 {
     current_time_span().as_secs()
-}
-
-#[derive(Clone, Default, Debug)]
-pub struct BBox {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-}
-
-impl ObservationAttributes for BBox {
-    type MetricObject = f32;
-
-    fn calculate_metric_object(
-        _left: &Option<Self>,
-        _right: &Option<Self>,
-    ) -> Option<Self::MetricObject> {
-        match (_left, _right) {
-            (Some(l), Some(r)) => {
-                assert!(l.width > 0.0);
-                assert!(l.height > 0.0);
-                assert!(r.width > 0.0);
-                assert!(r.height > 0.0);
-
-                let (ax0, ay0, ax1, ay1) = (l.x, l.y, l.x + l.width, l.y + l.height);
-                let (bx0, by0, bx1, by1) = (r.x, r.y, r.x + r.width, r.y + r.height);
-
-                let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
-                let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
-
-                let int_width = x2 - x1;
-                let int_height = y2 - y1;
-
-                let intersection = if int_width > 0.0 && int_height > 0.0 {
-                    int_width * int_height
-                } else {
-                    0.0
-                };
-
-                let union = (ax1 - ax0) * (ay1 - ay0) + (bx1 - bx0) * (by1 - by0) - intersection;
-                Some(intersection / union)
-            }
-            _ => None,
-        }
-    }
-}
-
-impl PartialOrd for BBox {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unreachable!()
-    }
-}
-
-impl PartialEq<Self> for BBox {
-    fn eq(&self, other: &Self) -> bool {
-        (self.x - other.x).abs() < EPS
-            && (self.y - other.y).abs() < EPS
-            && (self.width - other.width).abs() < EPS
-            && (self.height - other.height).abs() < EPS
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::test_stuff::BBox;
-    use crate::track::ObservationAttributes;
-
-    #[test]
-    fn test_iou() {
-        let bb1 = BBox {
-            x: -1.0,
-            y: -1.0,
-            width: 2.0,
-            height: 2.0,
-        };
-
-        let bb2 = BBox {
-            x: -0.9,
-            y: -0.9,
-            width: 2.0,
-            height: 2.0,
-        };
-        let bb3 = BBox {
-            x: 1.0,
-            y: 1.0,
-            width: 3.0,
-            height: 3.0,
-        };
-
-        assert!(
-            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap() > 0.999
-        );
-        assert!(
-            BBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap() > 0.999
-        );
-        assert!(
-            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap() > 0.8
-        );
-        assert!(
-            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap() < 0.001
-        );
-        assert!(
-            BBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap() < 0.001
-        );
-    }
 }
 
 pub struct FeatGen {
