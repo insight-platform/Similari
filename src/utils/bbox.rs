@@ -14,6 +14,17 @@ pub struct BBox {
     pub height: f32,
 }
 
+impl BBox {
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
 impl EstimateClose for BBox {
     fn estimate(&self, other: &Self, eps: f32) -> bool {
         (self.x - other.x).abs() < eps
@@ -29,6 +40,17 @@ pub struct AspectBBox {
     pub y: f32,
     pub aspect: f32,
     pub height: f32,
+}
+
+impl AspectBBox {
+    pub fn new(x: f32, y: f32, aspect: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            aspect,
+            height,
+        }
+    }
 }
 
 impl EstimateClose for AspectBBox {
