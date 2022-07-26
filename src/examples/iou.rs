@@ -79,7 +79,7 @@ impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
     ) -> Result<()> {
         if !is_merge {
             if let Some(bb) = &features[prev_length].0 {
-                attrs.bboxes.push(bb.clone());
+                attrs.bboxes.push(*bb);
             }
         }
         // Kalman filter should be used here to generate better prediction for next
@@ -87,11 +87,6 @@ impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
         features.reverse();
         features.truncate(self.history);
         features.reverse();
-        // eprintln!(
-        //     "Features: {:?}, attrs: {:?}",
-        //     &features[0].0,
-        //     &attrs.bboxes.len()
-        // );
         Ok(())
     }
 }

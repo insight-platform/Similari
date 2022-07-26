@@ -10,7 +10,7 @@ use test::Bencher;
 #[bench]
 fn kalman_100k(b: &mut Bencher) {
     const N: usize = 100_000;
-    let mut f = KalmanFilter::default();
+    let f = KalmanFilter::default();
     let mut pt = FeatGen2::new(-10.0, 2.0, 0.2);
 
     b.iter(|| {

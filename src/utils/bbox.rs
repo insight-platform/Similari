@@ -6,7 +6,7 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Copy)]
 pub struct BBox {
     pub x: f32,
     pub y: f32,
@@ -23,7 +23,7 @@ impl EstimateClose for BBox {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Copy)]
 pub struct AspectBBox {
     pub x: f32,
     pub y: f32,

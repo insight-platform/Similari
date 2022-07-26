@@ -32,6 +32,7 @@ macro_rules! pretty_print {
     }};
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct State<const X: usize = DIM_X2> {
     mean: SVector<f32, X>,
     covariance: SMatrix<f32, X, X>,
@@ -97,7 +98,7 @@ impl KalmanFilter {
         [vel_weight, vel_weight, cnst, vel_weight]
     }
 
-    pub fn initiate(&mut self, bbox: AspectBBox) -> State<DIM_X2> {
+    pub fn initiate(&self, bbox: AspectBBox) -> State<DIM_X2> {
         let mean: SVector<f32, DIM_X2> =
             SVector::from_iterator([bbox.x, bbox.y, bbox.aspect, bbox.height, 0.0, 0.0, 0.0, 0.0]);
 
@@ -179,7 +180,7 @@ mod tests {
 
     #[test]
     fn constructor() {
-        let mut f = KalmanFilter::default();
+        let f = KalmanFilter::default();
         let bbox = BBox {
             x: 1.0,
             y: 2.0,
@@ -194,7 +195,7 @@ mod tests {
 
     #[test]
     fn step() {
-        let mut f = KalmanFilter::default();
+        let f = KalmanFilter::default();
         let bbox = BBox {
             x: -10.0,
             y: 2.0,

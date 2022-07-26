@@ -20,6 +20,7 @@ pub mod prelude;
 /// calculate feature distances between pair of tracks.
 ///
 pub mod track;
+pub mod trackers;
 pub mod utils;
 
 pub use track::store;
