@@ -217,7 +217,7 @@ impl BoxGen2 {
             dist_box: Uniform::new(-box_drift, box_drift),
         }
     }
-    pub fn new_directional_movement(
+    pub fn new_monotonous(
         x: f32,
         y: f32,
         width: f32,

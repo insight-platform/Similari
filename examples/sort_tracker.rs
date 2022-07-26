@@ -1,5 +1,5 @@
 use similari::examples::{current_time_ms, BoxGen2};
-use similari::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
+use similari::prelude::ObservationBuilder;
 use similari::store::TrackStore;
 use similari::trackers::sort::{
     SortAttributes, SortMetric, SortVoting, DEFAULT_SORT_IOU_THRESHOLD,
@@ -16,19 +16,17 @@ fn main() {
 
     let pos_drift = 1.0;
     let box_drift = 0.2;
-    let mut b1 = BoxGen2::new_directional_movement(100.0, 100.0, 10.0, 15.0, pos_drift, box_drift);
+    let mut b1 = BoxGen2::new_monotonous(100.0, 100.0, 10.0, 15.0, pos_drift, box_drift);
 
-    let mut b2 = BoxGen2::new_directional_movement(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
+    let mut b2 = BoxGen2::new_monotonous(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
 
-    for _ in 0..100 {
+    for _ in 0..10 {
         let obj1b = b1.next().unwrap();
-        dbg!(&obj1b);
         let obj2b = b2.next().unwrap();
 
-        let obj1t = TrackBuilder::new(u64::try_from(current_time_ms()).unwrap())
-            .notifier(NoopNotifier)
-            .track_attrs(SortAttributes::default())
-            .metric(SortMetric::default())
+        let track_id = u64::try_from(current_time_ms()).unwrap();
+        let obj1t = store
+            .track_builder(track_id)
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj1b)
@@ -37,10 +35,8 @@ fn main() {
             .build()
             .unwrap();
 
-        let obj2t = TrackBuilder::new(u64::try_from(current_time_ms()).unwrap() + 1)
-            .notifier(NoopNotifier)
-            .track_attrs(SortAttributes::default())
-            .metric(SortMetric::default())
+        let obj2t = store
+            .track_builder(track_id + 1)
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj2b)

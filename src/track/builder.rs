@@ -122,16 +122,19 @@ where
     }
 
     pub fn track_attrs(mut self, track_attrs: TA) -> Self {
+        assert!(self.track_attrs.is_none());
         self.track_attrs = Some(track_attrs);
         self
     }
 
     pub fn metric(mut self, metric: M) -> Self {
+        assert!(self.metric.is_none());
         self.metric = Some(metric);
         self
     }
 
     pub fn notifier(mut self, notifier: N) -> Self {
+        assert!(self.notifier.is_none());
         self.notifier = Some(notifier);
         self
     }

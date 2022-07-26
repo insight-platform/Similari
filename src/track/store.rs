@@ -2,6 +2,7 @@ pub mod builder;
 mod tests;
 pub mod track_distance;
 
+use crate::prelude::TrackBuilder;
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
     Observation, ObservationAttributes, ObservationMetric, ObservationMetricOk, ObservationSpec,
@@ -425,6 +426,17 @@ where
             }
         }
         res
+    }
+
+    /// Returns track builder object that can build new track compatible with the storage.
+    ///
+    /// Attributes, metric, notifier are cloned from store
+    ///
+    pub fn track_builder(&self, track_id: u64) -> TrackBuilder<TA, M, OA, N> {
+        TrackBuilder::new(track_id)
+            .metric(self.metric.clone())
+            .track_attrs(self.attributes.clone())
+            .notifier(self.notifier.clone())
     }
 
     /// Calculates distances for external track (not in track store) to all tracks in DB which are
