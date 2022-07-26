@@ -7,14 +7,18 @@ use crate::utils::kalman::{KalmanFilter, State};
 use crate::voting::Voting;
 use anyhow::Result;
 use pathfinding::prelude::{kuhn_munkres, Matrix};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+
+pub mod simple;
 
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
 pub const F32_U64_MULT: f32 = 1_000_000.0;
 
 #[derive(Debug, Clone, Default)]
 pub struct SortAttributes {
-    pub bboxes: Vec<BBox>,
+    pub history_len: usize,
+    pub predicted_boxes: VecDeque<BBox>,
+    pub observed_boxes: VecDeque<BBox>,
     pub state: Option<State>,
 }
 
@@ -106,7 +110,14 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
         attrs.state = Some(prediction);
         let predicted_bbox = prediction.bbox();
 
-        attrs.bboxes.push(predicted_bbox);
+        attrs.observed_boxes.push_back(observation_bbox);
+        attrs.predicted_boxes.push_back(predicted_bbox);
+
+        if attrs.observed_boxes.len() > attrs.history_len {
+            attrs.observed_boxes.pop_front();
+            attrs.predicted_boxes.pop_front();
+        }
+
         observation.0 = Some(predicted_bbox);
         features.push(observation);
 
@@ -141,7 +152,12 @@ mod track_tests {
         let init_state = f.initiate(observation_bb_0.into());
 
         let mut t1 = TrackBuilder::new(1)
-            .track_attrs(SortAttributes::default())
+            .track_attrs(SortAttributes {
+                history_len: 10,
+                predicted_boxes: Default::default(),
+                observed_boxes: Default::default(),
+                state: None,
+            })
             .metric(SortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
             .notifier(NoopNotifier)
             .observation(
@@ -153,9 +169,9 @@ mod track_tests {
             .unwrap();
 
         assert!(t1.get_attributes().state.is_some());
-        assert_eq!(t1.get_attributes().bboxes.len(), 1);
+        assert_eq!(t1.get_attributes().predicted_boxes.len(), 1);
         assert_eq!(t1.get_merge_history().len(), 1);
-        assert!(t1.get_attributes().bboxes[0].estimate(&observation_bb_0, EPS));
+        assert!(t1.get_attributes().predicted_boxes[0].estimate(&observation_bb_0, EPS));
 
         let predicted_state = f.predict(init_state);
         assert!(predicted_state.bbox().estimate(&observation_bb_0, EPS));
@@ -175,10 +191,10 @@ mod track_tests {
         t1.merge(&t2, &[0], false).unwrap();
 
         assert!(t1.get_attributes().state.is_some());
-        assert_eq!(t1.get_attributes().bboxes.len(), 2);
+        assert_eq!(t1.get_attributes().predicted_boxes.len(), 2);
 
         let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
-        assert!(t1.get_attributes().bboxes[1].estimate(&predicted_state.bbox(), EPS));
+        assert!(t1.get_attributes().predicted_boxes[1].estimate(&predicted_state.bbox(), EPS));
     }
 }
 

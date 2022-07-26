@@ -75,6 +75,6 @@ fn main() {
     for (t, _) in tracks {
         let t = store.fetch_tracks(&vec![t]);
         eprintln!("Track id: {}", t[0].get_track_id());
-        eprintln!("Boxes: {:#?}", t[0].get_attributes().bboxes);
+        eprintln!("Boxes: {:#?}", t[0].get_attributes().predicted_boxes);
     }
 }
