@@ -2,7 +2,7 @@ use similari::examples::{current_time_ms, BoxGen2};
 use similari::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
 use similari::store::TrackStore;
 use similari::trackers::sort::{
-    HungarianVoting, SortAttributes, SortMetric, DEFAULT_SORT_IOU_THRESHOLD,
+    SortAttributes, SortMetric, SortVoting, DEFAULT_SORT_IOU_THRESHOLD,
 };
 use similari::utils::bbox::BBox;
 use similari::voting::Voting;
@@ -55,7 +55,7 @@ fn main() {
             let search_track = t.clone();
             let (dists, errs) = store.foreign_track_distances(vec![search_track], FEAT0, false);
             assert!(errs.all().is_empty());
-            let voting = HungarianVoting::new(
+            let voting = SortVoting::new(
                 DEFAULT_SORT_IOU_THRESHOLD,
                 1,
                 store.shard_stats().iter().sum(),

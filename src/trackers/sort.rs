@@ -182,13 +182,13 @@ mod track_tests {
     }
 }
 
-pub struct HungarianVoting {
+pub struct SortVoting {
     threshold: i64,
     candidate_num: usize,
     track_num: usize,
 }
 
-impl HungarianVoting {
+impl SortVoting {
     pub fn new(threshold: f32, candidate_num: usize, track_num: usize) -> Self {
         Self {
             threshold: (threshold * F32_U64_MULT) as i64,
@@ -198,7 +198,7 @@ impl HungarianVoting {
     }
 }
 
-impl Voting<BBox> for HungarianVoting {
+impl Voting<BBox> for SortVoting {
     type WinnerObject = u64;
 
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<Self::WinnerObject>>
@@ -283,13 +283,13 @@ impl Voting<BBox> for HungarianVoting {
 #[cfg(test)]
 mod voting_tests {
     use crate::track::ObservationMetricOk;
-    use crate::trackers::sort::HungarianVoting;
+    use crate::trackers::sort::SortVoting;
     use crate::voting::Voting;
     use std::collections::HashMap;
 
     #[test]
     fn test_voting() {
-        let v = HungarianVoting::new(0.3, 3, 3);
+        let v = SortVoting::new(0.3, 3, 3);
         let winners = v.winners([
             ObservationMetricOk {
                 from: 10,
