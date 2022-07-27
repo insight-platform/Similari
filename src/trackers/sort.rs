@@ -8,7 +8,7 @@ use crate::voting::Voting;
 use anyhow::Result;
 use pathfinding::prelude::{kuhn_munkres, Matrix};
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 pub mod simple;
 
@@ -20,9 +20,11 @@ pub struct SortAttributes {
     pub history_len: usize,
     pub predicted_boxes: VecDeque<BBox>,
     pub observed_boxes: VecDeque<BBox>,
+    pub last_observation: BBox,
+    pub last_prediction: BBox,
     pub state: Option<State>,
     pub epoch: usize,
-    pub current_epoch: Option<Arc<Mutex<usize>>>,
+    pub current_epoch: Option<Arc<RwLock<usize>>>,
     pub max_idle_epochs: usize,
 }
 
@@ -37,7 +39,7 @@ impl SortAttributes {
     pub fn new_with_epochs(
         history_len: usize,
         max_idle_epochs: usize,
-        current_epoch: Arc<Mutex<usize>>,
+        current_epoch: Arc<RwLock<usize>>,
     ) -> Self {
         Self {
             history_len,
@@ -93,7 +95,7 @@ impl TrackAttributes<SortAttributes, BBox> for SortAttributes {
 
     fn baked(&self, _observations: &ObservationsDb<BBox>) -> Result<TrackStatus> {
         if let Some(current_epoch) = &self.current_epoch {
-            let current_epoch = current_epoch.lock().unwrap();
+            let current_epoch = current_epoch.read().unwrap();
             if self.epoch + self.max_idle_epochs < *current_epoch {
                 Ok(TrackStatus::Wasted)
             } else {
@@ -170,6 +172,9 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
         attrs.state = Some(prediction);
         let predicted_bbox = prediction.bbox();
 
+        attrs.last_observation = observation_bbox;
+        attrs.last_prediction = predicted_bbox;
+
         attrs.observed_boxes.push_back(observation_bbox);
         attrs.predicted_boxes.push_back(predicted_bbox);
 
@@ -227,10 +232,10 @@ mod track_tests {
         assert_eq!(t1.get_attributes().predicted_boxes.len(), 1);
         assert_eq!(t1.get_attributes().observed_boxes.len(), 1);
         assert_eq!(t1.get_merge_history().len(), 1);
-        assert!(t1.get_attributes().predicted_boxes[0].estimate(&observation_bb_0, EPS));
+        assert!(t1.get_attributes().predicted_boxes[0].almost_same(&observation_bb_0, EPS));
 
         let predicted_state = f.predict(init_state);
-        assert!(predicted_state.bbox().estimate(&observation_bb_0, EPS));
+        assert!(predicted_state.bbox().almost_same(&observation_bb_0, EPS));
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
@@ -251,7 +256,7 @@ mod track_tests {
         assert_eq!(t1.get_attributes().observed_boxes.len(), 2);
 
         let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
-        assert!(t1.get_attributes().predicted_boxes[1].estimate(&predicted_state.bbox(), EPS));
+        assert!(t1.get_attributes().predicted_boxes[1].almost_same(&predicted_state.bbox(), EPS));
     }
 }
 

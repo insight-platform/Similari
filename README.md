@@ -72,6 +72,18 @@ The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
 1000 objects :  58,834,824 ns/iter (+/- 12,626,173)    [  17 FPS]
 ```
 
+SORT tracking benchmark for N simultaneously observed objects run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU @ 2.
+80GHz. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
+
+The benchmark is located at [benches/simple_sort_tracker.rs](benches/simple_sort_tracker.rs).
+
+```
+10 objects   :      126,641 ns/iter (+/- 22,350)      [7800 FPS]
+100 objects  :    3,122,659 ns/iter (+/- 1,150,723)   [ 320 FPS]
+500 objects  :  29,946,834 ns/iter (+/- 13,634,871)   [  33 FPS]
+1000 objects :  81,799,900 ns/iter (+/- 8,522,890)    [  12 FPS]
+```
+
 Feature (256 @ f32) tracking benchmark for N simultaneously observed objects run on 4 cores of 
 Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects 
 based on object distances.

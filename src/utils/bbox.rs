@@ -26,7 +26,7 @@ impl BBox {
 }
 
 impl EstimateClose for BBox {
-    fn estimate(&self, other: &Self, eps: f32) -> bool {
+    fn almost_same(&self, other: &Self, eps: f32) -> bool {
         (self.x - other.x).abs() < eps
             && (self.y - other.y).abs() < eps
             && (self.width - other.width) < eps
@@ -54,7 +54,7 @@ impl AspectBBox {
 }
 
 impl EstimateClose for AspectBBox {
-    fn estimate(&self, other: &Self, eps: f32) -> bool {
+    fn almost_same(&self, other: &Self, eps: f32) -> bool {
         (self.x - other.x).abs() < eps
             && (self.y - other.y).abs() < eps
             && (self.aspect - other.aspect) < eps
