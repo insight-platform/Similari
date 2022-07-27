@@ -23,6 +23,7 @@ crossbeam = "0.8.1"
 rand = "0.8.5"
 log = "0.4.17"
 nalgebra = "0.31.0"
+pathfinding = "3.0.13"
 
 [dev-dependencies]
 wide = "0.7.4"

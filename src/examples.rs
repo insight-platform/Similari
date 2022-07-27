@@ -217,6 +217,24 @@ impl BoxGen2 {
             dist_box: Uniform::new(-box_drift, box_drift),
         }
     }
+    pub fn new_monotonous(
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        pos_drift: f32,
+        box_drift: f32,
+    ) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+            gen: rand::thread_rng(),
+            dist_pos: Uniform::new(0.0, pos_drift),
+            dist_box: Uniform::new(-box_drift, box_drift),
+        }
+    }
 }
 
 impl Iterator for BoxGen2 {

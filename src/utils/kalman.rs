@@ -32,6 +32,7 @@ macro_rules! pretty_print {
     }};
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct State<const X: usize = DIM_X2> {
     mean: SVector<f32, X>,
     covariance: SMatrix<f32, X, X>,
@@ -39,13 +40,16 @@ pub struct State<const X: usize = DIM_X2> {
 
 impl<const X: usize> State<X> {
     pub fn bbox(&self) -> BBox {
+        self.aspect_bbox().into()
+    }
+
+    pub fn aspect_bbox(&self) -> AspectBBox {
         AspectBBox {
             x: self.mean[0],
             y: self.mean[1],
             aspect: self.mean[2],
             height: self.mean[3],
         }
-        .into()
     }
 
     pub fn dump(&self) {
@@ -84,47 +88,28 @@ impl KalmanFilter {
         }
     }
 
-    fn std_position(&self, k: f32, cnst: f32, p: f32) -> Vec<f32> {
-        vec![
-            k * self.std_position_weight * p,
-            k * self.std_position_weight * p,
-            cnst,
-            k * self.std_position_weight * p,
-        ]
+    fn std_position(&self, k: f32, cnst: f32, p: f32) -> [f32; 4] {
+        let pos_weight = k * self.std_position_weight * p;
+        [pos_weight, pos_weight, cnst, pos_weight]
     }
 
-    fn std_velocity(&self, k: f32, cnst: f32, p: f32) -> Vec<f32> {
-        vec![
-            k * self.std_velocity_weight * p,
-            k * self.std_velocity_weight * p,
-            cnst,
-            k * self.std_velocity_weight * p,
-        ]
+    fn std_velocity(&self, k: f32, cnst: f32, p: f32) -> [f32; 4] {
+        let vel_weight = k * self.std_velocity_weight * p;
+        [vel_weight, vel_weight, cnst, vel_weight]
     }
 
-    pub fn initiate(&mut self, bbox: AspectBBox) -> State<DIM_X2> {
-        let mean: SVector<f32, DIM_X2> = SVector::from_vec(vec![
-            bbox.x,
-            bbox.y,
-            bbox.aspect,
-            bbox.height,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ]);
+    pub fn initiate(&self, bbox: AspectBBox) -> State<DIM_X2> {
+        let mean: SVector<f32, DIM_X2> =
+            SVector::from_iterator([bbox.x, bbox.y, bbox.aspect, bbox.height, 0.0, 0.0, 0.0, 0.0]);
 
-        let mut std: SVector<f32, DIM_X2> = SVector::from_vec(
+        let mut std: SVector<f32, DIM_X2> = SVector::from_iterator(
             self.std_position(2.0, 1e-2, bbox.height)
                 .into_iter()
-                .chain(self.std_velocity(10.0, 1e-5, bbox.height).into_iter())
-                .collect(),
+                .chain(self.std_velocity(10.0, 1e-5, bbox.height).into_iter()),
         );
 
-        std.apply(|x| {
-            let v = *x;
-            *x = v * v;
-        });
+        std = std.component_mul(&std);
+
         let covariance: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::from_diagonal(&std);
         State { mean, covariance }
     }
@@ -135,12 +120,9 @@ impl KalmanFilter {
         let std_vel = self.std_velocity(1.0, 1e-5, mean[3]);
 
         let mut std: SVector<f32, DIM_X2> =
-            SVector::from_vec(std_pos.into_iter().chain(std_vel.into_iter()).collect());
+            SVector::from_iterator(std_pos.into_iter().chain(std_vel.into_iter()));
 
-        std.apply(|x| {
-            let v = *x;
-            *x = v * v;
-        });
+        std = std.component_mul(&std);
 
         let motion_cov: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::from_diagonal(&std);
 
@@ -155,12 +137,10 @@ impl KalmanFilter {
         mean: SVector<f32, DIM_X2>,
         covariance: SMatrix<f32, DIM_X2, DIM_X2>,
     ) -> State<DIM> {
-        let mut std: SVector<f32, DIM> = SVector::from_vec(self.std_position(1.0, 1e-1, mean[3]));
+        let mut std: SVector<f32, DIM> =
+            SVector::from_iterator(self.std_position(1.0, 1e-1, mean[3]));
 
-        std.apply(|x| {
-            let v = *x;
-            *x = v * v;
-        });
+        std = std.component_mul(&std);
 
         let innovation_cov: SMatrix<f32, DIM, DIM> = SMatrix::from_diagonal(&std);
 
@@ -177,7 +157,7 @@ impl KalmanFilter {
         let b = (covariance * self.update_matrix.transpose()).transpose();
         let kalman_gain = projected_cov.solve_lower_triangular(&b).unwrap();
 
-        let innovation = SVector::from_vec(vec![
+        let innovation = SVector::from_iterator([
             measurement.x,
             measurement.y,
             measurement.aspect,
@@ -196,11 +176,11 @@ impl KalmanFilter {
 mod tests {
     use crate::utils::bbox::{AspectBBox, BBox};
     use crate::utils::kalman::KalmanFilter;
-    use std::time::Instant;
+    use crate::{EstimateClose, EPS};
 
     #[test]
     fn constructor() {
-        let mut f = KalmanFilter::default();
+        let f = KalmanFilter::default();
         let bbox = BBox {
             x: 1.0,
             y: 2.0,
@@ -215,7 +195,7 @@ mod tests {
 
     #[test]
     fn step() {
-        let mut f = KalmanFilter::default();
+        let f = KalmanFilter::default();
         let bbox = BBox {
             x: -10.0,
             y: 2.0,
@@ -223,21 +203,35 @@ mod tests {
             height: 5.0,
         };
 
-        let mut state = f.initiate(bbox.clone().into());
+        let state = f.initiate(bbox.clone().into());
         eprintln!("Initiate: {:?}", AspectBBox::from(bbox.clone()));
-        state.dump();
-        let now = Instant::now();
-        for i in 0..100000 {
-            let bb = BBox {
-                x: 1.2 + i as f32,
-                y: 2.3 + i as f32,
-                width: 15.1,
-                height: 100.1,
-            };
-            state = f.predict(state);
-            let bb_xyah = bb.clone().into();
-            state = f.update(state, bb_xyah);
-        }
-        eprintln!("Elapsed: {:?}", now.elapsed());
+        let state = f.predict(state);
+        let p = state.aspect_bbox();
+
+        let est_p = AspectBBox {
+            x: -9.0,
+            y: 4.5,
+            aspect: 0.4,
+            height: 5.0,
+        };
+        assert_eq!(p.estimate(&est_p, EPS), true);
+
+        let bbox = AspectBBox {
+            x: 8.75,
+            y: 52.349999999999994,
+            aspect: 0.15084915084915085,
+            height: 100.1,
+        };
+        let state = f.update(state, bbox);
+        let est_p = AspectBBox {
+            x: 10.070248,
+            y: 55.90909,
+            aspect: 0.3951147,
+            height: 107.173546,
+        };
+
+        let state = f.predict(state);
+        let p = state.aspect_bbox();
+        assert_eq!(p.estimate(&est_p, EPS), true);
     }
 }

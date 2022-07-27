@@ -1,12 +1,12 @@
 use crate::track::{ObservationAttributes, ObservationMetricOk};
 use crate::voting::topn::TopNVotingElt;
 use crate::voting::Voting;
-use crate::EPS;
+use crate::{EstimateClose, EPS};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Copy)]
 pub struct BBox {
     pub x: f32,
     pub y: f32,
@@ -14,12 +14,52 @@ pub struct BBox {
     pub height: f32,
 }
 
-#[derive(Clone, Default, Debug)]
+impl BBox {
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
+impl EstimateClose for BBox {
+    fn estimate(&self, other: &Self, eps: f32) -> bool {
+        (self.x - other.x).abs() < eps
+            && (self.y - other.y).abs() < eps
+            && (self.width - other.width) < eps
+            && (self.height - other.height) < eps
+    }
+}
+
+#[derive(Clone, Default, Debug, Copy)]
 pub struct AspectBBox {
     pub x: f32,
     pub y: f32,
     pub aspect: f32,
     pub height: f32,
+}
+
+impl AspectBBox {
+    pub fn new(x: f32, y: f32, aspect: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            aspect,
+            height,
+        }
+    }
+}
+
+impl EstimateClose for AspectBBox {
+    fn estimate(&self, other: &Self, eps: f32) -> bool {
+        (self.x - other.x).abs() < eps
+            && (self.y - other.y).abs() < eps
+            && (self.aspect - other.aspect) < eps
+            && (self.height - other.height) < eps
+    }
 }
 
 impl From<BBox> for AspectBBox {

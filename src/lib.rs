@@ -20,6 +20,7 @@ pub mod prelude;
 /// calculate feature distances between pair of tracks.
 ///
 pub mod track;
+pub mod trackers;
 pub mod utils;
 
 pub use track::store;
@@ -57,3 +58,7 @@ pub enum Errors {
 }
 
 pub const EPS: f32 = 0.00001;
+
+pub trait EstimateClose {
+    fn estimate(&self, other: &Self, eps: f32) -> bool;
+}
