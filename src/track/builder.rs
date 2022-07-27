@@ -121,20 +121,29 @@ where
         }
     }
 
-    pub fn track_attrs(mut self, track_attrs: TA) -> Self {
-        assert!(self.track_attrs.is_none());
+    pub fn attributes(mut self, track_attrs: TA) -> Self {
+        assert!(
+            self.track_attrs.is_none(),
+            "The method `attributes` must be called once."
+        );
         self.track_attrs = Some(track_attrs);
         self
     }
 
     pub fn metric(mut self, metric: M) -> Self {
-        assert!(self.metric.is_none());
+        assert!(
+            self.metric.is_none(),
+            "The method `metric` must be called once."
+        );
         self.metric = Some(metric);
         self
     }
 
     pub fn notifier(mut self, notifier: N) -> Self {
-        assert!(self.notifier.is_none());
+        assert!(
+            self.notifier.is_none(),
+            "The method `notifier` must be called once."
+        );
         self.notifier = Some(notifier);
         self
     }
@@ -179,7 +188,7 @@ mod tests {
         let track = TrackBuilder::new(10)
             .notifier(NoopNotifier)
             .metric(UnboundMetric)
-            .track_attrs(UnboundAttrs)
+            .attributes(UnboundAttrs)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(Observation::from_vec(vec![0.0, 1.0]))
@@ -197,7 +206,7 @@ mod tests {
         let track = TrackBuilder::default()
             .notifier(NoopNotifier)
             .metric(UnboundMetric)
-            .track_attrs(UnboundAttrs)
+            .attributes(UnboundAttrs)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(Observation::from_vec(vec![0.0, 1.0]))

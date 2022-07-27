@@ -166,7 +166,7 @@ mod track_tests {
         let init_state = f.initiate(observation_bb_0.into());
 
         let mut t1 = TrackBuilder::new(1)
-            .track_attrs(SortAttributes::default())
+            .attributes(SortAttributes::default())
             .metric(SortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
             .notifier(NoopNotifier)
             .observation(
@@ -186,7 +186,7 @@ mod track_tests {
         assert!(predicted_state.bbox().estimate(&observation_bb_0, EPS));
 
         let t2 = TrackBuilder::new(2)
-            .track_attrs(SortAttributes::default())
+            .attributes(SortAttributes::default())
             .metric(SortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
             .notifier(NoopNotifier)
             .observation(

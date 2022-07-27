@@ -435,7 +435,7 @@ where
     pub fn track_builder(&self, track_id: u64) -> TrackBuilder<TA, M, OA, N> {
         TrackBuilder::new(track_id)
             .metric(self.metric.clone())
-            .track_attrs(self.attributes.clone())
+            .attributes(self.attributes.clone())
             .notifier(self.notifier.clone())
     }
 
