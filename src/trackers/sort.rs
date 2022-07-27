@@ -8,6 +8,7 @@ use crate::voting::Voting;
 use anyhow::Result;
 use pathfinding::prelude::{kuhn_munkres, Matrix};
 use std::collections::{HashMap, VecDeque};
+use std::sync::{Arc, Mutex};
 
 pub mod simple;
 
@@ -20,9 +21,32 @@ pub struct SortAttributes {
     pub predicted_boxes: VecDeque<BBox>,
     pub observed_boxes: VecDeque<BBox>,
     pub state: Option<State>,
+    pub epoch: usize,
+    pub current_epoch: Option<Arc<Mutex<usize>>>,
+    pub max_idle_epochs: usize,
 }
 
 impl SortAttributes {
+    /// Creates new attributes with limited history
+    ///
+    /// # Parameters
+    /// * `history_len` - how long history to hold. 0 means all history.
+    /// * `max_idle_epochs` - how long to wait before exclude the track from store.
+    /// * `current_epoch` - current epoch counter.
+    ///
+    pub fn new_with_epochs(
+        history_len: usize,
+        max_idle_epochs: usize,
+        current_epoch: Arc<Mutex<usize>>,
+    ) -> Self {
+        Self {
+            history_len,
+            max_idle_epochs,
+            current_epoch: Some(current_epoch),
+            ..Default::default()
+        }
+    }
+
     /// Creates new attributes with limited history
     ///
     /// # Parameters
@@ -36,11 +60,20 @@ impl SortAttributes {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct SortAttributesUpdate;
+#[derive(Clone, Debug, Default)]
+pub struct SortAttributesUpdate {
+    epoch: usize,
+}
+
+impl SortAttributesUpdate {
+    pub fn new(epoch: usize) -> Self {
+        Self { epoch }
+    }
+}
 
 impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
-    fn apply(&self, _attrs: &mut SortAttributes) -> Result<()> {
+    fn apply(&self, attrs: &mut SortAttributes) -> Result<()> {
+        attrs.epoch = self.epoch;
         Ok(())
     }
 }
@@ -53,12 +86,25 @@ impl TrackAttributes<SortAttributes, BBox> for SortAttributes {
         true
     }
 
-    fn merge(&mut self, _other: &SortAttributes) -> Result<()> {
+    fn merge(&mut self, other: &SortAttributes) -> Result<()> {
+        self.epoch = other.epoch;
         Ok(())
     }
 
     fn baked(&self, _observations: &ObservationsDb<BBox>) -> Result<TrackStatus> {
-        Ok(TrackStatus::Ready)
+        if let Some(current_epoch) = &self.current_epoch {
+            let current_epoch = current_epoch.lock().unwrap();
+            if self.epoch + self.max_idle_epochs < *current_epoch {
+                Ok(TrackStatus::Wasted)
+            } else {
+                Ok(TrackStatus::Pending)
+            }
+        } else {
+            // If epoch expiration is not set the tracks are always ready.
+            // If set, then only when certain amount of epochs pass they are Wasted.
+            //
+            Ok(TrackStatus::Ready)
+        }
     }
 }
 
@@ -179,6 +225,7 @@ mod track_tests {
 
         assert!(t1.get_attributes().state.is_some());
         assert_eq!(t1.get_attributes().predicted_boxes.len(), 1);
+        assert_eq!(t1.get_attributes().observed_boxes.len(), 1);
         assert_eq!(t1.get_merge_history().len(), 1);
         assert!(t1.get_attributes().predicted_boxes[0].estimate(&observation_bb_0, EPS));
 
@@ -201,6 +248,7 @@ mod track_tests {
 
         assert!(t1.get_attributes().state.is_some());
         assert_eq!(t1.get_attributes().predicted_boxes.len(), 2);
+        assert_eq!(t1.get_attributes().observed_boxes.len(), 2);
 
         let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
         assert!(t1.get_attributes().predicted_boxes[1].estimate(&predicted_state.bbox(), EPS));
