@@ -54,6 +54,8 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         }
         let tracks = tracker.epoch(&observations);
         assert_eq!(tracks.len(), objects);
+        let wasted = tracker.wasted();
+        assert!(wasted.is_empty());
     });
     eprintln!("Store stats: {:?}", tracker.shard_stats());
     tracker.skip_epochs(2);
