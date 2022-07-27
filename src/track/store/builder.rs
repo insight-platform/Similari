@@ -59,6 +59,10 @@ where
     /// Sets the metric object to use
     ///
     pub fn metric(mut self, metric: M) -> Self {
+        assert!(
+            self.metric.is_none(),
+            "The method `metric` must be called once."
+        );
         self.metric = Some(metric);
         self
     }
@@ -66,6 +70,10 @@ where
     /// Sets the notifier object to use
     ///
     pub fn notifier(mut self, notifier: N) -> Self {
+        assert!(
+            self.metric.is_none(),
+            "The method `notifier` must be called once."
+        );
         self.notifier = Some(notifier);
         self
     }
@@ -73,6 +81,10 @@ where
     /// Sets the default track attributes to use for new tracks
     ///
     pub fn default_attributes(mut self, attrs: TA) -> Self {
+        assert!(
+            self.metric.is_none(),
+            "The method `default_attributes` must be called once."
+        );
         self.default_attributes = Some(attrs);
         self
     }
