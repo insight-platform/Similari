@@ -19,6 +19,20 @@ pub struct SortTrack {
     pub epoch: usize,
     pub predicted_bbox: BBox,
     pub observed_bbox: BBox,
+    pub length: usize,
+}
+
+impl From<Track<SortAttributes, SortMetric, BBox>> for SortTrack {
+    fn from(track: Track<SortAttributes, SortMetric, BBox>) -> Self {
+        let attrs = track.get_attributes();
+        SortTrack {
+            id: track.get_track_id(),
+            epoch: attrs.epoch,
+            observed_bbox: attrs.last_observation,
+            predicted_bbox: attrs.last_prediction,
+            length: attrs.length,
+        }
+    }
 }
 
 impl SimpleSort {
@@ -105,12 +119,7 @@ impl SimpleSort {
             let store = self.store.get_store(track_id as usize);
             let track = store.get(&track_id).unwrap().clone();
 
-            res.push(SortTrack {
-                id: track.get_track_id(),
-                epoch: track.get_attributes().epoch,
-                observed_bbox: track.get_attributes().last_observation,
-                predicted_bbox: track.get_attributes().last_prediction,
-            })
+            res.push(track.into())
         }
 
         res
@@ -145,6 +154,7 @@ mod tests {
         assert_eq!(v.len(), 1);
         let v = v[0];
         let track_id = v.id;
+        assert_eq!(v.length, 1);
         assert!(v.observed_bbox.almost_same(&bb, EPS));
         assert_eq!(v.epoch, 1);
 
@@ -155,6 +165,7 @@ mod tests {
         assert_eq!(v.len(), 1);
         let v = v[0];
         assert_eq!(v.id, track_id);
+        assert_eq!(v.length, 2);
         assert!(v.observed_bbox.almost_same(&bb, EPS));
         assert_eq!(v.epoch, 2);
 

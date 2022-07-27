@@ -26,6 +26,7 @@ pub struct SortAttributes {
     pub epoch: usize,
     pub current_epoch: Option<Arc<RwLock<usize>>>,
     pub max_idle_epochs: usize,
+    pub length: usize,
 }
 
 impl SortAttributes {
@@ -174,6 +175,7 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
 
         attrs.last_observation = observation_bbox;
         attrs.last_prediction = predicted_bbox;
+        attrs.length += 1;
 
         attrs.observed_boxes.push_back(observation_bbox);
         attrs.predicted_boxes.push_back(predicted_bbox);
