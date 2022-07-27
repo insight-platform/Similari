@@ -22,6 +22,20 @@ pub struct SortAttributes {
     pub state: Option<State>,
 }
 
+impl SortAttributes {
+    /// Creates new attributes with limited history
+    ///
+    /// # Parameters
+    /// * `history_len` - how long history to hold. 0 means all history.
+    ///
+    pub fn new(history_len: usize) -> Self {
+        Self {
+            history_len,
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SortAttributesUpdate;
 
@@ -113,7 +127,7 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
         attrs.observed_boxes.push_back(observation_bbox);
         attrs.predicted_boxes.push_back(predicted_bbox);
 
-        if attrs.observed_boxes.len() > attrs.history_len {
+        if attrs.history_len > 0 && attrs.observed_boxes.len() > attrs.history_len {
             attrs.observed_boxes.pop_front();
             attrs.predicted_boxes.pop_front();
         }
@@ -152,12 +166,7 @@ mod track_tests {
         let init_state = f.initiate(observation_bb_0.into());
 
         let mut t1 = TrackBuilder::new(1)
-            .track_attrs(SortAttributes {
-                history_len: 10,
-                predicted_boxes: Default::default(),
-                observed_boxes: Default::default(),
-                state: None,
-            })
+            .track_attrs(SortAttributes::default())
             .metric(SortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
             .notifier(NoopNotifier)
             .observation(

@@ -1,5 +1,5 @@
 use similari::examples::{current_time_ms, BoxGen2};
-use similari::prelude::ObservationBuilder;
+use similari::prelude::{ObservationBuilder, TrackStoreBuilder};
 use similari::store::TrackStore;
 use similari::trackers::sort::{
     SortAttributes, SortMetric, SortVoting, DEFAULT_SORT_IOU_THRESHOLD,
@@ -10,9 +10,12 @@ use std::thread;
 use std::time::Duration;
 
 const FEAT0: u64 = 0;
+const BBOX_HISTORY: usize = 100;
 
 fn main() {
-    let mut store: TrackStore<SortAttributes, SortMetric, BBox> = TrackStore::default();
+    let mut store: TrackStore<SortAttributes, SortMetric, BBox> = TrackStoreBuilder::default()
+        .default_attributes(SortAttributes::new(BBOX_HISTORY))
+        .build();
 
     let pos_drift = 1.0;
     let box_drift = 0.2;
