@@ -60,5 +60,5 @@ pub enum Errors {
 pub const EPS: f32 = 0.00001;
 
 pub trait EstimateClose {
-    fn estimate(&self, other: &Self, eps: f32) -> bool;
+    fn almost_same(&self, other: &Self, eps: f32) -> bool;
 }

@@ -214,7 +214,7 @@ mod tests {
             aspect: 0.4,
             height: 5.0,
         };
-        assert_eq!(p.estimate(&est_p, EPS), true);
+        assert_eq!(p.almost_same(&est_p, EPS), true);
 
         let bbox = AspectBBox {
             x: 8.75,
@@ -232,6 +232,6 @@ mod tests {
 
         let state = f.predict(state);
         let p = state.aspect_bbox();
-        assert_eq!(p.estimate(&est_p, EPS), true);
+        assert_eq!(p.almost_same(&est_p, EPS), true);
     }
 }
