@@ -8,18 +8,29 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+/// Easy to use SORT tracker implementation
+///
 pub struct SimpleSort {
     store: TrackStore<SortAttributes, SortMetric, BBox>,
     epoch: Arc<RwLock<HashMap<u64, usize>>>,
     threshold: f32,
 }
 
+/// Online track structure that contains tracking information for the last tracker epoch
+///
 #[derive(Debug, Copy, Clone)]
 pub struct SortTrack {
+    /// id of the track
     pub id: u64,
+    /// when the track was lastly updated
     pub epoch: usize,
+    /// the bbox predicted by KF
     pub predicted_bbox: BBox,
+    /// the bbox passed by detector
     pub observed_bbox: BBox,
+    /// user-defined scene id that splits tracking space on isolated realms
+    pub scene_id: u64,
+    /// current track length
     pub length: usize,
 }
 
@@ -30,6 +41,7 @@ impl From<Track<SortAttributes, SortMetric, BBox>> for SortTrack {
             id: track.get_track_id(),
             epoch: attrs.epoch,
             observed_bbox: attrs.last_observation,
+            scene_id: attrs.scene_id,
             predicted_bbox: attrs.last_prediction,
             length: attrs.length,
         }
@@ -37,6 +49,14 @@ impl From<Track<SortAttributes, SortMetric, BBox>> for SortTrack {
 }
 
 impl SimpleSort {
+    /// Creates new tracker
+    ///
+    /// # Parameters
+    /// * `shards` - amount of cpu threads to process the data, keep 1 for up to 100 simultaneously tracked objects, try it before setting high - higher numbers may lead to unexpected latencies.
+    /// * `bbox_history` - how many last bboxes are kept within stored track (valuable for offline trackers), for online - keep 1
+    /// * `max_idle_epochs` - how long track survives without being updated
+    /// * `threshold` - how low IoU must be to establish a new track (default from the authors of SORT is 0.3)
+    ///
     pub fn new(shards: usize, bbox_history: usize, max_idle_epochs: usize, threshold: f32) -> Self {
         assert!(bbox_history > 0);
         let epoch = Arc::new(RwLock::new(HashMap::default()));
@@ -56,10 +76,21 @@ impl SimpleSort {
         }
     }
 
+    /// Skip number of epochs to force tracks to turn to terminal state
+    ///
+    /// # Parameters
+    /// * `n` - number of epochs to skip for `scene_id` == 0
+    ///
     pub fn skip_epochs(&mut self, n: usize) {
         self.skip_epochs_for_scene(0, n)
     }
 
+    /// Skip number of epochs to force tracks to turn to terminal state
+    ///
+    /// # Parameters
+    /// * `n` - number of epochs to skip for `scene_id`
+    /// * `scene_id` - scene to skip epochs
+    ///
     pub fn skip_epochs_for_scene(&mut self, scene_id: u64, n: usize) {
         let mut epoch_store = self.epoch.write().unwrap();
         if let Some(epoch) = epoch_store.get_mut(&scene_id) {
@@ -69,14 +100,23 @@ impl SimpleSort {
         }
     }
 
+    /// Get the amount of stored tracks per shard
+    ///
     pub fn shard_stats(&self) -> Vec<usize> {
         self.store.shard_stats()
     }
 
+    /// Get the current epoch for `scene_id` == 0
+    ///
     pub fn current_epoch(&self) -> usize {
         self.current_epoch_with_scene(0)
     }
 
+    /// Get the current epoch for `scene_id`
+    ///
+    /// # Parameters
+    /// * `scene_id` - scene id
+    ///
     pub fn current_epoch_with_scene(&self, scene_id: u64) -> usize {
         let mut epoch_map = self.epoch.write().unwrap();
         let epoch = epoch_map.get_mut(&scene_id);
@@ -87,10 +127,21 @@ impl SimpleSort {
         }
     }
 
+    /// Receive tracking information for observed bboxes of `scene_id` == 0
+    ///
+    /// # Parameters
+    /// * `bboxes` - bounding boxes received from a detector
+    ///
     pub fn epoch(&mut self, bboxes: &[BBox]) -> Vec<SortTrack> {
         self.epoch_with_scene(0, bboxes)
     }
 
+    /// Receive tracking information for observed bboxes of `scene_id`
+    ///
+    /// # Parameters
+    /// * `scene_id` - scene id provided by a user (class, camera id, etc...)
+    /// * `bboxes` - bounding boxes received from a detector
+    ///
     pub fn epoch_with_scene(&mut self, scene_id: u64, bboxes: &[BBox]) -> Vec<SortTrack> {
         let mut rng = rand::thread_rng();
         let epoch = {
@@ -160,6 +211,10 @@ impl SimpleSort {
         res
     }
 
+    /// Receive all the tracks with expired life
+    ///
+    /// See `max_idle_epochs` constructor parameter for details.
+    ///
     pub fn wasted(&mut self) -> Vec<Track<SortAttributes, SortMetric, BBox>> {
         let res = self.store.find_usable();
         let wasted = res

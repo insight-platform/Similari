@@ -14,7 +14,7 @@ fn main() {
         let obj1b = b1.next().unwrap();
         let obj2b = b2.next().unwrap();
         let _tracks = tracker.epoch(&[obj1b, obj2b]);
-        //dbg!(tracks);
+        //eprintln!("Tracked objects: {:#?}", _tracks);
     }
 
     tracker.skip_epochs(2);
