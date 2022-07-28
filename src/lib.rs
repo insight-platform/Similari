@@ -14,13 +14,22 @@ pub mod distance;
 ///
 pub mod examples;
 
+/// Frequently used components
+///
 pub mod prelude;
+
 /// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions. It defines the track's
 /// look and feel, provides `Track` structure that holds track attributes and features, can accumulate track features and
 /// calculate feature distances between pair of tracks.
 ///
 pub mod track;
+
+/// Ready-to-use trackers - SORT
+///
 pub mod trackers;
+
+/// Utility objects - bounding boxes, kalman filter
+///
 pub mod utils;
 
 pub use track::store;
@@ -59,6 +68,8 @@ pub enum Errors {
 
 pub const EPS: f32 = 0.00001;
 
+/// Trait is used to implement fuzzy epsilon-comparison of two objects
+///
 pub trait EstimateClose {
     fn almost_same(&self, other: &Self, eps: f32) -> bool;
 }

@@ -32,6 +32,8 @@ macro_rules! pretty_print {
     }};
 }
 
+/// Kalman filter current state
+///
 #[derive(Copy, Clone, Debug)]
 pub struct State<const X: usize = DIM_X2> {
     mean: SVector<f32, X>,
@@ -39,10 +41,14 @@ pub struct State<const X: usize = DIM_X2> {
 }
 
 impl<const X: usize> State<X> {
+    /// Fetch predicted bbox in (x,y,w,h) format from the state
+    ///
     pub fn bbox(&self) -> BBox {
         self.aspect_bbox().into()
     }
 
+    /// Fetch predicted bbox in (x,y,a,h) format from the state
+    ///
     pub fn aspect_bbox(&self) -> AspectBBox {
         AspectBBox {
             x: self.mean[0],
@@ -52,12 +58,16 @@ impl<const X: usize> State<X> {
         }
     }
 
+    /// dump the state
+    ///
     pub fn dump(&self) {
         eprintln!("Mean={}", pretty_print!(self.mean.transpose()));
         eprintln!("Covariance={}", pretty_print!(self.covariance));
     }
 }
 
+/// Kalman filter
+///
 #[derive(Debug)]
 pub struct KalmanFilter {
     motion_matrix: SMatrix<f32, DIM_X2, DIM_X2>,
@@ -66,6 +76,7 @@ pub struct KalmanFilter {
     std_velocity_weight: f32,
 }
 
+/// Default initializer
 impl Default for KalmanFilter {
     fn default() -> Self {
         KalmanFilter::new(1.0 / 20.0, 1.0 / 160.0)
@@ -73,6 +84,7 @@ impl Default for KalmanFilter {
 }
 
 impl KalmanFilter {
+    /// Constructor with custom weights (shouldn't be used without the need)
     pub fn new(position_weight: f32, velocity_weight: f32) -> Self {
         let mut motion_matrix: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::identity();
 
@@ -98,6 +110,8 @@ impl KalmanFilter {
         [vel_weight, vel_weight, cnst, vel_weight]
     }
 
+    /// Initialize the filter with the first observation
+    ///
     pub fn initiate(&self, bbox: AspectBBox) -> State<DIM_X2> {
         let mean: SVector<f32, DIM_X2> =
             SVector::from_iterator([bbox.x, bbox.y, bbox.aspect, bbox.height, 0.0, 0.0, 0.0, 0.0]);
@@ -114,6 +128,8 @@ impl KalmanFilter {
         State { mean, covariance }
     }
 
+    /// Predicts the state from the last state
+    ///
     pub fn predict(&self, state: State<DIM_X2>) -> State<DIM_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let std_pos = self.std_position(1.0, 1e-2, mean[3]);
@@ -150,6 +166,8 @@ impl KalmanFilter {
         State { mean, covariance }
     }
 
+    /// Updates the state with the current observation
+    ///
     pub fn update(&self, state: State<DIM_X2>, measurement: AspectBBox) -> State<DIM_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);

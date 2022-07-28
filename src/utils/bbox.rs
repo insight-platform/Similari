@@ -6,15 +6,20 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
+/// Bounding box in the format (x,y, width, height)
+///
 #[derive(Clone, Default, Debug, Copy)]
 pub struct BBox {
+    /// top-left point X
     pub x: f32,
+    /// top-left point Y
     pub y: f32,
     pub width: f32,
     pub height: f32,
 }
 
 impl BBox {
+    /// Constructor
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
             x,
@@ -26,6 +31,8 @@ impl BBox {
 }
 
 impl EstimateClose for BBox {
+    /// Allows comparing bboxes
+    ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
         (self.x - other.x).abs() < eps
             && (self.y - other.y).abs() < eps
@@ -34,15 +41,21 @@ impl EstimateClose for BBox {
     }
 }
 
+/// Bounding box in the format (x, y, aspect, height)
 #[derive(Clone, Default, Debug, Copy)]
 pub struct AspectBBox {
+    /// Top-left point X
     pub x: f32,
+    /// Top-left point Y
     pub y: f32,
+    /// Width/Height ratio
     pub aspect: f32,
+    /// Heigth
     pub height: f32,
 }
 
 impl AspectBBox {
+    /// Constructor
     pub fn new(x: f32, y: f32, aspect: f32, height: f32) -> Self {
         Self {
             x,
@@ -54,6 +67,8 @@ impl AspectBBox {
 }
 
 impl EstimateClose for AspectBBox {
+    /// Allows comparing bboxes
+    ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
         (self.x - other.x).abs() < eps
             && (self.y - other.y).abs() < eps
@@ -182,6 +197,8 @@ mod tests {
     }
 }
 
+/// TopN Voting engine for IoU metric
+///
 pub struct IOUTopNVoting {
     pub topn: usize,
     pub min_distance: f32,

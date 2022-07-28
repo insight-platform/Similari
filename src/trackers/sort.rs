@@ -10,10 +10,13 @@ use pathfinding::prelude::{kuhn_munkres, Matrix};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
+/// SORT implementation with a very tiny interface
 pub mod simple;
 
+/// Default IoU threshold that is defined by SORT author in the original repo
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
-pub const F32_U64_MULT: f32 = 1_000_000.0;
+
+const F32_U64_MULT: f32 = 1_000_000.0;
 
 #[derive(Debug, Clone, Default)]
 pub struct SortAttributes {
