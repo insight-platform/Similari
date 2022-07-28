@@ -98,8 +98,14 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
 }
 
 fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
+    let ncores = match objects {
+        10 => 1,
+        100 => 2,
+        _ => num_cpus::get(),
+    };
+
     let mut store: TrackStore<NoopAttributes, TrackMetric, ()> =
-        TrackStore::new(None, None, None, num_cpus::get());
+        TrackStore::new(None, None, None, ncores);
 
     let voting: TopNVoting<()> = TopNVoting::new(1, 100.0, 1);
 

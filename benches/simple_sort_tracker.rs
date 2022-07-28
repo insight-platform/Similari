@@ -44,7 +44,14 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
     }
 
     let mut iteration = 0;
-    let mut tracker = SimpleSort::new(num_cpus::get(), 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
+    let ncores = match objects {
+        10 => 1,
+        100 => 2,
+        _ => num_cpus::get(),
+    };
+
+    let mut tracker = SimpleSort::new(ncores, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
+
     b.iter(|| {
         let mut observations = Vec::new();
         for i in &mut iterators {

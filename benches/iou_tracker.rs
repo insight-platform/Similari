@@ -34,8 +34,14 @@ fn bench_iou_01000_4cores(b: &mut Bencher) {
 }
 
 fn bench_iou(objects: usize, b: &mut Bencher) {
+    let ncores = match objects {
+        10 => 1,
+        100 => 2,
+        _ => num_cpus::get(),
+    };
+
     let mut store: TrackStore<BBoxAttributes, IOUMetric, BBox> =
-        TrackStore::new(None, None, None, 4);
+        TrackStore::new(None, None, None, ncores);
 
     let voting = IOUTopNVoting {
         topn: 1,

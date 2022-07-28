@@ -78,10 +78,10 @@ SORT tracking benchmark for N simultaneously observed objects run on 4 cores of 
 The benchmark is located at [benches/simple_sort_tracker.rs](benches/simple_sort_tracker.rs).
 
 ```
-10 objects   :      163,641 ns/iter (+/- 22,350)      [6130 FPS]
-100 objects  :    3,322,659 ns/iter (+/- 1,150,723)   [ 300 FPS]
-500 objects  :  29,046,834 ns/iter (+/- 13,634,871)   [  34 FPS]
-1000 objects :  90,409,900 ns/iter (+/- 8,522,890)    [  11 FPS]
+10 objects   :      83,218 ns/iter (+/- 5,578)       [12048 FPS]
+100 objects  :   2,305,982 ns/iter (+/- 268,723)     [  433 FPS]
+500 objects  :  24,170,165 ns/iter (+/- 7,704,871)   [   41 FPS]
+1000 objects :  83,859,085 ns/iter (+/- 16,162,648)  [   11 FPS]
 ```
 
 Feature (256 @ f32) tracking benchmark for N simultaneously observed objects run on 4 cores of 
