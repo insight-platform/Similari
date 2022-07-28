@@ -5,11 +5,12 @@ use crate::trackers::sort::{SortAttributes, SortAttributesUpdate, SortMetric, So
 use crate::utils::bbox::BBox;
 use crate::voting::Voting;
 use rand::Rng;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 pub struct SimpleSort {
     store: TrackStore<SortAttributes, SortMetric, BBox>,
-    epoch: Arc<RwLock<usize>>,
+    epoch: Arc<RwLock<HashMap<u64, usize>>>,
     threshold: f32,
 }
 
@@ -19,12 +20,26 @@ pub struct SortTrack {
     pub epoch: usize,
     pub predicted_bbox: BBox,
     pub observed_bbox: BBox,
+    pub length: usize,
+}
+
+impl From<Track<SortAttributes, SortMetric, BBox>> for SortTrack {
+    fn from(track: Track<SortAttributes, SortMetric, BBox>) -> Self {
+        let attrs = track.get_attributes();
+        SortTrack {
+            id: track.get_track_id(),
+            epoch: attrs.epoch,
+            observed_bbox: attrs.last_observation,
+            predicted_bbox: attrs.last_prediction,
+            length: attrs.length,
+        }
+    }
 }
 
 impl SimpleSort {
     pub fn new(shards: usize, bbox_history: usize, max_idle_epochs: usize, threshold: f32) -> Self {
         assert!(bbox_history > 0);
-        let epoch = Arc::new(RwLock::new(0_usize));
+        let epoch = Arc::new(RwLock::new(HashMap::default()));
         let store = TrackStoreBuilder::new(shards)
             .default_attributes(SortAttributes::new_with_epochs(
                 bbox_history,
@@ -42,20 +57,52 @@ impl SimpleSort {
     }
 
     pub fn skip_epochs(&mut self, n: usize) {
-        let mut epoch = self.epoch.write().unwrap();
-        *epoch += n;
+        self.skip_epochs_for_scene(0, n)
+    }
+
+    pub fn skip_epochs_for_scene(&mut self, scene_id: u64, n: usize) {
+        let mut epoch_store = self.epoch.write().unwrap();
+        if let Some(epoch) = epoch_store.get_mut(&scene_id) {
+            *epoch += n;
+        } else {
+            epoch_store.insert(scene_id, n);
+        }
     }
 
     pub fn shard_stats(&self) -> Vec<usize> {
         self.store.shard_stats()
     }
 
+    pub fn current_epoch(&self) -> usize {
+        self.current_epoch_with_scene(0)
+    }
+
+    pub fn current_epoch_with_scene(&self, scene_id: u64) -> usize {
+        let mut epoch_map = self.epoch.write().unwrap();
+        let epoch = epoch_map.get_mut(&scene_id);
+        if let Some(epoch) = epoch {
+            *epoch
+        } else {
+            0
+        }
+    }
+
     pub fn epoch(&mut self, bboxes: &[BBox]) -> Vec<SortTrack> {
+        self.epoch_with_scene(0, bboxes)
+    }
+
+    pub fn epoch_with_scene(&mut self, scene_id: u64, bboxes: &[BBox]) -> Vec<SortTrack> {
         let mut rng = rand::thread_rng();
         let epoch = {
-            let mut epoch = self.epoch.write().unwrap();
-            *epoch += 1;
-            *epoch
+            let mut epoch_map = self.epoch.write().unwrap();
+            let epoch = epoch_map.get_mut(&scene_id);
+            if let Some(epoch) = epoch {
+                *epoch += 1;
+                *epoch
+            } else {
+                epoch_map.insert(scene_id, 1);
+                1
+            }
         };
 
         let tracks = bboxes
@@ -66,7 +113,9 @@ impl SimpleSort {
                     .observation(
                         ObservationBuilder::new(0)
                             .observation_attributes(*bb)
-                            .track_attributes_update(SortAttributesUpdate::new(epoch))
+                            .track_attributes_update(SortAttributesUpdate::new_with_scene(
+                                epoch, scene_id,
+                            ))
                             .build(),
                     )
                     .build()
@@ -105,12 +154,7 @@ impl SimpleSort {
             let store = self.store.get_store(track_id as usize);
             let track = store.get(&track_id).unwrap().clone();
 
-            res.push(SortTrack {
-                id: track.get_track_id(),
-                epoch: track.get_attributes().epoch,
-                observed_bbox: track.get_attributes().last_observation,
-                predicted_bbox: track.get_attributes().last_prediction,
-            })
+            res.push(track.into())
         }
 
         res
@@ -138,6 +182,7 @@ mod tests {
     #[test]
     fn sort() {
         let mut t = SimpleSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
+        assert_eq!(t.current_epoch(), 0);
         let bb = BBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.epoch(&vec![bb]);
         let wasted = t.wasted();
@@ -145,8 +190,10 @@ mod tests {
         assert_eq!(v.len(), 1);
         let v = v[0];
         let track_id = v.id;
+        assert_eq!(v.length, 1);
         assert!(v.observed_bbox.almost_same(&bb, EPS));
         assert_eq!(v.epoch, 1);
+        assert_eq!(t.current_epoch(), 1);
 
         let bb = BBox::new(0.1, 0.1, 10.1, 20.0);
         let v = t.epoch(&vec![bb]);
@@ -155,8 +202,10 @@ mod tests {
         assert_eq!(v.len(), 1);
         let v = v[0];
         assert_eq!(v.id, track_id);
+        assert_eq!(v.length, 2);
         assert!(v.observed_bbox.almost_same(&bb, EPS));
         assert_eq!(v.epoch, 2);
+        assert_eq!(t.current_epoch(), 2);
 
         let bb = BBox::new(10.1, 10.1, 10.1, 20.0);
         let v = t.epoch(&[bb]);
@@ -165,16 +214,39 @@ mod tests {
         assert_ne!(v.id, track_id);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
+        assert_eq!(t.current_epoch(), 3);
 
         let bb = t.epoch(&[]);
         assert!(bb.is_empty());
         let wasted = t.wasted();
         assert!(wasted.is_empty());
+        assert_eq!(t.current_epoch(), 4);
+        assert_eq!(t.current_epoch(), 4);
 
         let bb = t.epoch(&[]);
         assert!(bb.is_empty());
         let wasted = t.wasted();
         assert_eq!(wasted.len(), 1);
         assert_eq!(wasted[0].get_track_id(), track_id);
+        assert_eq!(t.current_epoch(), 5);
+    }
+
+    #[test]
+    fn sort_with_scenes() {
+        let mut t = SimpleSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
+        let bb = BBox::new(0.0, 0.0, 10.0, 20.0);
+        assert_eq!(t.current_epoch_with_scene(1), 0);
+        assert_eq!(t.current_epoch_with_scene(2), 0);
+
+        let _v = t.epoch_with_scene(1, &vec![bb]);
+        let _v = t.epoch_with_scene(1, &vec![bb]);
+
+        assert_eq!(t.current_epoch_with_scene(1), 2);
+        assert_eq!(t.current_epoch_with_scene(2), 0);
+
+        let _v = t.epoch_with_scene(2, &vec![bb]);
+
+        assert_eq!(t.current_epoch_with_scene(1), 2);
+        assert_eq!(t.current_epoch_with_scene(2), 1);
     }
 }

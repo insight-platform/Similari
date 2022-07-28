@@ -24,8 +24,10 @@ pub struct SortAttributes {
     pub last_prediction: BBox,
     pub state: Option<State>,
     pub epoch: usize,
-    pub current_epoch: Option<Arc<RwLock<usize>>>,
+    pub current_epoch: Option<Arc<RwLock<HashMap<u64, usize>>>>,
     pub max_idle_epochs: usize,
+    pub length: usize,
+    pub scene_id: u64,
 }
 
 impl SortAttributes {
@@ -39,7 +41,7 @@ impl SortAttributes {
     pub fn new_with_epochs(
         history_len: usize,
         max_idle_epochs: usize,
-        current_epoch: Arc<RwLock<usize>>,
+        current_epoch: Arc<RwLock<HashMap<u64, usize>>>,
     ) -> Self {
         Self {
             history_len,
@@ -65,17 +67,22 @@ impl SortAttributes {
 #[derive(Clone, Debug, Default)]
 pub struct SortAttributesUpdate {
     epoch: usize,
+    scene_id: u64,
 }
 
 impl SortAttributesUpdate {
     pub fn new(epoch: usize) -> Self {
-        Self { epoch }
+        Self { epoch, scene_id: 0 }
+    }
+    pub fn new_with_scene(epoch: usize, scene_id: u64) -> Self {
+        Self { epoch, scene_id }
     }
 }
 
 impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
     fn apply(&self, attrs: &mut SortAttributes) -> Result<()> {
         attrs.epoch = self.epoch;
+        attrs.scene_id = self.scene_id;
         Ok(())
     }
 }
@@ -84,8 +91,8 @@ impl TrackAttributes<SortAttributes, BBox> for SortAttributes {
     type Update = SortAttributesUpdate;
     type Lookup = NoopLookup<SortAttributes, BBox>;
 
-    fn compatible(&self, _other: &SortAttributes) -> bool {
-        true
+    fn compatible(&self, other: &SortAttributes) -> bool {
+        self.scene_id == other.scene_id
     }
 
     fn merge(&mut self, other: &SortAttributes) -> Result<()> {
@@ -94,9 +101,10 @@ impl TrackAttributes<SortAttributes, BBox> for SortAttributes {
     }
 
     fn baked(&self, _observations: &ObservationsDb<BBox>) -> Result<TrackStatus> {
+        let scene_id = self.scene_id;
         if let Some(current_epoch) = &self.current_epoch {
             let current_epoch = current_epoch.read().unwrap();
-            if self.epoch + self.max_idle_epochs < *current_epoch {
+            if self.epoch + self.max_idle_epochs < *current_epoch.get(&scene_id).unwrap_or(&0) {
                 Ok(TrackStatus::Wasted)
             } else {
                 Ok(TrackStatus::Pending)
@@ -174,6 +182,7 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
 
         attrs.last_observation = observation_bbox;
         attrs.last_prediction = predicted_bbox;
+        attrs.length += 1;
 
         attrs.observed_boxes.push_back(observation_bbox);
         attrs.predicted_boxes.push_back(predicted_bbox);
