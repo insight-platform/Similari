@@ -1,6 +1,8 @@
+use anyhow::Result;
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple::SimpleSort;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
+use similari::utils::bbox::BBox;
 
 fn main() {
     let mut tracker = SimpleSort::new(1, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
@@ -13,7 +15,7 @@ fn main() {
     for _ in 0..10 {
         let obj1b = b1.next().unwrap();
         let obj2b = b2.next().unwrap();
-        let _tracks = tracker.epoch(&[obj1b, obj2b]);
+        let _tracks = tracker.predict(&[obj1b.into(), obj2b.into()]);
         //eprintln!("Tracked objects: {:#?}", _tracks);
     }
 
@@ -22,6 +24,17 @@ fn main() {
     let tracks = tracker.wasted();
     for t in tracks {
         eprintln!("Track id: {}", t.get_track_id());
-        eprintln!("Boxes: {:#?}", t.get_attributes().predicted_boxes);
+        eprintln!(
+            "Boxes: {:#?}",
+            t.get_attributes()
+                .predicted_boxes
+                .clone()
+                .into_iter()
+                .map(|x| {
+                    let r: Result<BBox> = x.into();
+                    r.unwrap()
+                })
+                .collect::<Vec<_>>()
+        );
     }
 }

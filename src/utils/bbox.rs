@@ -1,10 +1,14 @@
 use crate::track::{ObservationAttributes, ObservationMetricOk};
 use crate::voting::topn::TopNVotingElt;
 use crate::voting::Voting;
+use crate::Errors::GenericBBoxConversionError;
 use crate::{EstimateClose, EPS};
+use anyhow::Result;
+use geo::{Area, BooleanOps, Coordinate, LineString, Polygon};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::f32::consts::PI;
 
 /// Bounding box in the format (x,y, width, height)
 ///
@@ -41,55 +45,196 @@ impl EstimateClose for BBox {
     }
 }
 
-/// Bounding box in the format (x, y, aspect, height)
+/// Bounding box in the format (x, y, angle, aspect, height)
 #[derive(Clone, Default, Debug, Copy)]
-pub struct AspectBBox {
+pub struct GenericBBox {
     /// Top-left point X
     pub x: f32,
     /// Top-left point Y
     pub y: f32,
+    /// Angle
+    pub angle: f32,
     /// Width/Height ratio
     pub aspect: f32,
-    /// Heigth
+    /// Height
     pub height: f32,
 }
 
-impl AspectBBox {
+impl GenericBBox {
     /// Constructor
-    pub fn new(x: f32, y: f32, aspect: f32, height: f32) -> Self {
+    pub fn new(x: f32, y: f32, angle: f32, aspect: f32, height: f32) -> Self {
         Self {
             x,
             y,
+            angle,
             aspect,
             height,
         }
     }
+
+    pub fn rotate(self, angle: f32) -> Self {
+        Self {
+            x: self.x,
+            y: self.y,
+            angle,
+            aspect: self.aspect,
+            height: self.height,
+        }
+    }
 }
 
-impl EstimateClose for AspectBBox {
+impl EstimateClose for GenericBBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
         (self.x - other.x).abs() < eps
             && (self.y - other.y).abs() < eps
+            && (self.angle - other.angle) < eps
             && (self.aspect - other.aspect) < eps
             && (self.height - other.height) < eps
     }
 }
 
-impl From<BBox> for AspectBBox {
+impl From<BBox> for GenericBBox {
     fn from(f: BBox) -> Self {
-        AspectBBox {
+        GenericBBox {
             x: f.x + f.width / 2.0,
             y: f.y + f.height / 2.0,
+            angle: 0.0,
             aspect: f.width / f.height,
             height: f.height,
         }
     }
 }
 
-impl From<AspectBBox> for BBox {
-    fn from(f: AspectBBox) -> Self {
+impl From<GenericBBox> for Result<BBox> {
+    /// This is a lossy translation. It is valid only when the angle is 0
+    fn from(f: GenericBBox) -> Self {
+        if f.angle.abs() >= EPS {
+            Err(GenericBBoxConversionError.into())
+        } else {
+            let width = f.height * f.aspect;
+            Ok(BBox {
+                x: f.x - width / 2.0,
+                y: f.y - f.height / 2.0,
+                width,
+                height: f.height,
+            })
+        }
+    }
+}
+
+impl From<GenericBBox> for Polygon<f64> {
+    fn from(b: GenericBBox) -> Self {
+        let angle = b.angle as f64;
+        let height = b.height as f64;
+        let aspect = b.aspect as f64;
+
+        let c = angle.cos();
+        let s = angle.sin();
+
+        let half_width = height * aspect / 2.0;
+        let half_height = height / 2.0;
+
+        let r1x = -half_width * c - half_height * s;
+        let r1y = -half_width * s + half_height * c;
+
+        let r2x = half_width * c - half_height * s;
+        let r2y = half_width * s + half_height * c;
+
+        let x = b.x as f64;
+        let y = b.y as f64;
+
+        Polygon::new(
+            LineString(vec![
+                Coordinate {
+                    x: x + r1x,
+                    y: y + r1y,
+                },
+                Coordinate {
+                    x: x + r2x,
+                    y: y + r2y,
+                },
+                Coordinate {
+                    x: x - r1x,
+                    y: y - r1y,
+                },
+                Coordinate {
+                    x: x - r2x,
+                    y: y - r2y,
+                },
+            ]),
+            vec![],
+        )
+    }
+}
+
+#[cfg(test)]
+mod polygons {
+    use crate::track::ObservationAttributes;
+    use crate::utils::bbox::GenericBBox;
+    use crate::utils::clipping::sutherland_hodgman_clip;
+    use crate::EPS;
+    use geo::{Area, BooleanOps, Polygon};
+    use std::f32::consts::PI;
+
+    #[test]
+    fn transform() {
+        let bbox1 = GenericBBox::new(0.0, 0.0, 2.0, 0.5, 2.0);
+        let polygon1 = Polygon::from(bbox1);
+        let bbox2 = GenericBBox::new(0.0, 0.0, 2.0 + PI / 2.0, 0.5, 2.0);
+        let polygon2 = Polygon::from(bbox2);
+        let clip = sutherland_hodgman_clip(&polygon1, &polygon2);
+        let int_area = clip.unsigned_area();
+        let int = polygon1.intersection(&polygon2).unsigned_area();
+        assert!((int - int_area).abs() < EPS as f64);
+
+        let union = polygon1.union(&polygon2).unsigned_area();
+        assert!((union - 3.0).abs() < EPS as f64);
+
+        let res = GenericBBox::calculate_metric_object(&Some(bbox1), &Some(bbox2)).unwrap() as f64;
+        assert!((res - int / union).abs() < EPS as f64);
+
+        let bbox3 = GenericBBox::new(10.0, 0.0, 2.0 + PI / 2.0, 0.5, 2.0);
+        let polygon3 = Polygon::from(bbox3);
+
+        let int = polygon1.intersection(&polygon3).unsigned_area();
+        assert!((int - 0.0).abs() < EPS as f64);
+
+        let union = polygon1.union(&polygon3).unsigned_area();
+        assert!((union - 4.0).abs() < EPS as f64);
+
+        let res = GenericBBox::calculate_metric_object(&Some(bbox1), &Some(bbox3)).unwrap() as f64;
+        assert!((res - int / union).abs() < EPS as f64);
+    }
+
+    #[test]
+    fn corner_case_f32() {
+        let x = GenericBBox {
+            x: 8044.315,
+            y: 8011.0454,
+            angle: 2.67877485,
+            aspect: 1.00801,
+            height: 49.8073,
+        };
+        let polygon_x = Polygon::from(x);
+
+        let y = GenericBBox {
+            x: 8044.455,
+            y: 8011.338,
+            angle: 2.67877485,
+            aspect: 1.0083783,
+            height: 49.79979,
+        };
+        let polygon_y = Polygon::from(y);
+
+        dbg!(&polygon_x, &polygon_y);
+    }
+}
+
+impl From<&GenericBBox> for BBox {
+    /// This is a lossy translation. It is valid only when the angle is 0
+    fn from(f: &GenericBBox) -> Self {
         let width = f.height * f.aspect;
         BBox {
             x: f.x - width / 2.0,
@@ -145,10 +290,73 @@ impl PartialOrd for BBox {
 
 impl PartialEq<Self> for BBox {
     fn eq(&self, other: &Self) -> bool {
-        (self.x - other.x).abs() < EPS
-            && (self.y - other.y).abs() < EPS
-            && (self.width - other.width).abs() < EPS
-            && (self.height - other.height).abs() < EPS
+        self.almost_same(other, EPS)
+    }
+}
+
+pub fn normalize_angle(a: f32) -> f32 {
+    let pix2 = 2.0 * PI;
+    let n = (a / pix2).floor();
+    let a = a - n * pix2;
+    if a < 0.0 {
+        a + pix2
+    } else {
+        a
+    }
+}
+
+#[cfg(test)]
+mod tests_normalize_angle {
+    use crate::utils::bbox::normalize_angle;
+    use crate::EPS;
+
+    #[test]
+    fn normalize() {
+        assert!((normalize_angle(0.3) - 0.3).abs() < EPS);
+        assert!((normalize_angle(-0.3) - 5.983184).abs() < EPS);
+        assert!((normalize_angle(-0.3) - 5.983184).abs() < EPS);
+        assert!((normalize_angle(6.583184) - 0.3).abs() < EPS);
+    }
+}
+
+impl ObservationAttributes for GenericBBox {
+    type MetricObject = f32;
+
+    fn calculate_metric_object(
+        _left: &Option<Self>,
+        _right: &Option<Self>,
+    ) -> Option<Self::MetricObject> {
+        match (_left, _right) {
+            (Some(l), Some(r)) => {
+                if (normalize_angle(l.angle) - normalize_angle(r.angle)).abs() < EPS {
+                    BBox::calculate_metric_object(&Some(l.into()), &Some(r.into()))
+                } else {
+                    assert!(l.aspect > 0.0);
+                    assert!(l.height > 0.0);
+                    assert!(r.aspect > 0.0);
+                    assert!(r.height > 0.0);
+                    let p1 = Polygon::from(*l);
+                    let p2 = Polygon::from(*r);
+                    let intersection = p1.intersection(&p2).unsigned_area();
+                    let union = p1.union(&p2).unsigned_area();
+                    let res = intersection / union;
+                    Some(res as f32)
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+impl PartialOrd for GenericBBox {
+    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
+        unreachable!()
+    }
+}
+
+impl PartialEq<Self> for GenericBBox {
+    fn eq(&self, other: &Self) -> bool {
+        self.almost_same(other, EPS)
     }
 }
 

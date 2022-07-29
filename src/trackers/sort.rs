@@ -2,7 +2,7 @@ use crate::track::{
     MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
-use crate::utils::bbox::BBox;
+use crate::utils::bbox::GenericBBox;
 use crate::utils::kalman::{KalmanFilter, State};
 use crate::voting::Voting;
 use anyhow::Result;
@@ -21,10 +21,10 @@ const F32_U64_MULT: f32 = 1_000_000.0;
 #[derive(Debug, Clone, Default)]
 pub struct SortAttributes {
     pub history_len: usize,
-    pub predicted_boxes: VecDeque<BBox>,
-    pub observed_boxes: VecDeque<BBox>,
-    pub last_observation: BBox,
-    pub last_prediction: BBox,
+    pub predicted_boxes: VecDeque<GenericBBox>,
+    pub observed_boxes: VecDeque<GenericBBox>,
+    pub last_observation: GenericBBox,
+    pub last_prediction: GenericBBox,
     pub state: Option<State>,
     pub epoch: usize,
     pub current_epoch: Option<Arc<RwLock<HashMap<u64, usize>>>>,
@@ -90,9 +90,9 @@ impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
     }
 }
 
-impl TrackAttributes<SortAttributes, BBox> for SortAttributes {
+impl TrackAttributes<SortAttributes, GenericBBox> for SortAttributes {
     type Update = SortAttributesUpdate;
-    type Lookup = NoopLookup<SortAttributes, BBox>;
+    type Lookup = NoopLookup<SortAttributes, GenericBBox>;
 
     fn compatible(&self, other: &SortAttributes) -> bool {
         self.scene_id == other.scene_id
@@ -103,7 +103,7 @@ impl TrackAttributes<SortAttributes, BBox> for SortAttributes {
         Ok(())
     }
 
-    fn baked(&self, _observations: &ObservationsDb<BBox>) -> Result<TrackStatus> {
+    fn baked(&self, _observations: &ObservationsDb<GenericBBox>) -> Result<TrackStatus> {
         let scene_id = self.scene_id;
         if let Some(current_epoch) = &self.current_epoch {
             let current_epoch = current_epoch.read().unwrap();
@@ -138,15 +138,15 @@ impl SortMetric {
     }
 }
 
-impl ObservationMetric<SortAttributes, BBox> for SortMetric {
+impl ObservationMetric<SortAttributes, GenericBBox> for SortMetric {
     fn metric(
         _feature_class: u64,
         _attrs1: &SortAttributes,
         _attrs2: &SortAttributes,
-        e1: &ObservationSpec<BBox>,
-        e2: &ObservationSpec<BBox>,
+        e1: &ObservationSpec<GenericBBox>,
+        e2: &ObservationSpec<GenericBBox>,
     ) -> MetricOutput<f32> {
-        let box_m_opt = BBox::calculate_metric_object(&e1.0, &e2.0);
+        let box_m_opt = GenericBBox::calculate_metric_object(&e1.0, &e2.0);
         if let Some(box_m) = &box_m_opt {
             if *box_m < 0.01 {
                 None
@@ -163,7 +163,7 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
         _feature_class: &u64,
         _merge_history: &[u64],
         attrs: &mut SortAttributes,
-        features: &mut Vec<ObservationSpec<BBox>>,
+        features: &mut Vec<ObservationSpec<GenericBBox>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
@@ -174,14 +174,14 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
         let f = KalmanFilter::default();
 
         let state = if let Some(state) = attrs.state {
-            f.update(state, observation_bbox.into())
+            f.update(state, observation_bbox)
         } else {
-            f.initiate(observation_bbox.into())
+            f.initiate(observation_bbox)
         };
 
         let prediction = f.predict(state);
         attrs.state = Some(prediction);
-        let predicted_bbox = prediction.bbox();
+        let predicted_bbox = prediction.generic_bbox();
 
         attrs.last_observation = observation_bbox;
         attrs.last_prediction = predicted_bbox;
@@ -203,8 +203,8 @@ impl ObservationMetric<SortAttributes, BBox> for SortMetric {
 
     fn postprocess_distances(
         &self,
-        unfiltered: Vec<ObservationMetricOk<BBox>>,
-    ) -> Vec<ObservationMetricOk<BBox>> {
+        unfiltered: Vec<ObservationMetricOk<GenericBBox>>,
+    ) -> Vec<ObservationMetricOk<GenericBBox>> {
         unfiltered
             .into_iter()
             .filter(|x| x.attribute_metric.unwrap_or(0.0) > self.threshold)
@@ -234,7 +234,7 @@ mod track_tests {
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
-                    .observation_attributes(observation_bb_0)
+                    .observation_attributes(observation_bb_0.into())
                     .build(),
             )
             .build()
@@ -244,10 +244,13 @@ mod track_tests {
         assert_eq!(t1.get_attributes().predicted_boxes.len(), 1);
         assert_eq!(t1.get_attributes().observed_boxes.len(), 1);
         assert_eq!(t1.get_merge_history().len(), 1);
-        assert!(t1.get_attributes().predicted_boxes[0].almost_same(&observation_bb_0, EPS));
+        assert!(t1.get_attributes().predicted_boxes[0].almost_same(&observation_bb_0.into(), EPS));
 
         let predicted_state = f.predict(init_state);
-        assert!(predicted_state.bbox().almost_same(&observation_bb_0, EPS));
+        assert!(predicted_state
+            .bbox()
+            .unwrap()
+            .almost_same(&observation_bb_0, EPS));
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
@@ -255,7 +258,7 @@ mod track_tests {
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
-                    .observation_attributes(observation_bb_1)
+                    .observation_attributes(observation_bb_1.into())
                     .build(),
             )
             .build()
@@ -268,7 +271,8 @@ mod track_tests {
         assert_eq!(t1.get_attributes().observed_boxes.len(), 2);
 
         let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
-        assert!(t1.get_attributes().predicted_boxes[1].almost_same(&predicted_state.bbox(), EPS));
+        assert!(t1.get_attributes().predicted_boxes[1]
+            .almost_same(&predicted_state.generic_bbox(), EPS));
     }
 }
 
@@ -288,12 +292,12 @@ impl SortVoting {
     }
 }
 
-impl Voting<BBox> for SortVoting {
+impl Voting<GenericBBox> for SortVoting {
     type WinnerObject = u64;
 
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<Self::WinnerObject>>
     where
-        T: IntoIterator<Item = ObservationMetricOk<BBox>>,
+        T: IntoIterator<Item = ObservationMetricOk<GenericBBox>>,
     {
         let mut candidates_index: usize = 0;
 

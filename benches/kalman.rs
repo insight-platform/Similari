@@ -3,7 +3,7 @@
 extern crate test;
 
 use similari::examples::FeatGen2;
-use similari::utils::bbox::BBox;
+use similari::utils::bbox::GenericBBox;
 use similari::utils::kalman::KalmanFilter;
 use test::Bencher;
 
@@ -16,27 +16,28 @@ fn kalman_100k(b: &mut Bencher) {
     b.iter(|| {
         let v = pt.next().unwrap().1.unwrap();
         let n = v[0].as_array_ref();
-        let bbox = BBox {
+        let bbox = GenericBBox {
             x: n[0],
             y: n[1],
-            width: 2.0,
+            angle: 0.0,
+            aspect: 2.0,
             height: 5.0,
         };
 
-        let mut state = f.initiate(bbox.clone().into());
+        let mut state = f.initiate(bbox);
         for _i in 0..N {
             let v = pt.next().unwrap().1.unwrap();
             let n = v[0].as_array_ref();
-            let bb = BBox {
+            let bb = GenericBBox {
                 x: n[0],
                 y: n[1],
-                width: 2.0,
+                angle: 0.0,
+                aspect: 2.0,
                 height: 5.0,
             };
 
             state = f.predict(state);
-            let bb_xyah = bb.clone().into();
-            state = f.update(state, bb_xyah);
+            state = f.update(state, bb);
         }
     });
 }
