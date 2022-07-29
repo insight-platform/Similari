@@ -142,23 +142,26 @@ impl From<GenericBBox> for Polygon<f64> {
         let r2x = half_width * c - half_height * s;
         let r2y = half_width * s + half_height * c;
 
+        let x = b.x as f64;
+        let y = b.y as f64;
+
         Polygon::new(
             LineString(vec![
                 Coordinate {
-                    x: b.x as f64 + r1x,
-                    y: b.y as f64 + r1y,
+                    x: x + r1x,
+                    y: y + r1y,
                 },
                 Coordinate {
-                    x: b.x as f64 + r2x,
-                    y: b.y as f64 + r2y,
+                    x: x + r2x,
+                    y: y + r2y,
                 },
                 Coordinate {
-                    x: b.x as f64 - r1x,
-                    y: b.y as f64 - r1y,
+                    x: x - r1x,
+                    y: y - r1y,
                 },
                 Coordinate {
-                    x: b.x as f64 - r2x,
-                    y: b.y as f64 - r2y,
+                    x: x - r2x,
+                    y: y - r2y,
                 },
             ]),
             vec![],
@@ -206,7 +209,7 @@ mod polygons {
     }
 
     #[test]
-    fn fails() {
+    fn corner_case_f32() {
         let x = GenericBBox {
             x: 8044.315,
             y: 8011.0454,
@@ -226,10 +229,6 @@ mod polygons {
         let polygon_y = Polygon::from(y);
 
         dbg!(&polygon_x, &polygon_y);
-        // let _u = dbg!(polygon_x.union(&polygon_x).unsigned_area());
-        // let _u = dbg!(polygon_y.union(&polygon_y).unsigned_area());
-        // let _i = dbg!(polygon_y.intersection(&polygon_x).unsigned_area());
-        // let _i = dbg!(polygon_x.intersection(&polygon_y).unsigned_area());
     }
 }
 
