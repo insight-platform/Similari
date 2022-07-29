@@ -4,7 +4,7 @@ use similari::store::TrackStore;
 use similari::trackers::sort::{
     SortAttributes, SortMetric, SortVoting, DEFAULT_SORT_IOU_THRESHOLD,
 };
-use similari::utils::bbox::BBox;
+use similari::utils::bbox::GenericBBox;
 use similari::voting::Voting;
 use std::thread;
 use std::time::Duration;
@@ -13,9 +13,10 @@ const FEAT0: u64 = 0;
 const BBOX_HISTORY: usize = 100;
 
 fn main() {
-    let mut store: TrackStore<SortAttributes, SortMetric, BBox> = TrackStoreBuilder::default()
-        .default_attributes(SortAttributes::new(BBOX_HISTORY))
-        .build();
+    let mut store: TrackStore<SortAttributes, SortMetric, GenericBBox> =
+        TrackStoreBuilder::default()
+            .default_attributes(SortAttributes::new(BBOX_HISTORY))
+            .build();
 
     let pos_drift = 1.0;
     let box_drift = 0.2;
@@ -32,7 +33,7 @@ fn main() {
             .track_builder(track_id)
             .observation(
                 ObservationBuilder::new(FEAT0)
-                    .observation_attributes(obj1b)
+                    .observation_attributes(obj1b.into())
                     .build(),
             )
             .build()
@@ -42,7 +43,7 @@ fn main() {
             .track_builder(track_id + 1)
             .observation(
                 ObservationBuilder::new(FEAT0)
-                    .observation_attributes(obj2b)
+                    .observation_attributes(obj2b.into())
                     .build(),
             )
             .build()

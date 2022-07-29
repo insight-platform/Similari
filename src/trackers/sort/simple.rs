@@ -2,7 +2,7 @@ use crate::prelude::{ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
 use crate::trackers::sort::{SortAttributes, SortAttributesUpdate, SortMetric, SortVoting};
-use crate::utils::bbox::BBox;
+use crate::utils::bbox::GenericBBox;
 use crate::voting::Voting;
 use rand::Rng;
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use std::sync::{Arc, RwLock};
 /// Easy to use SORT tracker implementation
 ///
 pub struct SimpleSort {
-    store: TrackStore<SortAttributes, SortMetric, BBox>,
+    store: TrackStore<SortAttributes, SortMetric, GenericBBox>,
     epoch: Arc<RwLock<HashMap<u64, usize>>>,
     threshold: f32,
 }
@@ -25,17 +25,17 @@ pub struct SortTrack {
     /// when the track was lastly updated
     pub epoch: usize,
     /// the bbox predicted by KF
-    pub predicted_bbox: BBox,
+    pub predicted_bbox: GenericBBox,
     /// the bbox passed by detector
-    pub observed_bbox: BBox,
+    pub observed_bbox: GenericBBox,
     /// user-defined scene id that splits tracking space on isolated realms
     pub scene_id: u64,
     /// current track length
     pub length: usize,
 }
 
-impl From<Track<SortAttributes, SortMetric, BBox>> for SortTrack {
-    fn from(track: Track<SortAttributes, SortMetric, BBox>) -> Self {
+impl From<Track<SortAttributes, SortMetric, GenericBBox>> for SortTrack {
+    fn from(track: Track<SortAttributes, SortMetric, GenericBBox>) -> Self {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),
@@ -132,8 +132,8 @@ impl SimpleSort {
     /// # Parameters
     /// * `bboxes` - bounding boxes received from a detector
     ///
-    pub fn epoch(&mut self, bboxes: &[BBox]) -> Vec<SortTrack> {
-        self.epoch_with_scene(0, bboxes)
+    pub fn predict(&mut self, bboxes: &[GenericBBox]) -> Vec<SortTrack> {
+        self.predict_with_scene(0, bboxes)
     }
 
     /// Receive tracking information for observed bboxes of `scene_id`
@@ -142,7 +142,7 @@ impl SimpleSort {
     /// * `scene_id` - scene id provided by a user (class, camera id, etc...)
     /// * `bboxes` - bounding boxes received from a detector
     ///
-    pub fn epoch_with_scene(&mut self, scene_id: u64, bboxes: &[BBox]) -> Vec<SortTrack> {
+    pub fn predict_with_scene(&mut self, scene_id: u64, bboxes: &[GenericBBox]) -> Vec<SortTrack> {
         let mut rng = rand::thread_rng();
         let epoch = {
             let mut epoch_map = self.epoch.write().unwrap();
@@ -215,7 +215,7 @@ impl SimpleSort {
     ///
     /// See `max_idle_epochs` constructor parameter for details.
     ///
-    pub fn wasted(&mut self) -> Vec<Track<SortAttributes, SortMetric, BBox>> {
+    pub fn wasted(&mut self) -> Vec<Track<SortAttributes, SortMetric, GenericBBox>> {
         let res = self.store.find_usable();
         let wasted = res
             .into_iter()
@@ -239,31 +239,31 @@ mod tests {
         let mut t = SimpleSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
         assert_eq!(t.current_epoch(), 0);
         let bb = BBox::new(0.0, 0.0, 10.0, 20.0);
-        let v = t.epoch(&vec![bb]);
+        let v = t.predict(&vec![bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
         let v = v[0];
         let track_id = v.id;
         assert_eq!(v.length, 1);
-        assert!(v.observed_bbox.almost_same(&bb, EPS));
+        assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
         assert_eq!(v.epoch, 1);
         assert_eq!(t.current_epoch(), 1);
 
         let bb = BBox::new(0.1, 0.1, 10.1, 20.0);
-        let v = t.epoch(&vec![bb]);
+        let v = t.predict(&vec![bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
         let v = v[0];
         assert_eq!(v.id, track_id);
         assert_eq!(v.length, 2);
-        assert!(v.observed_bbox.almost_same(&bb, EPS));
+        assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
         assert_eq!(v.epoch, 2);
         assert_eq!(t.current_epoch(), 2);
 
         let bb = BBox::new(10.1, 10.1, 10.1, 20.0);
-        let v = t.epoch(&[bb]);
+        let v = t.predict(&[bb.into()]);
         assert_eq!(v.len(), 1);
         let v = v[0];
         assert_ne!(v.id, track_id);
@@ -271,14 +271,14 @@ mod tests {
         assert!(wasted.is_empty());
         assert_eq!(t.current_epoch(), 3);
 
-        let bb = t.epoch(&[]);
+        let bb = t.predict(&[]);
         assert!(bb.is_empty());
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(t.current_epoch(), 4);
         assert_eq!(t.current_epoch(), 4);
 
-        let bb = t.epoch(&[]);
+        let bb = t.predict(&[]);
         assert!(bb.is_empty());
         let wasted = t.wasted();
         assert_eq!(wasted.len(), 1);
@@ -293,13 +293,13 @@ mod tests {
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.epoch_with_scene(1, &vec![bb]);
-        let _v = t.epoch_with_scene(1, &vec![bb]);
+        let _v = t.predict_with_scene(1, &vec![bb.into()]);
+        let _v = t.predict_with_scene(1, &vec![bb.into()]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.epoch_with_scene(2, &vec![bb]);
+        let _v = t.predict_with_scene(2, &vec![bb.into()]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 1);

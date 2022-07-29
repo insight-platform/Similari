@@ -64,6 +64,11 @@ pub enum Errors {
     ///
     #[error("Duplicate track id={0}")]
     DuplicateTrackId(u64),
+
+    /// Object cannot be converted
+    ///
+    #[error("Generic BBox cannot be converted to a requested type")]
+    GenericBBoxConversionError,
 }
 
 pub const EPS: f32 = 0.00001;
