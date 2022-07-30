@@ -2,13 +2,6 @@ use geo::{Coordinate, CoordsIter, LineString, Polygon};
 
 fn is_inside(q: &Coordinate<f64>, p1: &Coordinate<f64>, p2: &Coordinate<f64>) -> bool {
     let r = (p2.x - p1.x) * (q.y - p1.y) - (p2.y - p1.y) * (q.x - p1.x);
-    let i1 = p2.x - p1.x;
-    let i2 = q.y - p1.y;
-    let i3 = p2.y - p1.y;
-    let i4 = q.x - p1.x;
-    dbg!(i1, i2, i3, i4);
-
-    eprintln!("p1={:?}, p2={:?}, q={:?}, r={:?}", p1, p2, q, r);
     r <= 0.0
 }
 
@@ -47,7 +40,6 @@ pub fn sutherland_hodgman_clip(
 
     for i in 0..clipping_polygon.len() {
         let next_polygon = final_polygon;
-        dbg!(&next_polygon);
         final_polygon = Vec::default();
 
         let i_i = if i == 0 {
@@ -68,16 +60,8 @@ pub fn sutherland_hodgman_clip(
 
             let s_edge_start = next_polygon[j_i];
             let s_edge_end = next_polygon[j];
-
-            eprintln!(
-                "c_edge_start={:?}, c_edge_end={:?}, s_edge_start={:?}, s_edge_end={:?}",
-                c_edge_start, c_edge_end, s_edge_start, s_edge_end
-            );
-
             if is_inside(&s_edge_end, &c_edge_start, &c_edge_end) {
-                eprintln!("inside s_edge_end");
                 if !is_inside(&s_edge_start, &c_edge_start, &c_edge_end) {
-                    eprintln!("!inside s_edge_start");
                     let int = compute_intersection(
                         &s_edge_start,
                         &s_edge_end,
@@ -88,7 +72,6 @@ pub fn sutherland_hodgman_clip(
                 }
                 final_polygon.push(s_edge_end);
             } else if is_inside(&s_edge_start, &c_edge_start, &c_edge_end) {
-                eprintln!("inside s_edge_start");
                 let int =
                     compute_intersection(&s_edge_start, &s_edge_end, &c_edge_start, &c_edge_end);
                 final_polygon.push(int);
@@ -101,7 +84,7 @@ pub fn sutherland_hodgman_clip(
 #[cfg(test)]
 mod tests {
     use crate::utils::clipping::sutherland_hodgman_clip;
-    use geo::{polygon, Area, BooleanOps, Polygon};
+    use geo::{polygon, Polygon};
 
     #[test]
     fn clip() {
@@ -119,17 +102,6 @@ mod tests {
             (x: 8078.039, y: 8022.408),
         ];
 
-        let result = sutherland_hodgman_clip(&subject_polygon, &clip_polygon);
-        dbg!(&result);
-        println!("Alg: {:?}", result.unsigned_area());
-        println!(
-            "Lib: {:?}",
-            subject_polygon.intersection(&clip_polygon).unsigned_area()
-        );
-    }
-
-    #[test]
-    fn mul() {
-        dbg!(-22.23399999999947 * -44.85429999999997 - -44.561000000000604 * -22.380999999999403);
+        let _result = sutherland_hodgman_clip(&subject_polygon, &clip_polygon);
     }
 }

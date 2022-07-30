@@ -231,8 +231,7 @@ mod polygons {
         let union = polygon1.union(&polygon3).unsigned_area();
         assert!((union - 4.0).abs() < EPS as f64);
 
-        let res = GenericBBox::calculate_metric_object(&Some(bbox1), &Some(bbox3)).unwrap() as f64;
-        assert!((res - int / union).abs() < EPS as f64);
+        assert!(GenericBBox::calculate_metric_object(&Some(bbox1), &Some(bbox3)).is_none());
     }
 
     #[test]
@@ -377,8 +376,8 @@ impl ObservationAttributes for GenericBBox {
                         let p1 = l.vertex_cache.as_ref().unwrap();
                         let p2 = r.vertex_cache.as_ref().unwrap();
 
-                        let intersection = p1.intersection(&p2).unsigned_area();
-                        let union = p1.union(&p2).unsigned_area();
+                        let intersection = p1.intersection(p2).unsigned_area();
+                        let union = p1.union(p2).unsigned_area();
                         let res = intersection / union;
                         Some(res as f32)
                     }
