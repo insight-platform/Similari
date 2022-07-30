@@ -59,7 +59,7 @@ rustflags = "-C target-cpu=native"
 
 Take a look at [benchmarks](benches) for numbers.
 
-### Numbers
+### Performance Benchmarks
 
 **IoU tracking**. Benchmark for N simultaneously observed objects run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU 
 @ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
