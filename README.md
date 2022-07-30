@@ -66,36 +66,38 @@ Take a look at [benchmarks](benches) for numbers.
 
 The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
 
-```
-10 objects:   261,184 ns/iter    [3800 FPS]
-100 objects:  1,440,733 ns/iter  [ 694 FPS]
-500 objects:  17,705,508 ns/iter [  57 FPS]
-1000 objects: 58,834,824 ns/iter [  17 FPS]
-```
+| Objects | Time (ns/iter) | FPS  |
+|---------|----------------|------|
+| 10      | 261,184        | 3800 |
+| 100     | 1,440,733      | 694  |
+| 500     | 17,705,508     | 57   |
+| 1000    | 58,834,824     | 17   |
 
 **SORT tracking**. Benchmark for N simultaneously observed objects run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU 
 @ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_tracker.rs](benches/simple_sort_tracker.rs).
 
-```
-10 objects:   83,218 ns/iter     [12048 FPS]
-100 objects:  2,305,982 ns/iter  [  433 FPS]
-500 objects:  24,170,165 ns/iter [   41 FPS]
-1000 objects: 83,859,085 ns/iter [   11 FPS]
-```
+| Objects | Time (ns/iter) | FPS   |
+|---------|----------------|-------|
+| 10      | 83,218         | 12048 |
+| 100     | 2,305,982      | 433   |
+| 500     | 24,170,165     | 41    |
+| 1000    | 83,859,085     | 11    |
+
 
 **Oriented SORT tracking**. Benchmark for N simultaneously observed **oriented** objects run on 4 cores of Intel(R) Core
 (TM) i5-7440HQ CPU @ 2.80GHz. The benchmark use heuristics that separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_tracker_rotated.rs](benches/simple_sort_tracker_rotated.rs).
 
-```
-10 objects:   485,236 ns/iter     [2000 FPS]
-100 objects:  5,578,176 ns/iter   [ 180 FPS]
-500 objects:  47,809,027 ns/iter  [  20 FPS]
-1000 objects: 131,859,818 ns/iter [   7 FPS]
-```
+| Objects | Time (ns/iter) | FPS  |
+|---------|----------------|------|
+| 10      | 485,236        | 2000 |
+| 100     | 5,578,176      | 180  |
+| 500     | 47,809,027     | 20   |
+| 1000    | 131,859,818    | 7    |
+
 
 **Feature (256 @ f32) tracking**. Benchmark for N simultaneously observed objects run on 4 cores of 
 Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects 
@@ -103,12 +105,13 @@ based on object distances.
 
 The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs).
 
-```
-10 objects:   101,465 ns/iter     [9900 FPS]
-100 objects:  4,020,673 ns/iter   [ 250 FPS]
-500 objects:  61,716,729 ns/iter  [  16 FPS]
-1000 objects: 235,187,877 ns/iter [   4 FPS]
-```
+
+| Objects | Time (ns/iter) | FPS    |
+|---------|----------------|--------|
+| 10      | 101,465        | 9900   |
+| 100     | 4,020,673      | 250    |
+| 500     | 61,716,729     | 16 FPS |
+| 1000    | 235,187,877    | 4 FPS  |
 
 ## Manuals and Articles
 Collected articles about Similari:
