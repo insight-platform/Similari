@@ -16,25 +16,13 @@ fn kalman_100k(b: &mut Bencher) {
     b.iter(|| {
         let v = pt.next().unwrap().1.unwrap();
         let n = v[0].as_array_ref();
-        let bbox = GenericBBox {
-            x: n[0],
-            y: n[1],
-            angle: 0.0,
-            aspect: 2.0,
-            height: 5.0,
-        };
+        let bbox = GenericBBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
 
         let mut state = f.initiate(bbox);
         for _i in 0..N {
             let v = pt.next().unwrap().1.unwrap();
             let n = v[0].as_array_ref();
-            let bb = GenericBBox {
-                x: n[0],
-                y: n[1],
-                angle: 0.0,
-                aspect: 2.0,
-                height: 5.0,
-            };
+            let bb = GenericBBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
 
             state = f.predict(state);
             state = f.update(state, bb);

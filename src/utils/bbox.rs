@@ -46,40 +46,64 @@ impl EstimateClose for BBox {
 }
 
 /// Bounding box in the format (x, y, angle, aspect, height)
-#[derive(Clone, Default, Debug, Copy)]
+#[derive(Default, Debug)]
 pub struct GenericBBox {
     /// Top-left point X
     pub x: f32,
     /// Top-left point Y
     pub y: f32,
     /// Angle
-    pub angle: f32,
+    pub angle: Option<f32>,
     /// Width/Height ratio
     pub aspect: f32,
     /// Height
     pub height: f32,
+
+    vertex_cache: Option<Polygon<f64>>,
+}
+
+impl Clone for GenericBBox {
+    fn clone(&self) -> Self {
+        GenericBBox::new(self.x, self.y, self.angle, self.aspect, self.height).gen_vertices()
+    }
 }
 
 impl GenericBBox {
+    pub fn get_radius(&self) -> f32 {
+        let hw = self.aspect * self.height / 2.0_f32;
+        let hh = self.height / 2.0_f32;
+        (hw * hw + hh * hh).sqrt()
+    }
+
+    pub fn gen_vertices(mut self) -> Self {
+        if self.angle.is_some() {
+            self.vertex_cache = Some(Polygon::from(&self));
+        }
+        self
+    }
     /// Constructor
-    pub fn new(x: f32, y: f32, angle: f32, aspect: f32, height: f32) -> Self {
+    pub fn new(x: f32, y: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
             x,
             y,
             angle,
             aspect,
             height,
+            vertex_cache: None,
         }
+        .gen_vertices()
     }
 
     pub fn rotate(self, angle: f32) -> Self {
         Self {
             x: self.x,
             y: self.y,
-            angle,
+            angle: Some(angle),
             aspect: self.aspect,
             height: self.height,
+            vertex_cache: None,
         }
+        .gen_vertices()
     }
 }
 
@@ -89,7 +113,7 @@ impl EstimateClose for GenericBBox {
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
         (self.x - other.x).abs() < eps
             && (self.y - other.y).abs() < eps
-            && (self.angle - other.angle) < eps
+            && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < eps
             && (self.aspect - other.aspect) < eps
             && (self.height - other.height) < eps
     }
@@ -100,17 +124,19 @@ impl From<BBox> for GenericBBox {
         GenericBBox {
             x: f.x + f.width / 2.0,
             y: f.y + f.height / 2.0,
-            angle: 0.0,
+            angle: None,
             aspect: f.width / f.height,
             height: f.height,
+            vertex_cache: None,
         }
+        .gen_vertices()
     }
 }
 
 impl From<GenericBBox> for Result<BBox> {
     /// This is a lossy translation. It is valid only when the angle is 0
     fn from(f: GenericBBox) -> Self {
-        if f.angle.abs() >= EPS {
+        if f.angle.is_some() {
             Err(GenericBBoxConversionError.into())
         } else {
             let width = f.height * f.aspect;
@@ -124,9 +150,9 @@ impl From<GenericBBox> for Result<BBox> {
     }
 }
 
-impl From<GenericBBox> for Polygon<f64> {
-    fn from(b: GenericBBox) -> Self {
-        let angle = b.angle as f64;
+impl From<&GenericBBox> for Polygon<f64> {
+    fn from(b: &GenericBBox) -> Self {
+        let angle = b.angle.unwrap_or(0.0) as f64;
         let height = b.height as f64;
         let aspect = b.aspect as f64;
 
@@ -180,10 +206,10 @@ mod polygons {
 
     #[test]
     fn transform() {
-        let bbox1 = GenericBBox::new(0.0, 0.0, 2.0, 0.5, 2.0);
-        let polygon1 = Polygon::from(bbox1);
-        let bbox2 = GenericBBox::new(0.0, 0.0, 2.0 + PI / 2.0, 0.5, 2.0);
-        let polygon2 = Polygon::from(bbox2);
+        let bbox1 = GenericBBox::new(0.0, 0.0, Some(2.0), 0.5, 2.0);
+        let polygon1 = Polygon::from(&bbox1);
+        let bbox2 = GenericBBox::new(0.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
+        let polygon2 = Polygon::from(&bbox2);
         let clip = sutherland_hodgman_clip(&polygon1, &polygon2);
         let int_area = clip.unsigned_area();
         let int = polygon1.intersection(&polygon2).unsigned_area();
@@ -192,11 +218,12 @@ mod polygons {
         let union = polygon1.union(&polygon2).unsigned_area();
         assert!((union - 3.0).abs() < EPS as f64);
 
-        let res = GenericBBox::calculate_metric_object(&Some(bbox1), &Some(bbox2)).unwrap() as f64;
+        let res = GenericBBox::calculate_metric_object(&Some(bbox1.clone()), &Some(bbox2)).unwrap()
+            as f64;
         assert!((res - int / union).abs() < EPS as f64);
 
-        let bbox3 = GenericBBox::new(10.0, 0.0, 2.0 + PI / 2.0, 0.5, 2.0);
-        let polygon3 = Polygon::from(bbox3);
+        let bbox3 = GenericBBox::new(10.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
+        let polygon3 = Polygon::from(&bbox3);
 
         let int = polygon1.intersection(&polygon3).unsigned_area();
         assert!((int - 0.0).abs() < EPS as f64);
@@ -210,23 +237,11 @@ mod polygons {
 
     #[test]
     fn corner_case_f32() {
-        let x = GenericBBox {
-            x: 8044.315,
-            y: 8011.0454,
-            angle: 2.67877485,
-            aspect: 1.00801,
-            height: 49.8073,
-        };
-        let polygon_x = Polygon::from(x);
+        let x = GenericBBox::new(8044.315, 8011.0454, Some(2.67877485), 1.00801, 49.8073);
+        let polygon_x = Polygon::from(&x);
 
-        let y = GenericBBox {
-            x: 8044.455,
-            y: 8011.338,
-            angle: 2.67877485,
-            aspect: 1.0083783,
-            height: 49.79979,
-        };
-        let polygon_y = Polygon::from(y);
+        let y = GenericBBox::new(8044.455, 8011.338, Some(2.67877485), 1.0083783, 49.79979);
+        let polygon_y = Polygon::from(&y);
 
         dbg!(&polygon_x, &polygon_y);
     }
@@ -323,24 +338,50 @@ impl ObservationAttributes for GenericBBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
-        _left: &Option<Self>,
-        _right: &Option<Self>,
+        left: &Option<Self>,
+        rigth: &Option<Self>,
     ) -> Option<Self::MetricObject> {
-        match (_left, _right) {
+        match (left, rigth) {
             (Some(l), Some(r)) => {
-                if (normalize_angle(l.angle) - normalize_angle(r.angle)).abs() < EPS {
+                if (normalize_angle(l.angle.unwrap_or(0.0))
+                    - normalize_angle(r.angle.unwrap_or(0.0)))
+                .abs()
+                    < EPS
+                {
                     BBox::calculate_metric_object(&Some(l.into()), &Some(r.into()))
                 } else {
                     assert!(l.aspect > 0.0);
                     assert!(l.height > 0.0);
                     assert!(r.aspect > 0.0);
                     assert!(r.height > 0.0);
-                    let p1 = Polygon::from(*l);
-                    let p2 = Polygon::from(*r);
-                    let intersection = p1.intersection(&p2).unsigned_area();
-                    let union = p1.union(&p2).unsigned_area();
-                    let res = intersection / union;
-                    Some(res as f32)
+
+                    let max_distance = l.get_radius() + r.get_radius();
+                    let x = l.x - r.x;
+                    let y = l.y - r.y;
+                    if x * x + y * y > max_distance * max_distance {
+                        None
+                    } else {
+                        let mut l = l.clone();
+                        let mut r = r.clone();
+
+                        if l.vertex_cache.is_none() {
+                            let angle = l.angle.unwrap_or(0.0);
+                            l = l.rotate(angle).gen_vertices();
+                        }
+
+                        if r.vertex_cache.is_none() {
+                            let angle = r.angle.unwrap_or(0.0);
+                            r = r.rotate(angle).gen_vertices();
+                        }
+
+                        let p1 = l.vertex_cache.as_ref().unwrap();
+                        let p2 = r.vertex_cache.as_ref().unwrap();
+
+                        let intersection = p1.intersection(&p2).unsigned_area();
+                        let union = p1.union(&p2).unsigned_area();
+                        let res = intersection / union;
+                        Some(res as f32)
+                    }
                 }
             }
             _ => None,

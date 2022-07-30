@@ -168,27 +168,27 @@ impl ObservationMetric<SortAttributes, GenericBBox> for SortMetric {
         _is_merge: bool,
     ) -> Result<()> {
         let mut observation = features.pop().unwrap();
-        let observation_bbox = observation.0.unwrap();
+        let observation_bbox = observation.0.as_ref().unwrap();
         features.clear();
 
         let f = KalmanFilter::default();
 
         let state = if let Some(state) = attrs.state {
-            f.update(state, observation_bbox)
+            f.update(state, observation_bbox.clone())
         } else {
-            f.initiate(observation_bbox)
+            f.initiate(observation_bbox.clone())
         };
 
         let prediction = f.predict(state);
         attrs.state = Some(prediction);
         let predicted_bbox = prediction.generic_bbox();
 
-        attrs.last_observation = observation_bbox;
-        attrs.last_prediction = predicted_bbox;
+        attrs.last_observation = observation_bbox.clone();
+        attrs.last_prediction = predicted_bbox.clone();
         attrs.length += 1;
 
-        attrs.observed_boxes.push_back(observation_bbox);
-        attrs.predicted_boxes.push_back(predicted_bbox);
+        attrs.observed_boxes.push_back(observation_bbox.clone());
+        attrs.predicted_boxes.push_back(predicted_bbox.clone());
 
         if attrs.history_len > 0 && attrs.observed_boxes.len() > attrs.history_len {
             attrs.observed_boxes.pop_front();
