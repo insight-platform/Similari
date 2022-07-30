@@ -18,7 +18,7 @@ pub struct SimpleSort {
 
 /// Online track structure that contains tracking information for the last tracker epoch
 ///
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct SortTrack {
     /// id of the track
     pub id: u64,
@@ -40,9 +40,9 @@ impl From<Track<SortAttributes, SortMetric, GenericBBox>> for SortTrack {
         SortTrack {
             id: track.get_track_id(),
             epoch: attrs.epoch,
-            observed_bbox: attrs.last_observation,
+            observed_bbox: attrs.last_observation.clone(),
             scene_id: attrs.scene_id,
-            predicted_bbox: attrs.last_prediction,
+            predicted_bbox: attrs.last_prediction.clone(),
             length: attrs.length,
         }
     }
@@ -163,7 +163,7 @@ impl SimpleSort {
                     .track_builder(rng.gen())
                     .observation(
                         ObservationBuilder::new(0)
-                            .observation_attributes(*bb)
+                            .observation_attributes(bb.clone())
                             .track_attributes_update(SortAttributesUpdate::new_with_scene(
                                 epoch, scene_id,
                             ))
@@ -243,7 +243,7 @@ mod tests {
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
-        let v = v[0];
+        let v = v[0].clone();
         let track_id = v.id;
         assert_eq!(v.length, 1);
         assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
@@ -255,7 +255,7 @@ mod tests {
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
-        let v = v[0];
+        let v = v[0].clone();
         assert_eq!(v.id, track_id);
         assert_eq!(v.length, 2);
         assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
@@ -265,7 +265,7 @@ mod tests {
         let bb = BBox::new(10.1, 10.1, 10.1, 20.0);
         let v = t.predict(&[bb.into()]);
         assert_eq!(v.len(), 1);
-        let v = v[0];
+        let v = v[0].clone();
         assert_ne!(v.id, track_id);
         let wasted = t.wasted();
         assert!(wasted.is_empty());

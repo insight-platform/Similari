@@ -51,13 +51,17 @@ impl<const X: usize> State<X> {
     /// Fetch predicted bbox in (x,y,a,h) format from the state
     ///
     pub fn generic_bbox(&self) -> GenericBBox {
-        GenericBBox {
-            x: self.mean[0],
-            y: self.mean[1],
-            angle: self.mean[2],
-            aspect: self.mean[3],
-            height: self.mean[4],
-        }
+        GenericBBox::new(
+            self.mean[0],
+            self.mean[1],
+            if self.mean[2] == 0.0 {
+                None
+            } else {
+                Some(self.mean[2])
+            },
+            self.mean[3],
+            self.mean[4],
+        )
     }
 
     /// dump the state
@@ -118,7 +122,7 @@ impl KalmanFilter {
         let mean: SVector<f32, DIM_X2> = SVector::from_iterator([
             bbox.x,
             bbox.y,
-            bbox.angle,
+            bbox.angle.unwrap_or(0.0),
             bbox.aspect,
             bbox.height,
             0.0,
@@ -190,7 +194,7 @@ impl KalmanFilter {
         let innovation = SVector::from_iterator([
             measurement.x,
             measurement.y,
-            measurement.angle,
+            measurement.angle.unwrap_or(0.0),
             measurement.aspect,
             measurement.height,
         ]) - projected_mean;
@@ -238,30 +242,12 @@ mod tests {
         let state = f.predict(state);
         let p = state.generic_bbox();
 
-        let est_p = GenericBBox {
-            x: -9.0,
-            y: 4.5,
-            angle: 0.0,
-            aspect: 0.4,
-            height: 5.0,
-        };
+        let est_p = GenericBBox::new(-9.0, 4.5, None, 0.4, 5.0);
         assert_eq!(p.almost_same(&est_p, EPS), true);
 
-        let bbox = GenericBBox {
-            x: 8.75,
-            y: 52.349999999999994,
-            angle: 0.0,
-            aspect: 0.15084915084915085,
-            height: 100.1,
-        };
+        let bbox = GenericBBox::new(8.75, 52.349999999999994, None, 0.15084915084915085, 100.1);
         let state = f.update(state, bbox);
-        let est_p = GenericBBox {
-            x: 10.070248,
-            y: 55.90909,
-            angle: 0.0,
-            aspect: 0.3951147,
-            height: 107.173546,
-        };
+        let est_p = GenericBBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
 
         let state = f.predict(state);
         let p = state.generic_bbox();
