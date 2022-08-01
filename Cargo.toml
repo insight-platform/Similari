@@ -7,7 +7,7 @@ repository = "https://github.com/insight-platform/Similari"
 readme = "README.md"
 keywords = ["machine-learning", "similarity", "tracking"]
 categories = ["algorithms", "data-structures", "database", "mathematics", "science"]
-version = "0.19.4"
+version = "0.19.5"
 edition = "2021"
 license="Apache-2.0"
 rust-version = "1.62"
@@ -27,6 +27,7 @@ nalgebra = "0.31.0"
 pathfinding = "3.0.13"
 geo = "0.22"
 smartcore = "0.2.1"
+rayon = "1.5.3"
 
 [dev-dependencies]
 wide = "0.7.4"
