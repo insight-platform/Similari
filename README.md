@@ -15,13 +15,13 @@ The primary purpose of Similari is to provide means to build sophisticated in-me
 
 The framework helps to build various kinds of tracking or similarity search engines - the simplest one that holds vector features and allows comparing new vectors against the ones kept in the database. More sophisticated engines operate over tracks - a series of observations for the same feature collected during the lifecycle. Such systems are often used in video processing or other systems where the observer receives fuzzy or changing observation results.
 
-## Ready To Use
+## Out-of-The-Box Stuff
 
 * Kalman filter, that predicts rectangular bounding boxes co-axial to scene and for oriented bounding boxes
 * Non-Maximum Suppression (NMS) - filters rectangular bounding boxes co-axial to scene and for oriented bounding 
   boxes.
 * SORT tracking algorithm.
-* DeepSORT tracking algorithm (expected in 0.19.2)
+* DeepSORT tracking algorithm (expected in 0.19.3).
 
 ## Applicability Notes
 
@@ -69,8 +69,32 @@ Take a look at [benchmarks](benches) for numbers.
 
 ### Performance Benchmarks
 
-**IoU tracking**. Benchmark for N simultaneously observed objects run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU 
-@ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
+All benchmarks numbers received on Run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz.
+
+**Non-Maximum Suppression (non-oriented boxes)**. Benchmark for filtering out of bounding boxes without orientation. 
+
+| Objects | Time (ns/iter) | FPS    |
+|---------|----------------|--------|
+| 10      | 8,834          | 118353 |
+| 100     | 78,391         | 12800  |
+| 500     | 1,096,326      | 900    |
+| 1000    | 4,074,157      | 250    |
+
+The benchmark is located at [benches/nms_benchmark.rs](benches/nms_benchmark.rs).
+
+**Non-Maximum Suppression (oriented boxes)**. Benchmark for filtering out of bounding boxes with angular orientation. 
+
+| Objects | Time (ns/iter) | FPS   |
+|---------|----------------|-------|
+| 10      | 14,549         | 71400 |
+| 100     | 782,987        | 1280  |
+| 300     | 18,762,063     | 53    |
+| 500     | 38,305,641     | 26    |
+
+The benchmark is located at [benches/nms_benchmark_oriented.rs](benches/nms_benchmark_oriented.rs).
+
+**IoU tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that 
+separate the observed objects based on object distances.
 
 The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
 
@@ -81,8 +105,7 @@ The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
 | 500     | 17,705,508     | 57   |
 | 1000    | 58,834,824     | 17   |
 
-**SORT tracking**. Benchmark for N simultaneously observed objects run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU 
-@ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
+**SORT tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_tracker.rs](benches/simple_sort_tracker.rs).
 
@@ -94,8 +117,7 @@ The benchmark is located at [benches/simple_sort_tracker.rs](benches/simple_sort
 | 1000    | 83,859,085     | 11    |
 
 
-**Oriented SORT tracking**. Benchmark for N simultaneously observed **oriented** objects run on 4 cores of Intel(R) Core
-(TM) i5-7440HQ CPU @ 2.80GHz. The benchmark use heuristics that separate the observed objects based on object distances.
+**Oriented SORT tracking**. Benchmark for N simultaneously observed **oriented** objects. The benchmark use heuristics that separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_tracker_rotated.rs](benches/simple_sort_tracker_rotated.rs).
 
@@ -107,8 +129,7 @@ The benchmark is located at [benches/simple_sort_tracker_rotated.rs](benches/sim
 | 1000    | 131,859,818    | 7    |
 
 
-**Feature (256 @ f32) tracking**. Benchmark for N simultaneously observed objects run on 4 cores of 
-Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz. The benchmark doesn't use heuristics that separate the observed objects 
+**Feature (256 @ f32) tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that separate the observed objects 
 based on object distances.
 
 The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs).
