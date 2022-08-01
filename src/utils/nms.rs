@@ -1,6 +1,5 @@
 use crate::utils::bbox::GenericBBox;
 use itertools::Itertools;
-use rayon::prelude::*;
 use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
@@ -43,29 +42,28 @@ pub fn nms(
         .sorted_by(|a, b| b.rank.partial_cmp(&a.rank).unwrap())
         .collect::<Vec<_>>();
 
-    let results = nms_boxes
-        .par_iter()
-        .enumerate()
-        .flat_map(|(index, cb)| {
-            let mut excluded = Vec::new();
+    let mut excluded = HashSet::new();
 
-            for ob in &nms_boxes[index + 1..] {
-                if excluded.contains(&ob.index) {
-                    continue;
-                }
+    for (index, cb) in nms_boxes.iter().enumerate() {
+        if excluded.contains(&cb.index) {
+            continue;
+        }
 
-                let metric = GenericBBox::intersection(cb.bbox, ob.bbox) as f32 / ob.bbox.area();
-                if metric > nms_threshold {
-                    excluded.push(ob.index);
-                }
+        for ob in &nms_boxes[index + 1..] {
+            if excluded.contains(&ob.index) {
+                continue;
             }
-            excluded
-        })
-        .collect::<HashSet<_>>();
+
+            let metric = GenericBBox::intersection(cb.bbox, ob.bbox) as f32 / ob.bbox.area();
+            if metric > nms_threshold {
+                excluded.insert(ob.index);
+            }
+        }
+    }
 
     nms_boxes
         .into_iter()
-        .filter(|e| !results.contains(&e.index))
+        .filter(|e| !excluded.contains(&e.index))
         .map(|e| e.bbox)
         .collect()
 }
@@ -83,7 +81,6 @@ mod tests {
             (GenericBBox::new(0.0, 0.0, None, 1.0, 4.9), None),
             (GenericBBox::new(3.0, 4.0, None, 1.0, 4.5), None),
         ];
-        // let scores = [0.75_f32, 0.86_f32];
         let res = nms(&bboxes, 0.8, None);
         dbg!(res);
     }
