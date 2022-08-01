@@ -144,7 +144,7 @@ The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs
 | 1000    | 235,187,877    | 4    |
 
 ## Manuals and Articles
-Collected articles about Similari:
+Collected articles about how the Similari can be used to solve specific problems.
 
 #### Medium.com
 
