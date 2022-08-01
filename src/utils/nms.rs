@@ -1,20 +1,19 @@
-use crate::track::ObservationAttributes;
 use crate::utils::bbox::GenericBBox;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
-struct Candidate {
-    bbox: Option<GenericBBox>,
+struct Candidate<'a> {
+    bbox: &'a GenericBBox,
     rank: f32,
     index: usize,
 }
 
-impl Candidate {
-    pub fn new(bbox: &GenericBBox, rank: &Option<f32>, index: usize) -> Self {
+impl<'a> Candidate<'a> {
+    pub fn new(bbox: &'a GenericBBox, rank: &Option<f32>, index: usize) -> Self {
         Self {
-            bbox: Some(bbox.clone()),
+            bbox,
             rank: rank.unwrap_or(bbox.height),
             index,
         }
@@ -32,11 +31,13 @@ pub fn nms(
     detections: &[(GenericBBox, Option<f32>)],
     nms_threshold: f32,
     score_threshold: Option<f32>,
-) -> Vec<GenericBBox> {
+) -> Vec<&GenericBBox> {
     let score_threshold = score_threshold.unwrap_or(f32::MIN);
     let nms_boxes = detections
         .iter()
-        .filter(|(_, score)| score.unwrap_or(f32::MAX) > score_threshold)
+        .filter(|(e, score)| {
+            score.unwrap_or(f32::MAX) > score_threshold && e.height > 0.0 && e.aspect > 0.0
+        })
         .enumerate()
         .map(|(index, (b, score))| Candidate::new(b, score, index))
         .sorted_by(|a, b| b.rank.partial_cmp(&a.rank).unwrap())
@@ -53,12 +54,9 @@ pub fn nms(
                     continue;
                 }
 
-                let metric = GenericBBox::calculate_metric_object(&cb.bbox, &ob.bbox);
-
-                if let Some(m) = metric {
-                    if m > nms_threshold {
-                        excluded.push(ob.index);
-                    }
+                let metric = GenericBBox::intersection(cb.bbox, ob.bbox) as f32 / ob.bbox.area();
+                if metric > nms_threshold {
+                    excluded.push(ob.index);
                 }
             }
             excluded
@@ -68,7 +66,7 @@ pub fn nms(
     nms_boxes
         .into_iter()
         .filter(|e| !results.contains(&e.index))
-        .flat_map(|e| e.bbox)
+        .map(|e| e.bbox)
         .collect()
 }
 

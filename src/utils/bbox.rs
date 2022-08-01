@@ -264,37 +264,43 @@ impl From<&GenericBBox> for BBox {
     }
 }
 
+impl BBox {
+    pub fn intersection(l: &BBox, r: &BBox) -> f64 {
+        assert!(l.width > 0.0);
+        assert!(l.height > 0.0);
+        assert!(r.width > 0.0);
+        assert!(r.height > 0.0);
+
+        let (ax0, ay0, ax1, ay1) = (l.x, l.y, l.x + l.width, l.y + l.height);
+        let (bx0, by0, bx1, by1) = (r.x, r.y, r.x + r.width, r.y + r.height);
+
+        let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
+        let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
+
+        let int_width = x2 - x1;
+        let int_height = y2 - y1;
+
+        if int_width > 0.0 && int_height > 0.0 {
+            (int_width * int_height) as f64
+        } else {
+            0.0_f64
+        }
+    }
+}
+
 impl ObservationAttributes for BBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
-        _left: &Option<Self>,
-        _right: &Option<Self>,
+        left: &Option<Self>,
+        right: &Option<Self>,
     ) -> Option<Self::MetricObject> {
-        match (_left, _right) {
+        match (left, right) {
             (Some(l), Some(r)) => {
-                assert!(l.width > 0.0);
-                assert!(l.height > 0.0);
-                assert!(r.width > 0.0);
-                assert!(r.height > 0.0);
-
-                let (ax0, ay0, ax1, ay1) = (l.x, l.y, l.x + l.width, l.y + l.height);
-                let (bx0, by0, bx1, by1) = (r.x, r.y, r.x + r.width, r.y + r.height);
-
-                let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
-                let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
-
-                let int_width = x2 - x1;
-                let int_height = y2 - y1;
-
-                let intersection = if int_width > 0.0 && int_height > 0.0 {
-                    int_width * int_height
-                } else {
-                    0.0
-                };
-
-                let union = (ax1 - ax0) * (ay1 - ay0) + (bx1 - bx0) * (by1 - by0) - intersection;
-                Some(intersection / union)
+                let intersection = BBox::intersection(l, r);
+                let union = (l.height * l.width + r.height * r.width) as f64 - intersection;
+                let res = intersection / union;
+                Some(res as f32)
             }
             _ => None,
         }
@@ -338,58 +344,65 @@ mod tests_normalize_angle {
     }
 }
 
+impl GenericBBox {
+    pub fn intersection(l: &GenericBBox, r: &GenericBBox) -> f64 {
+        if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
+            < EPS
+        {
+            BBox::intersection(&l.into(), &r.into())
+        } else {
+            assert!(l.aspect > 0.0);
+            assert!(l.height > 0.0);
+            assert!(r.aspect > 0.0);
+            assert!(r.height > 0.0);
+
+            let max_distance = l.get_radius() + r.get_radius();
+            let x = l.x - r.x;
+            let y = l.y - r.y;
+            if x * x + y * y > max_distance * max_distance {
+                0.0
+            } else {
+                let mut l = l.clone();
+                let mut r = r.clone();
+
+                if l.vertex_cache.is_none() {
+                    let angle = l.angle.unwrap_or(0.0);
+                    l = l.rotate(angle).gen_vertices();
+                }
+
+                if r.vertex_cache.is_none() {
+                    let angle = r.angle.unwrap_or(0.0);
+                    r = r.rotate(angle).gen_vertices();
+                }
+
+                let p1 = l.vertex_cache.as_ref().unwrap();
+                let p2 = r.vertex_cache.as_ref().unwrap();
+
+                p1.intersection(p2).unsigned_area()
+            }
+        }
+    }
+}
+
 impl ObservationAttributes for GenericBBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
         left: &Option<Self>,
-        rigth: &Option<Self>,
+        right: &Option<Self>,
     ) -> Option<Self::MetricObject> {
-        match (left, rigth) {
+        match (left, right) {
             (Some(l), Some(r)) => {
-                if (normalize_angle(l.angle.unwrap_or(0.0))
-                    - normalize_angle(r.angle.unwrap_or(0.0)))
-                .abs()
-                    < EPS
-                {
-                    BBox::calculate_metric_object(&Some(l.into()), &Some(r.into()))
+                let intersection = GenericBBox::intersection(l, r);
+                if intersection == 0.0 {
+                    None
                 } else {
-                    assert!(l.aspect > 0.0);
-                    assert!(l.height > 0.0);
-                    assert!(r.aspect > 0.0);
-                    assert!(r.height > 0.0);
-
-                    let max_distance = l.get_radius() + r.get_radius();
-                    let x = l.x - r.x;
-                    let y = l.y - r.y;
-                    if x * x + y * y > max_distance * max_distance {
-                        None
-                    } else {
-                        let mut l = l.clone();
-                        let mut r = r.clone();
-
-                        if l.vertex_cache.is_none() {
-                            let angle = l.angle.unwrap_or(0.0);
-                            l = l.rotate(angle).gen_vertices();
-                        }
-
-                        if r.vertex_cache.is_none() {
-                            let angle = r.angle.unwrap_or(0.0);
-                            r = r.rotate(angle).gen_vertices();
-                        }
-
-                        let p1 = l.vertex_cache.as_ref().unwrap();
-                        let p2 = r.vertex_cache.as_ref().unwrap();
-
-                        let intersection = p1.intersection(p2).unsigned_area();
-                        let union = (l.height * l.height * l.aspect
-                            + r.height * r.height * r.aspect)
-                            as f64
-                            - intersection;
-                        //let union = p1.union(p2).unsigned_area();
-                        let res = intersection / union;
-                        Some(res as f32)
-                    }
+                    let union = (l.height * l.height * l.aspect + r.height * r.height * r.aspect)
+                        as f64
+                        - intersection;
+                    //let union = p1.union(p2).unsigned_area();
+                    let res = intersection / union;
+                    Some(res as f32)
                 }
             }
             _ => None,
