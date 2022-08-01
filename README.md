@@ -20,7 +20,7 @@ The framework helps to build various kinds of tracking or similarity search engi
 * Kalman filter, that predicts rectangular bounding boxes co-axial to scene and for oriented bounding boxes
 * Non-Maximum Suppression (NMS) - filters rectangular bounding boxes co-axial to scene and for oriented bounding 
   boxes.
-* SORT tracking algorithm.
+* SORT tracking algorithm (non-oriented and oriented boxes are supported).
 * DeepSORT tracking algorithm (expected in 0.19.3).
 
 ## Applicability Notes
@@ -119,7 +119,7 @@ The benchmark is located at [benches/simple_sort_tracker.rs](benches/simple_sort
 
 **Oriented SORT tracking**. Benchmark for N simultaneously observed **oriented** objects. The benchmark use heuristics that separate the observed objects based on object distances.
 
-The benchmark is located at [benches/simple_sort_tracker_rotated.rs](benches/simple_sort_tracker_rotated.rs).
+The benchmark is located at [benches/simple_sort_tracker_oriented.rs](benches/simple_sort_tracker_oriented.rs).
 
 | Objects | Time (ns/iter) | FPS  |
 |---------|----------------|------|
