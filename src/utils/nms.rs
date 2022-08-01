@@ -24,12 +24,19 @@ impl Candidate {
 /// NMS algorithm implementation
 ///
 /// # Parameters
-/// * `boxes` - boxes with optional scores to filter out with NMS
-/// * `max_overlap` - when to exclude box from set
+/// * `detections` - boxes with optional scores to filter out with NMS; if `detection.1` is `None`, that the score is set as `detection.0.height`;
+/// * `nms_threshold` - when to exclude the box from set by NMS;
+/// * `score_threshold` - when to exclude the from set by initial score. if `score_threshold` is None, then `f32::MAX` is used.
 ///
-pub fn nms(detections: &[(GenericBBox, Option<f32>)], max_overlap: f32) -> Vec<GenericBBox> {
+pub fn nms(
+    detections: &[(GenericBBox, Option<f32>)],
+    nms_threshold: f32,
+    score_threshold: Option<f32>,
+) -> Vec<GenericBBox> {
+    let score_threshold = score_threshold.unwrap_or(f32::MIN);
     let nms_boxes = detections
         .iter()
+        .filter(|(_, score)| score.unwrap_or(f32::MAX) > score_threshold)
         .enumerate()
         .map(|(index, (b, score))| Candidate::new(b, score, index))
         .sorted_by(|a, b| b.rank.partial_cmp(&a.rank).unwrap())
@@ -49,7 +56,7 @@ pub fn nms(detections: &[(GenericBBox, Option<f32>)], max_overlap: f32) -> Vec<G
                 let metric = GenericBBox::calculate_metric_object(&cb.bbox, &ob.bbox);
 
                 if let Some(m) = metric {
-                    if m > max_overlap {
+                    if m > nms_threshold {
                         excluded.push(ob.index);
                     }
                 }
@@ -79,7 +86,7 @@ mod tests {
             (GenericBBox::new(3.0, 4.0, None, 1.0, 4.5), None),
         ];
         // let scores = [0.75_f32, 0.86_f32];
-        let res = nms(&bboxes, 0.8);
+        let res = nms(&bboxes, 0.8, None);
         dbg!(res);
     }
 }
