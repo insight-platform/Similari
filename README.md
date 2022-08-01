@@ -136,12 +136,12 @@ based on object distances.
 The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs).
 
 
-| Objects | Time (ns/iter) | FPS    |
-|---------|----------------|--------|
-| 10      | 101,465        | 9900   |
-| 100     | 4,020,673      | 250    |
-| 500     | 61,716,729     | 16 FPS |
-| 1000    | 235,187,877    | 4 FPS  |
+| Objects | Time (ns/iter) | FPS  |
+|---------|----------------|------|
+| 10      | 101,465        | 9900 |
+| 100     | 4,020,673      | 250  |
+| 500     | 61,716,729     | 16   |
+| 1000    | 235,187,877    | 4    |
 
 ## Manuals and Articles
 Collected articles about Similari:
