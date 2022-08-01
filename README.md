@@ -77,20 +77,20 @@ All benchmarks numbers received on Run on 4 cores of Intel(R) Core(TM) i5-7440HQ
 | Objects | Time (ns/iter) | FPS    |
 |---------|----------------|--------|
 | 10      | 8,834          | 118353 |
-| 100     | 78,391         | 12800  |
-| 500     | 1,096,326      | 900    |
-| 1000    | 4,074,157      | 250    |
+| 100     | 48,391         | 20400  |
+| 500     | 836,552        | 1194   |
+| 1000    | 3,442,231      | 285    |
 
 The benchmark is located at [benches/nms_benchmark.rs](benches/nms_benchmark.rs).
 
 **Non-Maximum Suppression (oriented boxes)**. Benchmark for filtering out of bounding boxes with angular orientation. 
 
-| Objects | Time (ns/iter) | FPS   |
-|---------|----------------|-------|
-| 10      | 14,549         | 71400 |
-| 100     | 782,987        | 1280  |
-| 300     | 18,762,063     | 53    |
-| 500     | 38,305,641     | 26    |
+| Objects | Time (ns/iter) | FPS    |
+|---------|----------------|--------|
+| 10      | 9,438          | 106000 |
+| 100     | 312,616        | 3200   |
+| 300     | 16,863,998     | 58     |
+| 500     | 36,451,893     | 27     |
 
 The benchmark is located at [benches/nms_benchmark_oriented.rs](benches/nms_benchmark_oriented.rs).
 

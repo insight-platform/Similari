@@ -55,6 +55,6 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
             let bb: GenericBBox = b.unwrap().into();
             observations.push((bb.rotate(indx as f32 / 10.0), None));
         }
-        nms(&observations, 0.8);
+        nms(&observations, 0.8, None);
     });
 }

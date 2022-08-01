@@ -58,6 +58,6 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
             let b = i.next();
             observations.push((b.unwrap().into(), None));
         }
-        nms(&observations, 0.8);
+        nms(&observations, 0.8, None);
     });
 }
