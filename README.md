@@ -17,8 +17,10 @@ The framework helps to build various kinds of tracking or similarity search engi
 
 ## Out-of-The-Box Stuff
 
-* **Kalman filter**, that predicts rectangular bounding boxes co-axial to scene and for oriented bounding boxes.
-* **Non-Maximum Suppression (NMS)** - filters rectangular bounding boxes co-axial to scene and for oriented bounding 
+* **Kalman filter**, that predicts rectangular bounding boxes co-axial to scene, supports the oriented bounding 
+  boxes as well.
+* **Non-Maximum Suppression (NMS)** - filters rectangular bounding boxes co-axial to scene, and supports the oriented 
+  bounding 
   boxes.
 * **SORT tracking** algorithm (non-oriented and oriented boxes are supported).
 
