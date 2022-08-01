@@ -76,23 +76,23 @@ All benchmarks numbers received on Run on 4 cores of Intel(R) Core(TM) i5-7440HQ
 
 | Objects | Time (ns/iter) | FPS    |
 |---------|----------------|--------|
-| 10      | 8,834          | 118353 |
-| 100     | 48,391         | 20400  |
-| 500     | 836,552        | 1194   |
-| 1000    | 3,442,231      | 285    |
+| 10      | 1,586          | 632000 |
+| 100     | 148,906        | 6711   |
+| 500     | 4,082,791      | 250    |
+| 1000    | 13,773,713     | 72     |
 
-The benchmark is located at [benches/nms_benchmark.rs](benches/nms_benchmark.rs).
+The benchmark is located at [benches/nms.rs](benches/nms.rs).
 
 **Non-Maximum Suppression (oriented boxes)**. Benchmark for filtering out of bounding boxes with angular orientation. 
 
 | Objects | Time (ns/iter) | FPS    |
 |---------|----------------|--------|
-| 10      | 9,438          | 106000 |
-| 100     | 312,616        | 3200   |
-| 300     | 16,863,998     | 58     |
-| 500     | 36,451,893     | 27     |
+| 10      | 2,169          | 460000 |
+| 100     | 2,680,360      | 370    |
+| 300     | 37,238,820     | 26     |
+| 500     | 62,479,704     | 16     |
 
-The benchmark is located at [benches/nms_benchmark_oriented.rs](benches/nms_benchmark_oriented.rs).
+The benchmark is located at [benches/nms_oriented.rs](benches/nms_oriented.rs).
 
 **IoU tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that 
 separate the observed objects based on object distances.
