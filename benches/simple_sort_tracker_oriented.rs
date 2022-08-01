@@ -63,11 +63,13 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         }
         let tracks = tracker.predict(&observations);
         assert_eq!(tracks.len(), objects);
-        let wasted = tracker.wasted();
-        assert!(wasted.is_empty());
     });
+    let wasted = tracker.wasted();
+    assert!(wasted.is_empty());
+
     eprintln!("Store stats: {:?}", tracker.shard_stats());
     assert_eq!(tracker.shard_stats().into_iter().sum::<usize>(), objects);
+
     tracker.skip_epochs(2);
     let wasted = tracker.wasted();
     assert_eq!(wasted.len(), objects);

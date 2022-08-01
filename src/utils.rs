@@ -10,3 +10,6 @@ pub mod linear_sum_assignment;
 pub mod clipping;
 /// Trait implementations for primitive types
 pub mod primitive;
+
+/// Non maximum suppression implementation for detected boxes
+pub mod nms;

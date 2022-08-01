@@ -105,6 +105,11 @@ impl GenericBBox {
         }
         .gen_vertices()
     }
+
+    pub fn area(&self) -> f32 {
+        let w = self.height * self.aspect;
+        w * self.height
+    }
 }
 
 impl EstimateClose for GenericBBox {
@@ -377,7 +382,11 @@ impl ObservationAttributes for GenericBBox {
                         let p2 = r.vertex_cache.as_ref().unwrap();
 
                         let intersection = p1.intersection(p2).unsigned_area();
-                        let union = p1.union(p2).unsigned_area();
+                        let union = (l.height * l.height * l.aspect
+                            + r.height * r.height * r.aspect)
+                            as f64
+                            - intersection;
+                        //let union = p1.union(p2).unsigned_area();
                         let res = intersection / union;
                         Some(res as f32)
                     }
