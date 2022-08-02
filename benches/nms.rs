@@ -3,45 +3,85 @@
 extern crate test;
 
 use similari::examples::BoxGen2;
-use similari::utils::nms::nms;
+use similari::utils::bbox::GenericBBox;
+use similari::utils::nms::{nms, parallel_nms};
 use test::Bencher;
 
 #[bench]
 fn bench_nms_00010(b: &mut Bencher) {
-    bench_sort(10, b);
+    bench_sort(10, b, nms);
 }
 
 #[bench]
 fn bench_nms_00100(b: &mut Bencher) {
-    bench_sort(100, b);
+    bench_sort(100, b, nms);
 }
 
 #[bench]
 fn bench_nms_00200(b: &mut Bencher) {
-    bench_sort(200, b);
+    bench_sort(200, b, nms);
 }
 
 #[bench]
 fn bench_nms_00300(b: &mut Bencher) {
-    bench_sort(300, b);
+    bench_sort(300, b, nms);
 }
 
 #[bench]
 fn bench_nms_00400(b: &mut Bencher) {
-    bench_sort(400, b);
+    bench_sort(400, b, nms);
 }
 
 #[bench]
 fn bench_nms_00500(b: &mut Bencher) {
-    bench_sort(500, b);
+    bench_sort(500, b, nms);
 }
 
 #[bench]
 fn bench_nms_01000(b: &mut Bencher) {
-    bench_sort(1000, b);
+    bench_sort(1000, b, nms);
 }
 
-fn bench_sort(objects: usize, b: &mut Bencher) {
+#[bench]
+fn bench_parallel_nms_00010(b: &mut Bencher) {
+    bench_sort(10, b, parallel_nms);
+}
+
+#[bench]
+fn bench_parallel_nms_00100(b: &mut Bencher) {
+    bench_sort(100, b, parallel_nms);
+}
+
+#[bench]
+fn bench_parallel_nms_00200(b: &mut Bencher) {
+    bench_sort(200, b, parallel_nms);
+}
+
+#[bench]
+fn bench_parallel_nms_00300(b: &mut Bencher) {
+    bench_sort(300, b, parallel_nms);
+}
+
+#[bench]
+fn bench_parallel_nms_00400(b: &mut Bencher) {
+    bench_sort(400, b, parallel_nms);
+}
+
+#[bench]
+fn bench_parallel_nms_00500(b: &mut Bencher) {
+    bench_sort(500, b, parallel_nms);
+}
+
+#[bench]
+fn bench_parallel_nms_01000(b: &mut Bencher) {
+    bench_sort(1000, b, parallel_nms);
+}
+
+fn bench_sort(
+    objects: usize,
+    b: &mut Bencher,
+    f: fn(&[(GenericBBox, Option<f32>)], f32, Option<f32>) -> Vec<&GenericBBox>,
+) {
     let pos_drift = 10.0;
     let box_drift = 1.0;
     let mut iterators = Vec::default();
@@ -58,6 +98,6 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
             let b = i.next();
             observations.push((b.unwrap().into(), None));
         }
-        nms(&observations, 0.8, None);
+        f(&observations, 0.8, None);
     });
 }
