@@ -1,9 +1,10 @@
+use std::ops::SubAssign;
 // Original source code idea from
 // https://github.com/nwojke/deep_sort/blob/master/deep_sort/kalman_filter.py
 //
 use crate::utils::bbox::{BBox, GenericBBox};
 use anyhow::Result;
-use nalgebra::{SMatrix, SVector};
+use nalgebra::{DMatrix, DVector, SMatrix, SVector};
 
 pub fn chi2inv95() -> [f32; 9] {
     [
@@ -205,12 +206,75 @@ impl KalmanFilter {
         let covariance = covariance - kalman_gain.transpose() * projected_cov * kalman_gain;
         State { mean, covariance }
     }
+
+    pub fn distances(
+        &self,
+        state: State<DIM_X2>,
+        measurements: &Vec<GenericBBox>,
+        only_position: bool,
+    ) -> Vec<f32> {
+        let (mean, covariance) = (state.mean, state.covariance);
+        let projected_state = self.project(mean, covariance);
+        let (mean, covariance) = (projected_state.mean, projected_state.covariance);
+
+        let (covariance, measurements) = if only_position {
+            let mean = mean.resize(2, 1, 0.0);
+            let covariance = covariance.resize(2, 2, 0.0);
+            let measurements = DMatrix::from_columns(
+                measurements
+                    .into_iter()
+                    .map(|e| {
+                        let mut r = DVector::from_vec(vec![e.x, e.y]);
+                        r.sub_assign(mean.clone());
+                        r
+                    })
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+            (covariance, measurements)
+        } else {
+            let measurements = DMatrix::from_columns(
+                measurements
+                    .into_iter()
+                    .map(|e| {
+                        let mut r = DVector::from_vec(vec![
+                            e.x,
+                            e.y,
+                            e.angle.unwrap_or(0.0),
+                            e.aspect,
+                            e.height,
+                        ]);
+                        r.sub_assign(mean.clone());
+                        r
+                    })
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+            (
+                covariance.resize(covariance.nrows(), covariance.ncols(), 0.0),
+                measurements,
+            )
+        };
+
+        let choletsky = covariance.clone().cholesky().unwrap().l();
+        let res = choletsky.solve_lower_triangular(&measurements).unwrap();
+        let r = res.component_mul(&res).row_sum().transpose();
+
+        let chi_index = if only_position {
+            chi2inv95()[1]
+        } else {
+            chi2inv95()[4]
+        };
+        r.iter()
+            .map(|e| if *e <= chi_index { *e } else { f32::MAX })
+            .collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::utils::bbox::{BBox, GenericBBox};
-    use crate::utils::kalman::KalmanFilter;
+    use crate::utils::kalman::{chi2inv95, KalmanFilter};
     use crate::{EstimateClose, EPS};
 
     #[test]
@@ -252,5 +316,52 @@ mod tests {
         let state = f.predict(state);
         let p = state.generic_bbox();
         assert_eq!(p.almost_same(&est_p, EPS), true);
+    }
+
+    #[test]
+    fn gating_distance() {
+        let f = KalmanFilter::default();
+        let bbox = BBox {
+            x: -10.0,
+            y: 2.0,
+            width: 2.0,
+            height: 5.0,
+        };
+
+        let upd_bbox = BBox {
+            x: -9.5,
+            y: 2.1,
+            width: 2.0,
+            height: 5.0,
+        };
+
+        let new_bbox_1 = BBox {
+            x: -9.0,
+            y: 2.2,
+            width: 2.0,
+            height: 5.0,
+        };
+
+        let new_bbox_2 = BBox {
+            x: -5.0,
+            y: 1.5,
+            width: 2.2,
+            height: 5.0,
+        };
+
+        let state = f.initiate(bbox.clone().into());
+        let state = f.predict(state);
+        let state = f.update(state, upd_bbox.into());
+        let state = f.predict(state);
+
+        let dists = f.distances(state, &vec![new_bbox_1.into(), new_bbox_2.into()], false);
+        dbg!(&dists);
+        assert!(dists[0] >= 0.0 && dists[0] < chi2inv95()[1]);
+        assert!(dists[1] > chi2inv95()[1]);
+
+        let dists = f.distances(state, &vec![new_bbox_1.into(), new_bbox_2.into()], true);
+        dbg!(&dists);
+        assert!(dists[0] >= 0.0 && dists[0] < chi2inv95()[4]);
+        assert!(dists[1] > chi2inv95()[4]);
     }
 }
