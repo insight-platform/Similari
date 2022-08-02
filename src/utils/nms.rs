@@ -148,19 +148,8 @@ mod tests {
             (GenericBBox::new(0.0, 0.0, None, 1.0, 4.9), None),
             (GenericBBox::new(3.0, 4.0, None, 1.0, 4.5), None),
         ];
-        let res = nms(&bboxes, 0.8, None);
-        dbg!(res);
-    }
-
-    #[test]
-    fn pnms_test() {
-        let bboxes = [
-            (GenericBBox::new(0.0, 0.0, None, 1.0, 5.0), None),
-            (GenericBBox::new(0.0, 0.0, None, 1.05, 5.1), None),
-            (GenericBBox::new(0.0, 0.0, None, 1.0, 4.9), None),
-            (GenericBBox::new(3.0, 4.0, None, 1.0, 4.5), None),
-        ];
-        let res = parallel_nms(&bboxes, 0.8, None);
-        dbg!(res);
+        let res_serial = nms(&bboxes, 0.8, None);
+        let res_parallel = parallel_nms(&bboxes, 0.8, None);
+        assert_eq!(res_serial, res_parallel);
     }
 }
