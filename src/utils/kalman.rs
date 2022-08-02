@@ -4,7 +4,7 @@ use std::ops::SubAssign;
 //
 use crate::utils::bbox::{BBox, GenericBBox};
 use anyhow::Result;
-use nalgebra::{DMatrix, DVector, SMatrix, SVector};
+use nalgebra::{DMatrix, DVector, Dynamic, OMatrix, SMatrix, SVector, U1};
 
 pub fn chi2inv95() -> [f32; 9] {
     [
@@ -210,9 +210,9 @@ impl KalmanFilter {
     pub fn distances(
         &self,
         state: State<DIM_X2>,
-        measurements: &Vec<GenericBBox>,
+        measurements: &[GenericBBox],
         only_position: bool,
-    ) -> Vec<f32> {
+    ) -> OMatrix<f32, Dynamic, U1> {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
@@ -222,7 +222,7 @@ impl KalmanFilter {
             let covariance = covariance.resize(2, 2, 0.0);
             let measurements = DMatrix::from_columns(
                 measurements
-                    .into_iter()
+                    .iter()
                     .map(|e| {
                         let mut r = DVector::from_vec(vec![e.x, e.y]);
                         r.sub_assign(mean.clone());
@@ -235,7 +235,7 @@ impl KalmanFilter {
         } else {
             let measurements = DMatrix::from_columns(
                 measurements
-                    .into_iter()
+                    .iter()
                     .map(|e| {
                         let mut r = DVector::from_vec(vec![
                             e.x,
@@ -244,7 +244,7 @@ impl KalmanFilter {
                             e.aspect,
                             e.height,
                         ]);
-                        r.sub_assign(mean.clone());
+                        r.sub_assign(mean);
                         r
                     })
                     .collect::<Vec<_>>()
@@ -256,18 +256,27 @@ impl KalmanFilter {
             )
         };
 
-        let choletsky = covariance.clone().cholesky().unwrap().l();
+        let choletsky = covariance.cholesky().unwrap().l();
         let res = choletsky.solve_lower_triangular(&measurements).unwrap();
-        let r = res.component_mul(&res).row_sum().transpose();
+        res.component_mul(&res).row_sum().transpose()
+    }
 
+    pub fn calculate_final_weights(
+        mut distances: OMatrix<f32, Dynamic, U1>,
+        only_position: bool,
+    ) -> OMatrix<f32, Dynamic, U1> {
         let chi_index = if only_position {
             chi2inv95()[1]
         } else {
             chi2inv95()[4]
         };
-        r.iter()
-            .map(|e| if *e <= chi_index { *e } else { f32::MAX })
-            .collect()
+
+        distances.iter_mut().for_each(|e| {
+            if *e > chi_index {
+                *e = f32::MAX;
+            }
+        });
+        distances
     }
 }
 
@@ -355,11 +364,12 @@ mod tests {
         let state = f.predict(state);
 
         let dists = f.distances(state, &vec![new_bbox_1.into(), new_bbox_2.into()], false);
-        dbg!(&dists);
+        let dists = KalmanFilter::calculate_final_weights(dists, false);
         assert!(dists[0] >= 0.0 && dists[0] < chi2inv95()[1]);
         assert!(dists[1] > chi2inv95()[1]);
 
         let dists = f.distances(state, &vec![new_bbox_1.into(), new_bbox_2.into()], true);
+        let dists = KalmanFilter::calculate_final_weights(dists, true);
         dbg!(&dists);
         assert!(dists[0] >= 0.0 && dists[0] < chi2inv95()[4]);
         assert!(dists[1] > chi2inv95()[4]);
