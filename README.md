@@ -23,7 +23,8 @@ The framework helps to build various kinds of tracking or similarity search engi
 * **Non-Maximum Suppression (NMS)** - filters rectangular bounding boxes co-axial to scene, and supports the oriented 
   bounding 
   boxes.
-* **SORT tracking** algorithm (non-oriented and oriented boxes are supported).
+* **SORT tracking** algorithm (non-oriented and oriented boxes are supported) - IoU and Mahalanobis distances are 
+  supported.
 
 ## Applicability Notes
 
