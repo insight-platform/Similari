@@ -384,42 +384,44 @@ mod tests_normalize_angle {
 }
 
 impl GenericBBox {
+    pub fn too_far(l: &GenericBBox, r: &GenericBBox) -> bool {
+        assert!(l._aspect > 0.0);
+        assert!(l._height > 0.0);
+        assert!(r._aspect > 0.0);
+        assert!(r._height > 0.0);
+
+        let max_distance = l.get_radius() + r.get_radius();
+        let x = l._x - r._x;
+        let y = l._y - r._y;
+        x * x + y * y > max_distance * max_distance
+    }
+
     pub fn intersection(l: &GenericBBox, r: &GenericBBox) -> f64 {
         if (normalize_angle(l._angle.unwrap_or(0.0)) - normalize_angle(r._angle.unwrap_or(0.0)))
             .abs()
             < EPS
         {
             BBox::intersection(&l.into(), &r.into())
+        } else if GenericBBox::too_far(l, r) {
+            0.0
         } else {
-            assert!(l._aspect > 0.0);
-            assert!(l._height > 0.0);
-            assert!(r._aspect > 0.0);
-            assert!(r._height > 0.0);
+            let mut l = l.clone();
+            let mut r = r.clone();
 
-            let max_distance = l.get_radius() + r.get_radius();
-            let x = l._x - r._x;
-            let y = l._y - r._y;
-            if x * x + y * y > max_distance * max_distance {
-                0.0
-            } else {
-                let mut l = l.clone();
-                let mut r = r.clone();
-
-                if l.get_vertices().is_none() {
-                    let angle = l._angle.unwrap_or(0.0);
-                    l = l.rotate(angle).gen_vertices();
-                }
-
-                if r.get_vertices().is_none() {
-                    let angle = r._angle.unwrap_or(0.0);
-                    r = r.rotate(angle).gen_vertices();
-                }
-
-                let p1 = l.get_vertices().as_ref().unwrap();
-                let p2 = r.get_vertices().as_ref().unwrap();
-
-                p1.intersection(p2).unsigned_area()
+            if l.get_vertices().is_none() {
+                let angle = l._angle.unwrap_or(0.0);
+                l = l.rotate(angle).gen_vertices();
             }
+
+            if r.get_vertices().is_none() {
+                let angle = r._angle.unwrap_or(0.0);
+                r = r.rotate(angle).gen_vertices();
+            }
+
+            let p1 = l.get_vertices().as_ref().unwrap();
+            let p2 = r.get_vertices().as_ref().unwrap();
+
+            p1.intersection(p2).unsigned_area()
         }
     }
 }

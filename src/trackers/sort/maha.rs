@@ -18,10 +18,7 @@ impl ObservationMetric<SortAttributes, GenericBBox> for MahaSortMetric {
         let candidate_observation = candidate_observation.0.as_ref().unwrap();
         let track_observation = track_observation.0.as_ref().unwrap();
 
-        let max_distance = candidate_observation.get_radius() + track_observation.get_radius();
-        let x = candidate_observation.x() - track_observation.x();
-        let y = candidate_observation.y() - track_observation.y();
-        if x * x + y * y > max_distance * max_distance {
+        if GenericBBox::too_far(candidate_observation, track_observation) {
             None
         } else {
             let f = KalmanFilter::default();
