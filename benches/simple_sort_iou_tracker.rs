@@ -3,27 +3,27 @@
 extern crate test;
 
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple::SimpleSort;
+use similari::trackers::sort::simple_iou::SORT;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use test::Bencher;
 
 #[bench]
-fn bench_sort_00010(b: &mut Bencher) {
+fn bench_sort_iou_00010(b: &mut Bencher) {
     bench_sort(10, b);
 }
 
 #[bench]
-fn bench_sort_00100(b: &mut Bencher) {
+fn bench_sort_iou_00100(b: &mut Bencher) {
     bench_sort(100, b);
 }
 
 #[bench]
-fn bench_sort_00500(b: &mut Bencher) {
+fn bench_sort_iou_00500(b: &mut Bencher) {
     bench_sort(500, b);
 }
 
 #[bench]
-fn bench_sort_01000(b: &mut Bencher) {
+fn bench_sort_iou_01000(b: &mut Bencher) {
     bench_sort(1000, b);
 }
 
@@ -50,7 +50,7 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut tracker = SimpleSort::new(ncores, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
+    let mut tracker = SORT::new(ncores, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
 
     b.iter(|| {
         let mut observations = Vec::new();

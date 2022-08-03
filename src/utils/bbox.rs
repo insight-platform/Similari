@@ -14,22 +14,35 @@ use std::f32::consts::PI;
 ///
 #[derive(Clone, Default, Debug, Copy)]
 pub struct BBox {
-    /// top-left point X
-    pub x: f32,
-    /// top-left point Y
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
+    _x: f32,
+    _y: f32,
+    _width: f32,
+    _height: f32,
 }
 
 impl BBox {
+    pub fn x(&self) -> f32 {
+        self._x
+    }
+    pub fn y(&self) -> f32 {
+        self._y
+    }
+
+    pub fn width(&self) -> f32 {
+        self._width
+    }
+
+    pub fn height(&self) -> f32 {
+        self._height
+    }
+
     /// Constructor
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
-            x,
-            y,
-            width,
-            height,
+            _x: x,
+            _y: y,
+            _width: width,
+            _height: height,
         }
     }
 }
@@ -38,45 +51,58 @@ impl EstimateClose for BBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self.x - other.x).abs() < eps
-            && (self.y - other.y).abs() < eps
-            && (self.width - other.width) < eps
-            && (self.height - other.height) < eps
+        (self._x - other._x).abs() < eps
+            && (self._y - other._y).abs() < eps
+            && (self._width - other._width) < eps
+            && (self._height - other._height) < eps
     }
 }
 
 /// Bounding box in the format (x, y, angle, aspect, height)
 #[derive(Default, Debug)]
 pub struct GenericBBox {
-    /// Top-left point X
-    pub x: f32,
-    /// Top-left point Y
-    pub y: f32,
-    /// Angle
-    pub angle: Option<f32>,
-    /// Width/Height ratio
-    pub aspect: f32,
-    /// Height
-    pub height: f32,
-
+    _x: f32,
+    _y: f32,
+    _angle: Option<f32>,
+    _aspect: f32,
+    _height: f32,
     vertex_cache: Option<Polygon<f64>>,
 }
 
 impl Clone for GenericBBox {
     fn clone(&self) -> Self {
-        GenericBBox::new(self.x, self.y, self.angle, self.aspect, self.height).gen_vertices()
+        GenericBBox::new(self._x, self._y, self._angle, self._aspect, self._height).gen_vertices()
     }
 }
 
 impl GenericBBox {
+    pub fn x(&self) -> f32 {
+        self._x
+    }
+    pub fn y(&self) -> f32 {
+        self._y
+    }
+
+    pub fn aspect(&self) -> f32 {
+        self._aspect
+    }
+
+    pub fn height(&self) -> f32 {
+        self._height
+    }
+
+    pub fn angle(&self) -> Option<f32> {
+        self._angle
+    }
+
     pub fn get_radius(&self) -> f32 {
-        let hw = self.aspect * self.height / 2.0_f32;
-        let hh = self.height / 2.0_f32;
+        let hw = self._aspect * self._height / 2.0_f32;
+        let hh = self._height / 2.0_f32;
         (hw * hw + hh * hh).sqrt()
     }
 
     pub fn gen_vertices(mut self) -> Self {
-        if self.angle.is_some() {
+        if self._angle.is_some() {
             self.vertex_cache = Some(Polygon::from(&self));
         }
         self
@@ -84,11 +110,11 @@ impl GenericBBox {
     /// Constructor
     pub fn new(x: f32, y: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
-            x,
-            y,
-            angle,
-            aspect,
-            height,
+            _x: x,
+            _y: y,
+            _angle: angle,
+            _aspect: aspect,
+            _height: height,
             vertex_cache: None,
         }
         .gen_vertices()
@@ -96,19 +122,19 @@ impl GenericBBox {
 
     pub fn rotate(self, angle: f32) -> Self {
         Self {
-            x: self.x,
-            y: self.y,
-            angle: Some(angle),
-            aspect: self.aspect,
-            height: self.height,
+            _x: self._x,
+            _y: self._y,
+            _angle: Some(angle),
+            _aspect: self._aspect,
+            _height: self._height,
             vertex_cache: None,
         }
         .gen_vertices()
     }
 
     pub fn area(&self) -> f32 {
-        let w = self.height * self.aspect;
-        w * self.height
+        let w = self._height * self._aspect;
+        w * self._height
     }
 }
 
@@ -116,22 +142,22 @@ impl EstimateClose for GenericBBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self.x - other.x).abs() < eps
-            && (self.y - other.y).abs() < eps
-            && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < eps
-            && (self.aspect - other.aspect) < eps
-            && (self.height - other.height) < eps
+        (self._x - other._x).abs() < eps
+            && (self._y - other._y).abs() < eps
+            && (self._angle.unwrap_or(0.0) - other._angle.unwrap_or(0.0)) < eps
+            && (self._aspect - other._aspect) < eps
+            && (self._height - other._height) < eps
     }
 }
 
 impl From<BBox> for GenericBBox {
     fn from(f: BBox) -> Self {
         GenericBBox {
-            x: f.x + f.width / 2.0,
-            y: f.y + f.height / 2.0,
-            angle: None,
-            aspect: f.width / f.height,
-            height: f.height,
+            _x: f._x + f._width / 2.0,
+            _y: f._y + f._height / 2.0,
+            _angle: None,
+            _aspect: f._width / f._height,
+            _height: f._height,
             vertex_cache: None,
         }
         .gen_vertices()
@@ -141,15 +167,15 @@ impl From<BBox> for GenericBBox {
 impl From<GenericBBox> for Result<BBox> {
     /// This is a lossy translation. It is valid only when the angle is 0
     fn from(f: GenericBBox) -> Self {
-        if f.angle.is_some() {
+        if f._angle.is_some() {
             Err(GenericBBoxConversionError.into())
         } else {
-            let width = f.height * f.aspect;
+            let width = f._height * f._aspect;
             Ok(BBox {
-                x: f.x - width / 2.0,
-                y: f.y - f.height / 2.0,
-                width,
-                height: f.height,
+                _x: f._x - width / 2.0,
+                _y: f._y - f._height / 2.0,
+                _width: width,
+                _height: f._height,
             })
         }
     }
@@ -157,9 +183,9 @@ impl From<GenericBBox> for Result<BBox> {
 
 impl From<&GenericBBox> for Polygon<f64> {
     fn from(b: &GenericBBox) -> Self {
-        let angle = b.angle.unwrap_or(0.0) as f64;
-        let height = b.height as f64;
-        let aspect = b.aspect as f64;
+        let angle = b._angle.unwrap_or(0.0) as f64;
+        let height = b._height as f64;
+        let aspect = b._aspect as f64;
 
         let c = angle.cos();
         let s = angle.sin();
@@ -173,8 +199,8 @@ impl From<&GenericBBox> for Polygon<f64> {
         let r2x = half_width * c - half_height * s;
         let r2y = half_width * s + half_height * c;
 
-        let x = b.x as f64;
-        let y = b.y as f64;
+        let x = b._x as f64;
+        let y = b._y as f64;
 
         Polygon::new(
             LineString(vec![
@@ -254,25 +280,25 @@ mod polygons {
 impl From<&GenericBBox> for BBox {
     /// This is a lossy translation. It is valid only when the angle is 0
     fn from(f: &GenericBBox) -> Self {
-        let width = f.height * f.aspect;
+        let width = f._height * f._aspect;
         BBox {
-            x: f.x - width / 2.0,
-            y: f.y - f.height / 2.0,
-            width,
-            height: f.height,
+            _x: f._x - width / 2.0,
+            _y: f._y - f._height / 2.0,
+            _width: width,
+            _height: f._height,
         }
     }
 }
 
 impl BBox {
     pub fn intersection(l: &BBox, r: &BBox) -> f64 {
-        assert!(l.width > 0.0);
-        assert!(l.height > 0.0);
-        assert!(r.width > 0.0);
-        assert!(r.height > 0.0);
+        assert!(l._width > 0.0);
+        assert!(l._height > 0.0);
+        assert!(r._width > 0.0);
+        assert!(r._height > 0.0);
 
-        let (ax0, ay0, ax1, ay1) = (l.x, l.y, l.x + l.width, l.y + l.height);
-        let (bx0, by0, bx1, by1) = (r.x, r.y, r.x + r.width, r.y + r.height);
+        let (ax0, ay0, ax1, ay1) = (l._x, l._y, l._x + l._width, l._y + l._height);
+        let (bx0, by0, bx1, by1) = (r._x, r._y, r._x + r._width, r._y + r._height);
 
         let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
         let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
@@ -298,7 +324,7 @@ impl ObservationAttributes for BBox {
         match (left, right) {
             (Some(l), Some(r)) => {
                 let intersection = BBox::intersection(l, r);
-                let union = (l.height * l.width + r.height * r.width) as f64 - intersection;
+                let union = (l._height * l._width + r._height * r._width) as f64 - intersection;
                 let res = intersection / union;
                 Some(res as f32)
             }
@@ -346,19 +372,20 @@ mod tests_normalize_angle {
 
 impl GenericBBox {
     pub fn intersection(l: &GenericBBox, r: &GenericBBox) -> f64 {
-        if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
+        if (normalize_angle(l._angle.unwrap_or(0.0)) - normalize_angle(r._angle.unwrap_or(0.0)))
+            .abs()
             < EPS
         {
             BBox::intersection(&l.into(), &r.into())
         } else {
-            assert!(l.aspect > 0.0);
-            assert!(l.height > 0.0);
-            assert!(r.aspect > 0.0);
-            assert!(r.height > 0.0);
+            assert!(l._aspect > 0.0);
+            assert!(l._height > 0.0);
+            assert!(r._aspect > 0.0);
+            assert!(r._height > 0.0);
 
             let max_distance = l.get_radius() + r.get_radius();
-            let x = l.x - r.x;
-            let y = l.y - r.y;
+            let x = l._x - r._x;
+            let y = l._y - r._y;
             if x * x + y * y > max_distance * max_distance {
                 0.0
             } else {
@@ -366,12 +393,12 @@ impl GenericBBox {
                 let mut r = r.clone();
 
                 if l.vertex_cache.is_none() {
-                    let angle = l.angle.unwrap_or(0.0);
+                    let angle = l._angle.unwrap_or(0.0);
                     l = l.rotate(angle).gen_vertices();
                 }
 
                 if r.vertex_cache.is_none() {
-                    let angle = r.angle.unwrap_or(0.0);
+                    let angle = r._angle.unwrap_or(0.0);
                     r = r.rotate(angle).gen_vertices();
                 }
 
@@ -397,8 +424,8 @@ impl ObservationAttributes for GenericBBox {
                 if intersection == 0.0 {
                     None
                 } else {
-                    let union = (l.height * l.height * l.aspect + r.height * r.height * r.aspect)
-                        as f64
+                    let union = (l._height * l._height * l._aspect
+                        + r._height * r._height * r._aspect) as f64
                         - intersection;
                     //let union = p1.union(p2).unsigned_area();
                     let res = intersection / union;
@@ -430,23 +457,23 @@ mod tests {
     #[test]
     fn test_iou() {
         let bb1 = BBox {
-            x: -1.0,
-            y: -1.0,
-            width: 2.0,
-            height: 2.0,
+            _x: -1.0,
+            _y: -1.0,
+            _width: 2.0,
+            _height: 2.0,
         };
 
         let bb2 = BBox {
-            x: -0.9,
-            y: -0.9,
-            width: 2.0,
-            height: 2.0,
+            _x: -0.9,
+            _y: -0.9,
+            _width: 2.0,
+            _height: 2.0,
         };
         let bb3 = BBox {
-            x: 1.0,
-            y: 1.0,
-            width: 3.0,
-            height: 3.0,
+            _x: 1.0,
+            _y: 1.0,
+            _width: 3.0,
+            _height: 3.0,
         };
 
         assert!(

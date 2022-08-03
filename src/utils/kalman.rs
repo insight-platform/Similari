@@ -4,13 +4,13 @@ use std::ops::SubAssign;
 //
 use crate::utils::bbox::{BBox, GenericBBox};
 use anyhow::Result;
-use nalgebra::{DMatrix, DVector, Dynamic, OMatrix, SMatrix, SVector, U1};
+use nalgebra::{DVector, SMatrix, SVector};
 
-pub fn chi2inv95() -> [f32; 9] {
-    [
-        3.8415, 5.9915, 7.8147, 9.4877, 11.070, 12.592, 14.067, 15.507, 16.919,
-    ]
-}
+pub const CHI2_UPPER_BOUND: f32 = 100.0;
+
+pub const CHI2INV95: [f32; 9] = [
+    3.8415, 5.9915, 7.8147, 9.4877, 11.070, 12.592, 14.067, 15.507, 16.919,
+];
 
 const DIM: usize = 5;
 const DIM_X2: usize = DIM * 2;
@@ -121,11 +121,11 @@ impl KalmanFilter {
     ///
     pub fn initiate(&self, bbox: GenericBBox) -> State<DIM_X2> {
         let mean: SVector<f32, DIM_X2> = SVector::from_iterator([
-            bbox.x,
-            bbox.y,
-            bbox.angle.unwrap_or(0.0),
-            bbox.aspect,
-            bbox.height,
+            bbox.x(),
+            bbox.y(),
+            bbox.angle().unwrap_or(0.0),
+            bbox.aspect(),
+            bbox.height(),
             0.0,
             0.0,
             0.0,
@@ -134,9 +134,9 @@ impl KalmanFilter {
         ]);
 
         let mut std: SVector<f32, DIM_X2> = SVector::from_iterator(
-            self.std_position(2.0, 1e-2, bbox.height)
+            self.std_position(2.0, 1e-2, bbox.height())
                 .into_iter()
-                .chain(self.std_velocity(10.0, 1e-5, bbox.height).into_iter()),
+                .chain(self.std_velocity(10.0, 1e-5, bbox.height()).into_iter()),
         );
 
         std = std.component_mul(&std);
@@ -193,11 +193,11 @@ impl KalmanFilter {
         let kalman_gain = projected_cov.solve_lower_triangular(&b).unwrap();
 
         let innovation = SVector::from_iterator([
-            measurement.x,
-            measurement.y,
-            measurement.angle.unwrap_or(0.0),
-            measurement.aspect,
-            measurement.height,
+            measurement.x(),
+            measurement.y(),
+            measurement.angle().unwrap_or(0.0),
+            measurement.aspect(),
+            measurement.height(),
         ]) - projected_mean;
 
         let innovation: SMatrix<f32, 1, DIM> = innovation.transpose();
@@ -207,12 +207,12 @@ impl KalmanFilter {
         State { mean, covariance }
     }
 
-    pub fn distances(
+    pub fn distance(
         &self,
         state: State<DIM_X2>,
-        measurements: &[GenericBBox],
+        measurement: &GenericBBox,
         only_position: bool,
-    ) -> OMatrix<f32, Dynamic, U1> {
+    ) -> f32 {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
@@ -220,36 +220,24 @@ impl KalmanFilter {
         let (covariance, measurements) = if only_position {
             let mean = mean.resize(2, 1, 0.0);
             let covariance = covariance.resize(2, 2, 0.0);
-            let measurements = DMatrix::from_columns(
-                measurements
-                    .iter()
-                    .map(|e| {
-                        let mut r = DVector::from_vec(vec![e.x, e.y]);
-                        r.sub_assign(mean.clone());
-                        r
-                    })
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            );
+            let measurements = {
+                let mut r = DVector::from_vec(vec![measurement.x(), measurement.y()]);
+                r.sub_assign(&mean);
+                r
+            };
             (covariance, measurements)
         } else {
-            let measurements = DMatrix::from_columns(
-                measurements
-                    .iter()
-                    .map(|e| {
-                        let mut r = DVector::from_vec(vec![
-                            e.x,
-                            e.y,
-                            e.angle.unwrap_or(0.0),
-                            e.aspect,
-                            e.height,
-                        ]);
-                        r.sub_assign(mean);
-                        r
-                    })
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            );
+            let measurements = {
+                let mut r = DVector::from_vec(vec![
+                    measurement.x(),
+                    measurement.y(),
+                    measurement.angle().unwrap_or(0.0),
+                    measurement.aspect(),
+                    measurement.height(),
+                ]);
+                r.sub_assign(&mean);
+                r
+            };
             (
                 covariance.resize(covariance.nrows(), covariance.ncols(), 0.0),
                 measurements,
@@ -258,43 +246,40 @@ impl KalmanFilter {
 
         let choletsky = covariance.cholesky().unwrap().l();
         let res = choletsky.solve_lower_triangular(&measurements).unwrap();
-        res.component_mul(&res).row_sum().transpose()
+        res.component_mul(&res).sum()
     }
 
-    pub fn calculate_final_weights(
-        mut distances: OMatrix<f32, Dynamic, U1>,
-        only_position: bool,
-    ) -> OMatrix<f32, Dynamic, U1> {
+    pub fn calculate_cost(distance: f32, only_position: bool, inverted: bool) -> f32 {
         let chi_index = if only_position {
-            chi2inv95()[1]
+            CHI2INV95[1]
         } else {
-            chi2inv95()[4]
+            CHI2INV95[4]
         };
 
-        distances.iter_mut().for_each(|e| {
-            if *e > chi_index {
-                *e = f32::MAX;
+        if !inverted {
+            if distance > chi_index {
+                CHI2_UPPER_BOUND
+            } else {
+                distance
             }
-        });
-        distances
+        } else if distance > chi_index {
+            0.0
+        } else {
+            CHI2_UPPER_BOUND - distance
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::utils::bbox::{BBox, GenericBBox};
-    use crate::utils::kalman::{chi2inv95, KalmanFilter};
+    use crate::utils::kalman::{KalmanFilter, CHI2INV95};
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn constructor() {
         let f = KalmanFilter::default();
-        let bbox = BBox {
-            x: 1.0,
-            y: 2.0,
-            width: 5.0,
-            height: 5.0,
-        };
+        let bbox = BBox::new(1.0, 2.0, 5.0, 5.0);
 
         let state = f.initiate(bbox.clone().into());
         let new_bb = state.bbox();
@@ -304,12 +289,7 @@ mod tests {
     #[test]
     fn step() {
         let f = KalmanFilter::default();
-        let bbox = BBox {
-            x: -10.0,
-            y: 2.0,
-            width: 2.0,
-            height: 5.0,
-        };
+        let bbox = BBox::new(-10.0, 2.0, 2.0, 5.0);
 
         let state = f.initiate(bbox.clone().into());
         let state = f.predict(state);
@@ -330,48 +310,37 @@ mod tests {
     #[test]
     fn gating_distance() {
         let f = KalmanFilter::default();
-        let bbox = BBox {
-            x: -10.0,
-            y: 2.0,
-            width: 2.0,
-            height: 5.0,
-        };
+        let bbox = BBox::new(-10.0, 2.0, 2.0, 5.0);
 
-        let upd_bbox = BBox {
-            x: -9.5,
-            y: 2.1,
-            width: 2.0,
-            height: 5.0,
-        };
+        let upd_bbox = BBox::new(-9.5, 2.1, 2.0, 5.0);
 
-        let new_bbox_1 = BBox {
-            x: -9.0,
-            y: 2.2,
-            width: 2.0,
-            height: 5.0,
-        };
+        let new_bbox_1 = BBox::new(-9.0, 2.2, 2.0, 5.0);
 
-        let new_bbox_2 = BBox {
-            x: -5.0,
-            y: 1.5,
-            width: 2.2,
-            height: 5.0,
-        };
+        let new_bbox_2 = BBox::new(-5.0, 1.5, 2.2, 5.0);
 
         let state = f.initiate(bbox.clone().into());
         let state = f.predict(state);
         let state = f.update(state, upd_bbox.into());
         let state = f.predict(state);
 
-        let dists = f.distances(state, &vec![new_bbox_1.into(), new_bbox_2.into()], false);
-        let dists = KalmanFilter::calculate_final_weights(dists, false);
-        assert!(dists[0] >= 0.0 && dists[0] < chi2inv95()[1]);
-        assert!(dists[1] > chi2inv95()[1]);
+        let dist = f.distance(state, &new_bbox_1.into(), false);
+        let dist = KalmanFilter::calculate_cost(dist, false, false);
+        dbg!(&dist);
+        assert!(dist >= 0.0 && dist < CHI2INV95[4]);
 
-        let dists = f.distances(state, &vec![new_bbox_1.into(), new_bbox_2.into()], true);
-        let dists = KalmanFilter::calculate_final_weights(dists, true);
-        dbg!(&dists);
-        assert!(dists[0] >= 0.0 && dists[0] < chi2inv95()[4]);
-        assert!(dists[1] > chi2inv95()[4]);
+        let dist = f.distance(state, &new_bbox_2.into(), false);
+        let dist = KalmanFilter::calculate_cost(dist, false, false);
+        dbg!(&dist);
+        assert!(dist > CHI2INV95[4]);
+
+        let dist = f.distance(state, &new_bbox_1.into(), true);
+        let dist = KalmanFilter::calculate_cost(dist, true, false);
+        dbg!(&dist);
+        assert!(dist >= 0.0 && dist < CHI2INV95[1]);
+
+        let dist = f.distance(state, &new_bbox_2.into(), true);
+        let dist = KalmanFilter::calculate_cost(dist, true, false);
+        dbg!(&dist);
+        assert!(dist > CHI2INV95[1]);
     }
 }

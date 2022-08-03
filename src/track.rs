@@ -97,9 +97,9 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>:
     ///
     fn metric(
         feature_class: u64,
-        left_attrs: &TA,
+        self_attrs: &TA,
         right_attrs: &TA,
-        left_observation: &ObservationSpec<OA>,
+        self_observation: &ObservationSpec<OA>,
         right_observation: &ObservationSpec<OA>,
     ) -> MetricOutput<OA::MetricObject>;
 

@@ -1,11 +1,10 @@
 use anyhow::Result;
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple::SimpleSort;
-use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
+use similari::trackers::sort::simple_maha::SORT;
 use similari::utils::bbox::BBox;
 
 fn main() {
-    let mut tracker = SimpleSort::new(1, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
+    let mut tracker = SORT::new(1, 10, 1);
 
     let pos_drift = 1.0;
     let box_drift = 0.2;
