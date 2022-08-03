@@ -97,6 +97,9 @@ Take a look at samples in the repo:
 * [examples/track_merging.rs](examples/track_merging.rs) for an idea of intra-cam track merging.
 * [examples/incremental_track_build.rs](examples/incremental_track_build.rs) very simple feature-based tracker.
 * [examples/iou_tracker.rs](examples/iou_tracker.rs) very simple IoU tracker (without Kalman filter).
-* [examples/simple_sort_tracker.rs](examples/simple_sort_iou_tracker) SORT tracker (with Kalman filter).
+* [examples/simple_sort_iou_tracker.rs](examples/simple_sort_iou_tracker.rs) SORT tracker (with Kalman filter, IoU).
+* [examples/simple_sort_iou_tracker_oriented.rs](examples/simple_sort_iou_tracker_oriented.rs) Oriented SORT tracker (with Kalman filter, IoU).
+* [examples/simple_sort_maha_tracker.rs](examples/simple_sort_maha_tracker.rs) SORT tracker (with Kalman filter, Mahalanobis).
+* [examples/simple_sort_maha_tracker_oriented.rs](examples/simple_sort_maha_tracker_oriented.rs) Oriented SORT tracker (with Kalman filter, Mahalanobis).
 * [examples/middleware_sort_tracker.rs](examples/middleware_sort_tracker.rs) SORT tracker (with Kalman filter, 
   middleware implementation).
