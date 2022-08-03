@@ -254,12 +254,7 @@ impl Iterator for BoxGen2 {
             self.height = 1.0;
         }
 
-        Some(BBox {
-            x: self.x,
-            y: self.y,
-            width: self.width,
-            height: self.height,
-        })
+        Some(BBox::new(self.x, self.y, self.width, self.height))
     }
 }
 

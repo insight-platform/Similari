@@ -86,7 +86,7 @@ fn bench_sort(
         for (indx, i) in iterators.iter_mut().enumerate() {
             let b = i.next();
             let bb: GenericBBox = b.unwrap().into();
-            observations.push((bb.rotate(indx as f32 / 10.0), None));
+            observations.push((bb.rotate(indx as f32 / 10.0).gen_vertices(), None));
         }
         f(&observations, 0.8, None);
     });

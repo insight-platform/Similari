@@ -1,7 +1,8 @@
 # Similari
 
-[![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
+[![Rust](https://img.shields.io/crates/d/similari.svg)](https://crates.io/crates/similari)
 [![Rust](https://img.shields.io/crates/v/similari.svg)](https://img.shields.io/crates/v/similari.svg)
+[![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
 Similari is a framework that helps build sophisticated tracking systems. The most frequently met operations that can be efficiently implemented with Similari - collecting of observable object features, looking for similar objects, and merging them into tracks based on features and attributes.
@@ -22,7 +23,8 @@ The framework helps to build various kinds of tracking or similarity search engi
 * **Non-Maximum Suppression (NMS)** - filters rectangular bounding boxes co-axial to scene, and supports the oriented 
   bounding 
   boxes.
-* **SORT tracking** algorithm (non-oriented and oriented boxes are supported).
+* **SORT tracking** algorithm (non-oriented and oriented boxes are supported) - IoU and Mahalanobis distances are 
+  supported.
 
 ## Applicability Notes
 
@@ -70,78 +72,14 @@ Take a look at [benchmarks](benches) for numbers.
 
 ### Performance Benchmarks
 
-All benchmarks numbers received on Run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz.
+Some benchmarks numbers are presented here: [Benchmarks](assets/benchmarks/benchmarks.md)
 
-**Non-Maximum Suppression (non-oriented boxes)**. Benchmark for filtering out of bounding boxes without orientation. 
+You can run your own benchmarks by:
 
-| Objects | Time (ns/iter) | FPS    |
-|---------|----------------|--------|
-| 10      | 1,586          | 632000 |
-| 100     | 148,906        | 6711   |
-| 500     | 4,082,791      | 250    |
-| 1000    | 13,773,713     | 72     |
-
-The benchmark is located at [benches/nms.rs](benches/nms.rs).
-
-**Non-Maximum Suppression (oriented boxes)**. Benchmark for filtering out of bounding boxes with angular orientation. 
-
-| Objects | Time (ns/iter) | FPS    |
-|---------|----------------|--------|
-| 10      | 2,169          | 460000 |
-| 100     | 2,680,360      | 370    |
-| 300     | 37,238,820     | 26     |
-| 500     | 62,479,704     | 16     |
-
-The benchmark is located at [benches/nms_oriented.rs](benches/nms_oriented.rs).
-
-**IoU tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that 
-separate the observed objects based on object distances.
-
-The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
-
-| Objects | Time (ns/iter) | FPS  |
-|---------|----------------|------|
-| 10      | 261,184        | 3800 |
-| 100     | 1,440,733      | 694  |
-| 500     | 17,705,508     | 57   |
-| 1000    | 58,834,824     | 17   |
-
-**SORT tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that separate the observed objects based on object distances.
-
-The benchmark is located at [benches/simple_sort_tracker.rs](benches/simple_sort_tracker.rs).
-
-| Objects | Time (ns/iter) | FPS   |
-|---------|----------------|-------|
-| 10      | 83,218         | 12048 |
-| 100     | 2,305,982      | 433   |
-| 500     | 24,170,165     | 41    |
-| 1000    | 83,859,085     | 11    |
-
-
-**Oriented SORT tracking**. Benchmark for N simultaneously observed **oriented** objects. The benchmark use heuristics that separate the observed objects based on object distances.
-
-The benchmark is located at [benches/simple_sort_tracker_oriented.rs](benches/simple_sort_tracker_oriented.rs).
-
-| Objects | Time (ns/iter) | FPS  |
-|---------|----------------|------|
-| 10      | 485,236        | 2000 |
-| 100     | 5,578,176      | 180  |
-| 500     | 47,809,027     | 20   |
-| 1000    | 131,859,818    | 7    |
-
-
-**Feature (256 @ f32) tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that separate the observed objects 
-based on object distances.
-
-The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs).
-
-
-| Objects | Time (ns/iter) | FPS  |
-|---------|----------------|------|
-| 10      | 101,465        | 9900 |
-| 100     | 4,020,673      | 250  |
-| 500     | 61,716,729     | 16   |
-| 1000    | 235,187,877    | 4    |
+```
+rustup default nightly
+cargo bench
+```
 
 ## Manuals and Articles
 Collected articles about how the Similari can be used to solve specific problems.
@@ -159,6 +97,6 @@ Take a look at samples in the repo:
 * [examples/track_merging.rs](examples/track_merging.rs) for an idea of intra-cam track merging.
 * [examples/incremental_track_build.rs](examples/incremental_track_build.rs) very simple feature-based tracker.
 * [examples/iou_tracker.rs](examples/iou_tracker.rs) very simple IoU tracker (without Kalman filter).
-* [examples/simple_sort_tracker.rs](examples/simple_sort_tracker.rs) SORT tracker (with Kalman filter).
+* [examples/simple_sort_tracker.rs](examples/simple_sort_iou_tracker) SORT tracker (with Kalman filter).
 * [examples/middleware_sort_tracker.rs](examples/middleware_sort_tracker.rs) SORT tracker (with Kalman filter, 
   middleware implementation).

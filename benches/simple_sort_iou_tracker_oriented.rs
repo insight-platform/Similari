@@ -3,28 +3,28 @@
 extern crate test;
 
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple::SimpleSort;
+use similari::trackers::sort::simple_iou::SORT;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use similari::utils::bbox::GenericBBox;
 use test::Bencher;
 
 #[bench]
-fn bench_sort_rotated_00010(b: &mut Bencher) {
+fn bench_sort_iou_oriented_00010(b: &mut Bencher) {
     bench_sort(10, b);
 }
 
 #[bench]
-fn bench_sort_rotated_00100(b: &mut Bencher) {
+fn bench_sort_iou_oriented_00100(b: &mut Bencher) {
     bench_sort(100, b);
 }
 
 #[bench]
-fn bench_sort_rotated_00500(b: &mut Bencher) {
+fn bench_sort_iou_oriented_00500(b: &mut Bencher) {
     bench_sort(500, b);
 }
 
 #[bench]
-fn bench_sort_rotated_01000(b: &mut Bencher) {
+fn bench_sort_iou_oriented_01000(b: &mut Bencher) {
     bench_sort(1000, b);
 }
 
@@ -51,14 +51,15 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut tracker = SimpleSort::new(ncores, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
+    let mut tracker = SORT::new(ncores, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
 
     b.iter(|| {
         let mut observations = Vec::new();
         for i in &mut iterators {
             iteration += 1;
-            let b =
-                GenericBBox::from(i.next().unwrap()).rotate(tracker.current_epoch() as f32 / 10.0);
+            let b = GenericBBox::from(i.next().unwrap())
+                .rotate(tracker.current_epoch() as f32 / 10.0)
+                .gen_vertices();
             observations.push(b);
         }
         let tracks = tracker.predict(&observations);
