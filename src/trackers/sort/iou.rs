@@ -79,7 +79,7 @@ impl ObservationMetric<SortAttributes, GenericBBox> for IOUSortMetric {
             attrs.predicted_boxes.pop_front();
         }
 
-        observation.0 = Some(predicted_bbox);
+        observation.0 = Some(predicted_bbox.gen_vertices());
         features.push(observation);
 
         Ok(())

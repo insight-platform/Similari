@@ -12,15 +12,24 @@ impl ObservationMetric<SortAttributes, GenericBBox> for MahaSortMetric {
         _feature_class: u64,
         _candidate_attributes: &SortAttributes,
         track_attributes: &SortAttributes,
-        candidate_observations: &ObservationSpec<GenericBBox>,
-        _track_observations: &ObservationSpec<GenericBBox>,
+        candidate_observation: &ObservationSpec<GenericBBox>,
+        track_observation: &ObservationSpec<GenericBBox>,
     ) -> MetricOutput<f32> {
-        let f = KalmanFilter::default();
-        let state = track_attributes.state.unwrap();
-        let observation = candidate_observations.0.as_ref().unwrap();
-        let dist = f.distance(state, observation, false);
-        let dist = KalmanFilter::calculate_cost(dist, false, true);
-        Some((Some(dist), None))
+        let candidate_observation = candidate_observation.0.as_ref().unwrap();
+        let track_observation = track_observation.0.as_ref().unwrap();
+
+        let max_distance = candidate_observation.get_radius() + track_observation.get_radius();
+        let x = candidate_observation.x() - track_observation.x();
+        let y = candidate_observation.y() - track_observation.y();
+        if x * x + y * y > max_distance * max_distance {
+            None
+        } else {
+            let f = KalmanFilter::default();
+            let state = track_attributes.state.unwrap();
+            let dist = f.distance(state, candidate_observation);
+            let dist = KalmanFilter::calculate_cost(dist, true);
+            Some((Some(dist), None))
+        }
     }
 
     fn optimize(
@@ -92,7 +101,9 @@ mod tests {
             .attributes(SortAttributes::new(5))
             .observation(
                 ObservationBuilder::new(0)
-                    .observation_attributes(GenericBBox::new(0.0, 0.0, None, 0.5, 10.0))
+                    .observation_attributes(
+                        GenericBBox::new(0.0, 0.0, None, 0.5, 10.0).gen_vertices(),
+                    )
                     .build(),
             )
             .notifier(NoopNotifier)
@@ -105,7 +116,9 @@ mod tests {
             .attributes(SortAttributes::new(5))
             .observation(
                 ObservationBuilder::new(0)
-                    .observation_attributes(GenericBBox::new(0.5, 0.5, None, 0.52, 10.1))
+                    .observation_attributes(
+                        GenericBBox::new(0.5, 0.5, None, 0.52, 10.1).gen_vertices(),
+                    )
                     .build(),
             )
             .notifier(NoopNotifier)
@@ -130,7 +143,9 @@ mod tests {
             .attributes(SortAttributes::new(5))
             .observation(
                 ObservationBuilder::new(0)
-                    .observation_attributes(GenericBBox::new(10.0, 10.0, None, 0.52, 15.1))
+                    .observation_attributes(
+                        GenericBBox::new(10.0, 10.0, None, 0.52, 15.1).gen_vertices(),
+                    )
                     .build(),
             )
             .notifier(NoopNotifier)
@@ -154,7 +169,9 @@ mod tests {
             .attributes(SortAttributes::new(5))
             .observation(
                 ObservationBuilder::new(0)
-                    .observation_attributes(GenericBBox::new(1.0, 0.9, None, 0.51, 10.0))
+                    .observation_attributes(
+                        GenericBBox::new(1.0, 0.9, None, 0.51, 10.0).gen_vertices(),
+                    )
                     .build(),
             )
             .notifier(NoopNotifier)

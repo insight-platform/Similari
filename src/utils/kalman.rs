@@ -4,7 +4,7 @@ use std::ops::SubAssign;
 //
 use crate::utils::bbox::{BBox, GenericBBox};
 use anyhow::Result;
-use nalgebra::{DVector, SMatrix, SVector};
+use nalgebra::{SMatrix, SVector};
 
 pub const CHI2_UPPER_BOUND: f32 = 100.0;
 
@@ -207,41 +207,21 @@ impl KalmanFilter {
         State { mean, covariance }
     }
 
-    pub fn distance(
-        &self,
-        state: State<DIM_X2>,
-        measurement: &GenericBBox,
-        only_position: bool,
-    ) -> f32 {
+    pub fn distance(&self, state: State<DIM_X2>, measurement: &GenericBBox) -> f32 {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
 
-        let (covariance, measurements) = if only_position {
-            let mean = mean.resize(2, 1, 0.0);
-            let covariance = covariance.resize(2, 2, 0.0);
-            let measurements = {
-                let mut r = DVector::from_vec(vec![measurement.x(), measurement.y()]);
-                r.sub_assign(&mean);
-                r
-            };
-            (covariance, measurements)
-        } else {
-            let measurements = {
-                let mut r = DVector::from_vec(vec![
-                    measurement.x(),
-                    measurement.y(),
-                    measurement.angle().unwrap_or(0.0),
-                    measurement.aspect(),
-                    measurement.height(),
-                ]);
-                r.sub_assign(&mean);
-                r
-            };
-            (
-                covariance.resize(covariance.nrows(), covariance.ncols(), 0.0),
-                measurements,
-            )
+        let measurements = {
+            let mut r: SVector<f32, DIM> = SVector::from_vec(vec![
+                measurement.x(),
+                measurement.y(),
+                measurement.angle().unwrap_or(0.0),
+                measurement.aspect(),
+                measurement.height(),
+            ]);
+            r.sub_assign(&mean);
+            r
         };
 
         let choletsky = covariance.cholesky().unwrap().l();
@@ -249,20 +229,14 @@ impl KalmanFilter {
         res.component_mul(&res).sum()
     }
 
-    pub fn calculate_cost(distance: f32, only_position: bool, inverted: bool) -> f32 {
-        let chi_index = if only_position {
-            CHI2INV95[1]
-        } else {
-            CHI2INV95[4]
-        };
-
+    pub fn calculate_cost(distance: f32, inverted: bool) -> f32 {
         if !inverted {
-            if distance > chi_index {
+            if distance > CHI2INV95[4] {
                 CHI2_UPPER_BOUND
             } else {
                 distance
             }
-        } else if distance > chi_index {
+        } else if distance > CHI2INV95[4] {
             0.0
         } else {
             CHI2_UPPER_BOUND - distance
@@ -323,24 +297,14 @@ mod tests {
         let state = f.update(state, upd_bbox.into());
         let state = f.predict(state);
 
-        let dist = f.distance(state, &new_bbox_1.into(), false);
-        let dist = KalmanFilter::calculate_cost(dist, false, false);
+        let dist = f.distance(state, &new_bbox_1.into());
+        let dist = KalmanFilter::calculate_cost(dist, false);
         dbg!(&dist);
         assert!(dist >= 0.0 && dist < CHI2INV95[4]);
 
-        let dist = f.distance(state, &new_bbox_2.into(), false);
-        let dist = KalmanFilter::calculate_cost(dist, false, false);
+        let dist = f.distance(state, &new_bbox_2.into());
+        let dist = KalmanFilter::calculate_cost(dist, false);
         dbg!(&dist);
         assert!(dist > CHI2INV95[4]);
-
-        let dist = f.distance(state, &new_bbox_1.into(), true);
-        let dist = KalmanFilter::calculate_cost(dist, true, false);
-        dbg!(&dist);
-        assert!(dist >= 0.0 && dist < CHI2INV95[1]);
-
-        let dist = f.distance(state, &new_bbox_2.into(), true);
-        let dist = KalmanFilter::calculate_cost(dist, true, false);
-        dbg!(&dist);
-        assert!(dist > CHI2INV95[1]);
     }
 }

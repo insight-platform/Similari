@@ -66,12 +66,12 @@ pub struct GenericBBox {
     _angle: Option<f32>,
     _aspect: f32,
     _height: f32,
-    vertex_cache: Option<Polygon<f64>>,
+    _vertex_cache: Option<Polygon<f64>>,
 }
 
 impl Clone for GenericBBox {
     fn clone(&self) -> Self {
-        GenericBBox::new(self._x, self._y, self._angle, self._aspect, self._height).gen_vertices()
+        GenericBBox::new(self._x, self._y, self._angle, self._aspect, self._height)
     }
 }
 
@@ -101,13 +101,19 @@ impl GenericBBox {
         (hw * hw + hh * hh).sqrt()
     }
 
+    pub fn get_vertices(&self) -> &Option<Polygon<f64>> {
+        &self._vertex_cache
+    }
+
     pub fn gen_vertices(mut self) -> Self {
         if self._angle.is_some() {
-            self.vertex_cache = Some(Polygon::from(&self));
+            self._vertex_cache = Some(Polygon::from(&self));
         }
         self
     }
-    /// Constructor
+
+    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+    ///
     pub fn new(x: f32, y: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
             _x: x,
@@ -115,11 +121,12 @@ impl GenericBBox {
             _angle: angle,
             _aspect: aspect,
             _height: height,
-            vertex_cache: None,
+            _vertex_cache: None,
         }
-        .gen_vertices()
     }
 
+    /// Sets the angle
+    ///
     pub fn rotate(self, angle: f32) -> Self {
         Self {
             _x: self._x,
@@ -127,9 +134,8 @@ impl GenericBBox {
             _angle: Some(angle),
             _aspect: self._aspect,
             _height: self._height,
-            vertex_cache: None,
+            _vertex_cache: None,
         }
-        .gen_vertices()
     }
 
     pub fn area(&self) -> f32 {
@@ -158,15 +164,22 @@ impl From<BBox> for GenericBBox {
             _angle: None,
             _aspect: f._width / f._height,
             _height: f._height,
-            vertex_cache: None,
+            _vertex_cache: None,
         }
-        .gen_vertices()
     }
 }
 
 impl From<GenericBBox> for Result<BBox> {
     /// This is a lossy translation. It is valid only when the angle is 0
     fn from(f: GenericBBox) -> Self {
+        let r: Result<BBox> = Self::from(&f);
+        r
+    }
+}
+
+impl From<&GenericBBox> for Result<BBox> {
+    /// This is a lossy translation. It is valid only when the angle is 0
+    fn from(f: &GenericBBox) -> Self {
         if f._angle.is_some() {
             Err(GenericBBoxConversionError.into())
         } else {
@@ -392,18 +405,18 @@ impl GenericBBox {
                 let mut l = l.clone();
                 let mut r = r.clone();
 
-                if l.vertex_cache.is_none() {
+                if l.get_vertices().is_none() {
                     let angle = l._angle.unwrap_or(0.0);
                     l = l.rotate(angle).gen_vertices();
                 }
 
-                if r.vertex_cache.is_none() {
+                if r.get_vertices().is_none() {
                     let angle = r._angle.unwrap_or(0.0);
                     r = r.rotate(angle).gen_vertices();
                 }
 
-                let p1 = l.vertex_cache.as_ref().unwrap();
-                let p2 = r.vertex_cache.as_ref().unwrap();
+                let p1 = l.get_vertices().as_ref().unwrap();
+                let p2 = r.get_vertices().as_ref().unwrap();
 
                 p1.intersection(p2).unsigned_area()
             }

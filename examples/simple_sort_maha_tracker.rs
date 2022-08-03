@@ -27,8 +27,7 @@ fn main() {
             "Boxes: {:#?}",
             t.get_attributes()
                 .predicted_boxes
-                .clone()
-                .into_iter()
+                .iter()
                 .map(|x| {
                     let r: Result<BBox> = x.into();
                     r.unwrap()
