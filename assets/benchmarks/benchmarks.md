@@ -2,6 +2,8 @@
 
 All benchmarks numbers received on Run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz.
 
+Version: v0.20.0
+
 **Non-Maximum Suppression (non-oriented boxes)**. Benchmark for filtering out of bounding boxes without orientation. 
 
 | Objects | Time (ns/iter) | FPS    |
