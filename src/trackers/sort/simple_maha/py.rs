@@ -1,5 +1,6 @@
 use crate::prelude::SortTrack;
 use crate::trackers::sort::simple_maha::MahaSort;
+use crate::trackers::sort::PyWastedSortTrack;
 use crate::utils::bbox::Universal2DBox;
 use pyo3::prelude::*;
 
@@ -96,7 +97,10 @@ impl MahaSort {
     ///
     #[pyo3(name = "wasted")]
     #[pyo3(text_signature = "($self)")]
-    pub fn wasted_py(&mut self) -> Vec<SortTrack> {
-        self.wasted().into_iter().map(SortTrack::from).collect()
+    pub fn wasted_py(&mut self) -> Vec<PyWastedSortTrack> {
+        self.wasted()
+            .into_iter()
+            .map(PyWastedSortTrack::from)
+            .collect()
     }
 }

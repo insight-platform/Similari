@@ -5,7 +5,7 @@ use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
 use crate::trackers::sort::maha::MahaSortMetric;
 use crate::trackers::sort::voting::SortVoting;
-use crate::trackers::sort::{SortAttributes, SortAttributesUpdate};
+use crate::trackers::sort::{PyWastedSortTrack, SortAttributes, SortAttributesUpdate};
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
 use pyo3::prelude::*;
@@ -31,6 +31,22 @@ impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for SortTrack {
             scene_id: attrs.scene_id,
             predicted_bbox: attrs.last_prediction.clone(),
             length: attrs.length,
+        }
+    }
+}
+
+impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for PyWastedSortTrack {
+    fn from(track: Track<SortAttributes, MahaSortMetric, Universal2DBox>) -> Self {
+        let attrs = track.get_attributes();
+        PyWastedSortTrack {
+            id: track.get_track_id(),
+            epoch: attrs.epoch,
+            observed_bbox: attrs.last_observation.clone(),
+            scene_id: attrs.scene_id,
+            predicted_bbox: attrs.last_prediction.clone(),
+            length: attrs.length,
+            predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
+            observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),
         }
     }
 }

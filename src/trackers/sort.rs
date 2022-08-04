@@ -1,7 +1,6 @@
 use crate::track::{
-    NoopLookup, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    NoopLookup, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
-use crate::trackers::sort::iou::IOUSortMetric;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::State;
 use anyhow::Result;
@@ -210,6 +209,30 @@ pub struct SortTrack {
     pub length: usize,
 }
 
+/// Online track structure that contains tracking information for the last tracker epoch
+///
+#[derive(Debug, Clone)]
+#[pyclass]
+#[pyo3(name = "WastedSortTrack")]
+pub struct PyWastedSortTrack {
+    /// id of the track
+    pub id: u64,
+    /// when the track was lastly updated
+    pub epoch: usize,
+    /// the bbox predicted by KF
+    pub predicted_bbox: Universal2DBox,
+    /// the bbox passed by detector
+    pub observed_bbox: Universal2DBox,
+    /// user-defined scene id that splits tracking space on isolated realms
+    pub scene_id: u64,
+    /// current track length
+    pub length: usize,
+    /// history of predicted boxes
+    pub predicted_boxes: Vec<Universal2DBox>,
+    /// history of observed boxes
+    pub observed_boxes: Vec<Universal2DBox>,
+}
+
 #[pymethods]
 impl SortTrack {
     #[classattr]
@@ -221,19 +244,5 @@ impl SortTrack {
 
     fn __str__(&self) -> String {
         self.__repr__()
-    }
-}
-
-impl From<Track<SortAttributes, IOUSortMetric, Universal2DBox>> for SortTrack {
-    fn from(track: Track<SortAttributes, IOUSortMetric, Universal2DBox>) -> Self {
-        let attrs = track.get_attributes();
-        SortTrack {
-            id: track.get_track_id(),
-            epoch: attrs.epoch,
-            observed_bbox: attrs.last_observation.clone(),
-            scene_id: attrs.scene_id,
-            predicted_bbox: attrs.last_prediction.clone(),
-            length: attrs.length,
-        }
     }
 }
