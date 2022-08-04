@@ -113,24 +113,40 @@ cargo bench
 
 ## Build Similari Python Interface
 
-1. Install Maturin:
+Python interface is an PyO3 bindings to several ready-to-use functions and classes of Similari.
+
+As for now, the Python interface exposes:
+* NMS; 
+* parallel NMS;
+* SORT with IoU metric;
+* SORT with Mahalanobis metric.
+
+### Build For Docker
+
+```
+docker build -t similari_py -f python/Dockerfile .
+```
+
+### Build in Host System
+
+1. Install Python3 (>= 3.8) and the development files (`python3-dev`).
+
+2Install Maturin:
 ```
 pip3 install --upgrade maturin~=0.13
 ```
 
-2. Install Python3 development files.
-
 3A. **Not VENV**. Run build 
 
 ```
-RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin build --release --out dist --no-sdist
+RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin build --release --out dist
 pip3 install --force-reinstall dist/*.whl
 ```
 
 3B. **VENV**. Run build 
 
 ```
-maturin develop 
+RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin develop
 ```
 
 4. Usage examples are located at [python](python).
