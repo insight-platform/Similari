@@ -2,7 +2,7 @@
 
 All benchmarks numbers received on Run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz.
 
-Version: v0.20.0
+Version: v0.20.3
 
 **Non-Maximum Suppression (non-oriented boxes)**. Benchmark for filtering out of bounding boxes without orientation. 
 
@@ -58,9 +58,9 @@ The benchmark is located at [benches/simple_sort_iou_tracker_oriented.rs](benche
 
 | Objects | Time (ns/iter) | FPS  |
 |---------|----------------|------|
-| 10      | 173,066        | 5700 |
-| 100     | 3,017,626      | 300  |
-| 500     | 32,482,737     | 30   |
+| 10      | 150,702        | 6600 |
+| 100     | 2,532,766      | 390  |
+| 500     | 32,263,450     | 30   |
 | 1000    | 96,222,891     | 10   |
 
 **SORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics 
