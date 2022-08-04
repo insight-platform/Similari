@@ -4,13 +4,14 @@ use crate::voting::Voting;
 use crate::Errors::GenericBBoxConversionError;
 use crate::{EstimateClose, EPS};
 use anyhow::Result;
-use geo::{Area, BooleanOps, Coordinate, LineString, Polygon};
+use geo::{Area, Coordinate, LineString, Polygon};
 use itertools::Itertools;
 use pyo3::exceptions::PyAttributeError;
 use pyo3::prelude::*;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use crate::utils::clipping::sutherland_hodgman_clip;
 
 /// Bounding box in the format (x,y, width, height)
 ///
@@ -503,7 +504,8 @@ impl Universal2DBox {
             let p1 = l.get_vertices().as_ref().unwrap();
             let p2 = r.get_vertices().as_ref().unwrap();
 
-            p1.intersection(p2).unsigned_area()
+            sutherland_hodgman_clip(p1, p2).unsigned_area()
+            //p1.intersection(p2).unsigned_area()
         }
     }
 }

@@ -123,7 +123,7 @@ pip3 install --upgrade maturin~=0.13
 3A. **Not VENV**. Run build 
 
 ```
-maturing build --release --out dist --no-sdist
+RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin build --release --out dist --no-sdist
 pip3 install --force-reinstall dist/*.whl
 ```
 
