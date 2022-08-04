@@ -146,20 +146,20 @@ rustup update
 pip3 install --upgrade maturin~=0.13
 ```
 
-3. **Not VENV**. Run build 
+4. **Not VENV**. Run build 
 
 ```
 RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin build --release --out dist
 pip3 install --force-reinstall dist/*.whl
 ```
 
-3. **VENV**. Run build 
+4. **VENV**. Run build 
 
 ```
 RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin develop
 ```
 
-4. Usage examples are located at [python](python).
+5. Usage examples are located at [python](python).
 
 ## Manuals and Articles
 Collected articles about how the Similari can be used to solve specific problems.
