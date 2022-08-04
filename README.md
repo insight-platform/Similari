@@ -123,8 +123,8 @@ pip3 install --upgrade maturin~=0.13
 3A. **Not VENV**. Run build 
 
 ```
-maturin build 
-pip3 install --force-reinstall target/wheels/*.whl
+maturing build --release --out dist --no-sdist
+pip3 install --force-reinstall dist/*.whl
 ```
 
 3B. **VENV**. Run build 
