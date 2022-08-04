@@ -504,7 +504,7 @@ impl Universal2DBox {
             let p1 = l.get_vertices().as_ref().unwrap();
             let p2 = r.get_vertices().as_ref().unwrap();
 
-            sutherland_hodgman_clip(&p1, &p2).unsigned_area()
+            sutherland_hodgman_clip(p1, p2).unsigned_area()
             //p1.intersection(p2).unsigned_area()
         }
     }
