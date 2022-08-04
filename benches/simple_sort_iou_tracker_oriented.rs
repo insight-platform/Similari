@@ -7,6 +7,7 @@ use similari::trackers::sort::simple_iou::SORT;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use similari::utils::bbox::Universal2DBox;
 use test::Bencher;
+use rand::Rng;
 
 #[bench]
 fn bench_sort_iou_oriented_00010(b: &mut Bencher) {
@@ -52,13 +53,13 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
     };
 
     let mut tracker = SORT::new(ncores, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
-
+    let mut rng = rand::thread_rng();
     b.iter(|| {
         let mut observations = Vec::new();
         for i in &mut iterators {
             iteration += 1;
             let b = Universal2DBox::from(i.next().unwrap())
-                .rotate(tracker.current_epoch() as f32 / 10.0)
+                .rotate(rng.gen_range(0.0..1.0))
                 .gen_vertices();
             observations.push(b);
         }
