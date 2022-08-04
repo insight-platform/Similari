@@ -2,12 +2,12 @@
 
 extern crate test;
 
+use rand::Rng;
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple_iou::SORT;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use similari::utils::bbox::Universal2DBox;
 use test::Bencher;
-use rand::Rng;
 
 #[bench]
 fn bench_sort_iou_oriented_00010(b: &mut Bencher) {

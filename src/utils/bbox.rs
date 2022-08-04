@@ -1,4 +1,5 @@
 use crate::track::{ObservationAttributes, ObservationMetricOk};
+use crate::utils::clipping::sutherland_hodgman_clip;
 use crate::voting::topn::TopNVotingElt;
 use crate::voting::Voting;
 use crate::Errors::GenericBBoxConversionError;
@@ -11,7 +12,6 @@ use pyo3::prelude::*;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::f32::consts::PI;
-use crate::utils::clipping::sutherland_hodgman_clip;
 
 /// Bounding box in the format (x,y, width, height)
 ///
