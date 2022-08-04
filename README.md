@@ -146,14 +146,14 @@ rustup update
 pip3 install --upgrade maturin~=0.13
 ```
 
-4. **Not VENV**. Run build 
+4. **Not in VENV**. Build the python module: 
 
 ```
 RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin build --release --out dist
 pip3 install --force-reinstall dist/*.whl
 ```
 
-4. **VENV**. Run build 
+4. **In VENV**. Build the python module:
 
 ```
 RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin develop
