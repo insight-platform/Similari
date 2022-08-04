@@ -15,15 +15,14 @@ use std::sync::{Arc, RwLock};
 /// Easy to use SORT tracker implementation
 ///
 
-#[pyclass]
-#[pyo3(name = "IOU_SORT")]
-pub struct SORT {
+#[pyclass(text_signature = "(shards, bbox_history, max_idle_epochs, threshold)")]
+pub struct IoUSort {
     store: TrackStore<SortAttributes, IOUSortMetric, Universal2DBox>,
     epoch: Arc<RwLock<HashMap<u64, usize>>>,
     threshold: f32,
 }
 
-impl SORT {
+impl IoUSort {
     /// Creates new tracker
     ///
     /// # Parameters
@@ -206,14 +205,14 @@ impl SORT {
 
 #[cfg(test)]
 mod tests {
-    use crate::trackers::sort::simple_iou::SORT;
+    use crate::trackers::sort::simple_iou::IoUSort;
     use crate::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
     use crate::utils::bbox::BoundingBox;
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn sort() {
-        let mut t = SORT::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
+        let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.predict(&vec![bb.into()]);
@@ -265,7 +264,7 @@ mod tests {
 
     #[test]
     fn sort_with_scenes() {
-        let mut t = SORT::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
+        let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);

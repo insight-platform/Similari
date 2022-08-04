@@ -15,9 +15,8 @@ use std::sync::{Arc, RwLock};
 
 /// Easy to use SORT tracker implementation
 ///
-#[pyclass]
-#[pyo3(name = "Maha_SORT")]
-pub struct SORT {
+#[pyclass(text_signature = "(shards, bbox_history, max_idle_epochs)")]
+pub struct MahaSort {
     store: TrackStore<SortAttributes, MahaSortMetric, Universal2DBox>,
     epoch: Arc<RwLock<HashMap<u64, usize>>>,
 }
@@ -36,7 +35,7 @@ impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for SortTrack {
     }
 }
 
-impl SORT {
+impl MahaSort {
     /// Creates new tracker
     ///
     /// # Parameters
@@ -213,13 +212,13 @@ impl SORT {
 
 #[cfg(test)]
 mod tests {
-    use crate::trackers::sort::simple_maha::SORT;
+    use crate::trackers::sort::simple_maha::MahaSort;
     use crate::utils::bbox::BoundingBox;
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn sort() {
-        let mut t = SORT::new(1, 10, 2);
+        let mut t = MahaSort::new(1, 10, 2);
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.predict(&vec![bb.into()]);
@@ -271,7 +270,7 @@ mod tests {
 
     #[test]
     fn sort_with_scenes() {
-        let mut t = SORT::new(1, 10, 2);
+        let mut t = MahaSort::new(1, 10, 2);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);

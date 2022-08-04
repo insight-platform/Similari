@@ -121,17 +121,27 @@ As for now, the Python interface exposes:
 * SORT with IoU metric;
 * SORT with Mahalanobis metric.
 
-### Build For Docker
+### Build in Docker
 
 ```
 docker build -t similari_py -f python/Dockerfile .
 ```
 
-### Build in Host System
+### Build in Host System (Linux)
 
-1. Install Python3 (>= 3.8) and the development files (`python3-dev`).
+0. Install Rust 1.62:
 
-2. Install Maturin:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+rustup update
+```
+
+1. Install build-essential tools `apt install build-essential -y`.
+
+2. Install Python3 (>= 3.8) and the development files (`python3-dev`).
+
+3. Install Maturin:
 ```
 pip3 install --upgrade maturin~=0.13
 ```
