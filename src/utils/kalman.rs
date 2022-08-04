@@ -2,7 +2,7 @@ use std::ops::SubAssign;
 // Original source code idea from
 // https://github.com/nwojke/deep_sort/blob/master/deep_sort/kalman_filter.py
 //
-use crate::utils::bbox::{BBox, GenericBBox};
+use crate::utils::bbox::{BoundingBox, Universal2DBox};
 use anyhow::Result;
 use nalgebra::{SMatrix, SVector};
 
@@ -45,14 +45,14 @@ pub struct State<const X: usize = DIM_X2> {
 impl<const X: usize> State<X> {
     /// Fetch predicted bbox in (x,y,w,h) format from the state
     ///
-    pub fn bbox(&self) -> Result<BBox> {
+    pub fn bbox(&self) -> Result<BoundingBox> {
         self.generic_bbox().into()
     }
 
     /// Fetch predicted bbox in (x,y,a,h) format from the state
     ///
-    pub fn generic_bbox(&self) -> GenericBBox {
-        GenericBBox::new(
+    pub fn generic_bbox(&self) -> Universal2DBox {
+        Universal2DBox::new(
             self.mean[0],
             self.mean[1],
             if self.mean[2] == 0.0 {
@@ -119,7 +119,7 @@ impl KalmanFilter {
 
     /// Initialize the filter with the first observation
     ///
-    pub fn initiate(&self, bbox: GenericBBox) -> State<DIM_X2> {
+    pub fn initiate(&self, bbox: Universal2DBox) -> State<DIM_X2> {
         let mean: SVector<f32, DIM_X2> = SVector::from_iterator([
             bbox.x(),
             bbox.y(),
@@ -185,7 +185,7 @@ impl KalmanFilter {
 
     /// Updates the state with the current observation
     ///
-    pub fn update(&self, state: State<DIM_X2>, measurement: GenericBBox) -> State<DIM_X2> {
+    pub fn update(&self, state: State<DIM_X2>, measurement: Universal2DBox) -> State<DIM_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (projected_mean, projected_cov) = (projected_state.mean, projected_state.covariance);
@@ -207,7 +207,7 @@ impl KalmanFilter {
         State { mean, covariance }
     }
 
-    pub fn distance(&self, state: State<DIM_X2>, measurement: &GenericBBox) -> f32 {
+    pub fn distance(&self, state: State<DIM_X2>, measurement: &Universal2DBox) -> f32 {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
@@ -246,14 +246,14 @@ impl KalmanFilter {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::bbox::{BBox, GenericBBox};
+    use crate::utils::bbox::{BoundingBox, Universal2DBox};
     use crate::utils::kalman::{KalmanFilter, CHI2INV95};
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn constructor() {
         let f = KalmanFilter::default();
-        let bbox = BBox::new(1.0, 2.0, 5.0, 5.0);
+        let bbox = BoundingBox::new(1.0, 2.0, 5.0, 5.0);
 
         let state = f.initiate(bbox.clone().into());
         let new_bb = state.bbox();
@@ -263,18 +263,18 @@ mod tests {
     #[test]
     fn step() {
         let f = KalmanFilter::default();
-        let bbox = BBox::new(-10.0, 2.0, 2.0, 5.0);
+        let bbox = BoundingBox::new(-10.0, 2.0, 2.0, 5.0);
 
         let state = f.initiate(bbox.clone().into());
         let state = f.predict(state);
         let p = state.generic_bbox();
 
-        let est_p = GenericBBox::new(-9.0, 4.5, None, 0.4, 5.0);
+        let est_p = Universal2DBox::new(-9.0, 4.5, None, 0.4, 5.0);
         assert_eq!(p.almost_same(&est_p, EPS), true);
 
-        let bbox = GenericBBox::new(8.75, 52.349999999999994, None, 0.15084915084915085, 100.1);
+        let bbox = Universal2DBox::new(8.75, 52.349999999999994, None, 0.15084915084915085, 100.1);
         let state = f.update(state, bbox);
-        let est_p = GenericBBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
+        let est_p = Universal2DBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
 
         let state = f.predict(state);
         let p = state.generic_bbox();
@@ -284,13 +284,13 @@ mod tests {
     #[test]
     fn gating_distance() {
         let f = KalmanFilter::default();
-        let bbox = BBox::new(-10.0, 2.0, 2.0, 5.0);
+        let bbox = BoundingBox::new(-10.0, 2.0, 2.0, 5.0);
 
-        let upd_bbox = BBox::new(-9.5, 2.1, 2.0, 5.0);
+        let upd_bbox = BoundingBox::new(-9.5, 2.1, 2.0, 5.0);
 
-        let new_bbox_1 = BBox::new(-9.0, 2.2, 2.0, 5.0);
+        let new_bbox_1 = BoundingBox::new(-9.0, 2.2, 2.0, 5.0);
 
-        let new_bbox_2 = BBox::new(-5.0, 1.5, 2.2, 5.0);
+        let new_bbox_2 = BoundingBox::new(-5.0, 1.5, 2.2, 5.0);
 
         let state = f.initiate(bbox.clone().into());
         let state = f.predict(state);

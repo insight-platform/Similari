@@ -6,7 +6,7 @@ use similari::examples::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
 use similari::examples::BoxGen2;
 use similari::store::TrackStore;
 use similari::track::Track;
-use similari::utils::bbox::{BBox, IOUTopNVoting};
+use similari::utils::bbox::{BoundingBox, IOUTopNVoting};
 use similari::voting::Voting;
 use std::time::Instant;
 use test::Bencher;
@@ -40,7 +40,7 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut store: TrackStore<BBoxAttributes, IOUMetric, BBox> =
+    let mut store: TrackStore<BBoxAttributes, IOUMetric, BoundingBox> =
         TrackStore::new(None, None, None, ncores);
 
     let voting = IOUTopNVoting {
@@ -71,7 +71,7 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         for i in &mut iterators {
             iteration += 1;
             let b = i.next();
-            let mut t: Track<BBoxAttributes, IOUMetric, BBox> =
+            let mut t: Track<BBoxAttributes, IOUMetric, BoundingBox> =
                 Track::new(iteration, None, None, None);
 
             t.add_observation(FEAT0, b, None, Some(BBoxAttributesUpdate))

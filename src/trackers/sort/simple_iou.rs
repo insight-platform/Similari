@@ -1,19 +1,24 @@
+pub mod py;
+
 use crate::prelude::{ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
 use crate::trackers::sort::iou::IOUSortMetric;
 use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::{SortAttributes, SortAttributesUpdate, SortTrack};
-use crate::utils::bbox::GenericBBox;
+use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
+use pyo3::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-
 /// Easy to use SORT tracker implementation
 ///
+
+#[pyclass]
+#[pyo3(name = "IOU_SORT")]
 pub struct SORT {
-    store: TrackStore<SortAttributes, IOUSortMetric, GenericBBox>,
+    store: TrackStore<SortAttributes, IOUSortMetric, Universal2DBox>,
     epoch: Arc<RwLock<HashMap<u64, usize>>>,
     threshold: f32,
 }
@@ -102,7 +107,7 @@ impl SORT {
     /// # Parameters
     /// * `bboxes` - bounding boxes received from a detector
     ///
-    pub fn predict(&mut self, bboxes: &[GenericBBox]) -> Vec<SortTrack> {
+    pub fn predict(&mut self, bboxes: &[Universal2DBox]) -> Vec<SortTrack> {
         self.predict_with_scene(0, bboxes)
     }
 
@@ -112,7 +117,11 @@ impl SORT {
     /// * `scene_id` - scene id provided by a user (class, camera id, etc...)
     /// * `bboxes` - bounding boxes received from a detector
     ///
-    pub fn predict_with_scene(&mut self, scene_id: u64, bboxes: &[GenericBBox]) -> Vec<SortTrack> {
+    pub fn predict_with_scene(
+        &mut self,
+        scene_id: u64,
+        bboxes: &[Universal2DBox],
+    ) -> Vec<SortTrack> {
         let mut rng = rand::thread_rng();
         let epoch = {
             let mut epoch_map = self.epoch.write().unwrap();
@@ -183,9 +192,7 @@ impl SORT {
 
     /// Receive all the tracks with expired life
     ///
-    /// See `max_idle_epochs` constructor parameter for details.
-    ///
-    pub fn wasted(&mut self) -> Vec<Track<SortAttributes, IOUSortMetric, GenericBBox>> {
+    pub fn wasted(&mut self) -> Vec<Track<SortAttributes, IOUSortMetric, Universal2DBox>> {
         let res = self.store.find_usable();
         let wasted = res
             .into_iter()
@@ -201,14 +208,14 @@ impl SORT {
 mod tests {
     use crate::trackers::sort::simple_iou::SORT;
     use crate::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
-    use crate::utils::bbox::BBox;
+    use crate::utils::bbox::BoundingBox;
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn sort() {
         let mut t = SORT::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
         assert_eq!(t.current_epoch(), 0);
-        let bb = BBox::new(0.0, 0.0, 10.0, 20.0);
+        let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.predict(&vec![bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
@@ -220,7 +227,7 @@ mod tests {
         assert_eq!(v.epoch, 1);
         assert_eq!(t.current_epoch(), 1);
 
-        let bb = BBox::new(0.1, 0.1, 10.1, 20.0);
+        let bb = BoundingBox::new(0.1, 0.1, 10.1, 20.0);
         let v = t.predict(&vec![bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
@@ -232,7 +239,7 @@ mod tests {
         assert_eq!(v.epoch, 2);
         assert_eq!(t.current_epoch(), 2);
 
-        let bb = BBox::new(10.1, 10.1, 10.1, 20.0);
+        let bb = BoundingBox::new(10.1, 10.1, 10.1, 20.0);
         let v = t.predict(&[bb.into()]);
         assert_eq!(v.len(), 1);
         let v = v[0].clone();
@@ -259,7 +266,7 @@ mod tests {
     #[test]
     fn sort_with_scenes() {
         let mut t = SORT::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
-        let bb = BBox::new(0.0, 0.0, 10.0, 20.0);
+        let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 

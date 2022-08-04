@@ -28,6 +28,7 @@ pub mod track;
 ///
 pub mod trackers;
 
+pub mod py;
 /// Utility objects - bounding boxes, kalman filter
 ///
 pub mod utils;

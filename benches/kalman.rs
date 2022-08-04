@@ -3,7 +3,7 @@
 extern crate test;
 
 use similari::examples::FeatGen2;
-use similari::utils::bbox::GenericBBox;
+use similari::utils::bbox::Universal2DBox;
 use similari::utils::kalman::KalmanFilter;
 use test::Bencher;
 
@@ -17,13 +17,13 @@ fn kalman_100k(b: &mut Bencher) {
         let v = pt.next().unwrap().1.unwrap();
         let n = v[0].as_array_ref();
 
-        let bbox = GenericBBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
+        let bbox = Universal2DBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
 
         let mut state = f.initiate(bbox);
         for _i in 0..N {
             let v = pt.next().unwrap().1.unwrap();
             let n = v[0].as_array_ref();
-            let bb = GenericBBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
+            let bb = Universal2DBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
 
             state = f.predict(state);
             state = f.update(state, bb);

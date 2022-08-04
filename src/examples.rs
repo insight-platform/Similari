@@ -6,7 +6,7 @@ use crate::track::{
     MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
-use crate::utils::bbox::BBox;
+use crate::utils::bbox::BoundingBox;
 use anyhow::Result;
 use rand::distributions::Uniform;
 use rand::prelude::ThreadRng;
@@ -238,7 +238,7 @@ impl BoxGen2 {
 }
 
 impl Iterator for BoxGen2 {
-    type Item = BBox;
+    type Item = BoundingBox;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist_pos);
@@ -254,7 +254,7 @@ impl Iterator for BoxGen2 {
             self.height = 1.0;
         }
 
-        Some(BBox::new(self.x, self.y, self.width, self.height))
+        Some(BoundingBox::new(self.x, self.y, self.width, self.height))
     }
 }
 

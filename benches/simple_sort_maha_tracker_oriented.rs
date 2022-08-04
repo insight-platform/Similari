@@ -4,7 +4,7 @@ extern crate test;
 
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple_maha::SORT;
-use similari::utils::bbox::GenericBBox;
+use similari::utils::bbox::Universal2DBox;
 use test::Bencher;
 
 #[bench]
@@ -56,8 +56,8 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         let mut observations = Vec::new();
         for i in &mut iterators {
             iteration += 1;
-            let b =
-                GenericBBox::from(i.next().unwrap()).rotate(tracker.current_epoch() as f32 / 10.0);
+            let b = Universal2DBox::from(i.next().unwrap())
+                .rotate(tracker.current_epoch() as f32 / 10.0);
             observations.push(b);
         }
         let tracks = tracker.predict(&observations);

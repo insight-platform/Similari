@@ -1,24 +1,24 @@
 use crate::track::{MetricOutput, ObservationMetric, ObservationMetricOk, ObservationSpec};
 use crate::trackers::sort::SortAttributes;
-use crate::utils::bbox::GenericBBox;
+use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
 use anyhow::Result;
 
 #[derive(Clone, Default)]
 pub struct MahaSortMetric;
 
-impl ObservationMetric<SortAttributes, GenericBBox> for MahaSortMetric {
+impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
     fn metric(
         _feature_class: u64,
         _candidate_attributes: &SortAttributes,
         track_attributes: &SortAttributes,
-        candidate_observation: &ObservationSpec<GenericBBox>,
-        track_observation: &ObservationSpec<GenericBBox>,
+        candidate_observation: &ObservationSpec<Universal2DBox>,
+        track_observation: &ObservationSpec<Universal2DBox>,
     ) -> MetricOutput<f32> {
         let candidate_observation = candidate_observation.0.as_ref().unwrap();
         let track_observation = track_observation.0.as_ref().unwrap();
 
-        if GenericBBox::too_far(candidate_observation, track_observation) {
+        if Universal2DBox::too_far(candidate_observation, track_observation) {
             None
         } else {
             let f = KalmanFilter::default();
@@ -34,7 +34,7 @@ impl ObservationMetric<SortAttributes, GenericBBox> for MahaSortMetric {
         _feature_class: &u64,
         _merge_history: &[u64],
         attrs: &mut SortAttributes,
-        features: &mut Vec<ObservationSpec<GenericBBox>>,
+        features: &mut Vec<ObservationSpec<Universal2DBox>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
@@ -74,8 +74,8 @@ impl ObservationMetric<SortAttributes, GenericBBox> for MahaSortMetric {
 
     fn postprocess_distances(
         &self,
-        unfiltered: Vec<ObservationMetricOk<GenericBBox>>,
-    ) -> Vec<ObservationMetricOk<GenericBBox>> {
+        unfiltered: Vec<ObservationMetricOk<Universal2DBox>>,
+    ) -> Vec<ObservationMetricOk<Universal2DBox>> {
         unfiltered
             .into_iter()
             .filter(|x| x.attribute_metric.unwrap_or(0.0) > 0.0)
@@ -89,7 +89,7 @@ mod tests {
     use crate::track::ObservationMetricOk;
     use crate::trackers::sort::maha::MahaSortMetric;
     use crate::trackers::sort::SortAttributes;
-    use crate::utils::bbox::GenericBBox;
+    use crate::utils::bbox::Universal2DBox;
 
     #[test]
     fn maha_track() {
@@ -99,7 +99,7 @@ mod tests {
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(
-                        GenericBBox::new(0.0, 0.0, None, 0.5, 10.0).gen_vertices(),
+                        Universal2DBox::new(0.0, 0.0, None, 0.5, 10.0).gen_vertices(),
                     )
                     .build(),
             )
@@ -114,7 +114,7 @@ mod tests {
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(
-                        GenericBBox::new(0.5, 0.5, None, 0.52, 10.1).gen_vertices(),
+                        Universal2DBox::new(0.5, 0.5, None, 0.52, 10.1).gen_vertices(),
                     )
                     .build(),
             )
@@ -141,7 +141,7 @@ mod tests {
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(
-                        GenericBBox::new(10.0, 10.0, None, 0.52, 15.1).gen_vertices(),
+                        Universal2DBox::new(10.0, 10.0, None, 0.52, 15.1).gen_vertices(),
                     )
                     .build(),
             )
@@ -167,7 +167,7 @@ mod tests {
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(
-                        GenericBBox::new(1.0, 0.9, None, 0.51, 10.0).gen_vertices(),
+                        Universal2DBox::new(1.0, 0.9, None, 0.51, 10.0).gen_vertices(),
                     )
                     .build(),
             )

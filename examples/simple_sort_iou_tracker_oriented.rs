@@ -1,7 +1,7 @@
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple_iou::SORT;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
-use similari::utils::bbox::GenericBBox;
+use similari::utils::bbox::Universal2DBox;
 
 fn main() {
     let mut tracker = SORT::new(1, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
@@ -12,10 +12,10 @@ fn main() {
     let mut b2 = BoxGen2::new_monotonous(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
 
     for i in 0..30 {
-        let obj1b = GenericBBox::from(b1.next().unwrap())
+        let obj1b = Universal2DBox::from(b1.next().unwrap())
             .rotate(0.35 + (i as f32 / 10.0))
             .gen_vertices();
-        let obj2b = GenericBBox::from(b2.next().unwrap())
+        let obj2b = Universal2DBox::from(b2.next().unwrap())
             .rotate(0.55 + (i as f32 / 10.0))
             .gen_vertices();
         let _tracks = tracker.predict(&[obj1b, obj2b]);

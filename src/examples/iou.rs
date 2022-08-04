@@ -2,12 +2,12 @@ use crate::track::{
     MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
     ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
-use crate::utils::bbox::BBox;
+use crate::utils::bbox::BoundingBox;
 use anyhow::Result;
 
 #[derive(Debug, Clone, Default)]
 pub struct BBoxAttributes {
-    pub bboxes: Vec<BBox>,
+    pub bboxes: Vec<BoundingBox>,
 }
 
 #[derive(Clone, Debug)]
@@ -19,9 +19,9 @@ impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
     }
 }
 
-impl TrackAttributes<BBoxAttributes, BBox> for BBoxAttributes {
+impl TrackAttributes<BBoxAttributes, BoundingBox> for BBoxAttributes {
     type Update = BBoxAttributesUpdate;
-    type Lookup = NoopLookup<BBoxAttributes, BBox>;
+    type Lookup = NoopLookup<BBoxAttributes, BoundingBox>;
 
     fn compatible(&self, _other: &BBoxAttributes) -> bool {
         true
@@ -32,7 +32,7 @@ impl TrackAttributes<BBoxAttributes, BBox> for BBoxAttributes {
         Ok(())
     }
 
-    fn baked(&self, _observations: &ObservationsDb<BBox>) -> Result<TrackStatus> {
+    fn baked(&self, _observations: &ObservationsDb<BoundingBox>) -> Result<TrackStatus> {
         Ok(TrackStatus::Ready)
     }
 }
@@ -48,15 +48,15 @@ impl Default for IOUMetric {
     }
 }
 
-impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
+impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
     fn metric(
         _feature_class: u64,
         _attrs1: &BBoxAttributes,
         _attrs2: &BBoxAttributes,
-        e1: &ObservationSpec<BBox>,
-        e2: &ObservationSpec<BBox>,
+        e1: &ObservationSpec<BoundingBox>,
+        e2: &ObservationSpec<BoundingBox>,
     ) -> MetricOutput<f32> {
-        let box_m_opt = BBox::calculate_metric_object(&e1.0, &e2.0);
+        let box_m_opt = BoundingBox::calculate_metric_object(&e1.0, &e2.0);
         if let Some(box_m) = &box_m_opt {
             if *box_m < 0.01 {
                 None
@@ -73,7 +73,7 @@ impl ObservationMetric<BBoxAttributes, BBox> for IOUMetric {
         _feature_class: &u64,
         _merge_history: &[u64],
         attrs: &mut BBoxAttributes,
-        features: &mut Vec<ObservationSpec<BBox>>,
+        features: &mut Vec<ObservationSpec<BoundingBox>>,
         prev_length: usize,
         is_merge: bool,
     ) -> Result<()> {

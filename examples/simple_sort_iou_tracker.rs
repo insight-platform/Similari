@@ -2,7 +2,7 @@ use anyhow::Result;
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple_iou::SORT;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
-use similari::utils::bbox::BBox;
+use similari::utils::bbox::BoundingBox;
 
 fn main() {
     let mut tracker = SORT::new(1, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
@@ -31,7 +31,7 @@ fn main() {
                 .clone()
                 .into_iter()
                 .map(|x| {
-                    let r: Result<BBox> = x.into();
+                    let r: Result<BoundingBox> = x.into();
                     r.unwrap()
                 })
                 .collect::<Vec<_>>()
