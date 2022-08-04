@@ -131,19 +131,19 @@ docker build -t similari_py -f python/Dockerfile .
 
 1. Install Python3 (>= 3.8) and the development files (`python3-dev`).
 
-2Install Maturin:
+2. Install Maturin:
 ```
 pip3 install --upgrade maturin~=0.13
 ```
 
-3A. **Not VENV**. Run build 
+3. **Not VENV**. Run build 
 
 ```
 RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin build --release --out dist
 pip3 install --force-reinstall dist/*.whl
 ```
 
-3B. **VENV**. Run build 
+3. **VENV**. Run build 
 
 ```
 RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin develop
