@@ -1,7 +1,7 @@
 use anyhow::Result;
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple_maha::SORT;
-use similari::utils::bbox::BBox;
+use similari::utils::bbox::BoundingBox;
 
 fn main() {
     let mut tracker = SORT::new(1, 10, 1);
@@ -29,7 +29,7 @@ fn main() {
                 .predicted_boxes
                 .iter()
                 .map(|x| {
-                    let r: Result<BBox> = x.into();
+                    let r: Result<BoundingBox> = x.into();
                     r.unwrap()
                 })
                 .collect::<Vec<_>>()

@@ -1,17 +1,19 @@
-use crate::utils::bbox::GenericBBox;
+pub mod py;
+
+use crate::utils::bbox::Universal2DBox;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug)]
 struct Candidate<'a> {
-    bbox: &'a GenericBBox,
+    bbox: &'a Universal2DBox,
     rank: f32,
     index: usize,
 }
 
 impl<'a> Candidate<'a> {
-    pub fn new(bbox: &'a GenericBBox, rank: &Option<f32>, index: usize) -> Self {
+    pub fn new(bbox: &'a Universal2DBox, rank: &Option<f32>, index: usize) -> Self {
         Self {
             bbox,
             rank: rank.unwrap_or(bbox.height()),
@@ -28,10 +30,10 @@ impl<'a> Candidate<'a> {
 /// * `score_threshold` - when to exclude the from set by initial score. if `score_threshold` is None, then `f32::MAX` is used.
 ///
 pub fn nms(
-    detections: &[(GenericBBox, Option<f32>)],
+    detections: &[(Universal2DBox, Option<f32>)],
     nms_threshold: f32,
     score_threshold: Option<f32>,
-) -> Vec<&GenericBBox> {
+) -> Vec<&Universal2DBox> {
     let score_threshold = score_threshold.unwrap_or(f32::MIN);
     let nms_boxes = detections
         .iter()
@@ -55,7 +57,7 @@ pub fn nms(
                 continue;
             }
 
-            let metric = GenericBBox::intersection(cb.bbox, ob.bbox) as f32 / ob.bbox.area();
+            let metric = Universal2DBox::intersection(cb.bbox, ob.bbox) as f32 / ob.bbox.area();
             if metric > nms_threshold {
                 excluded.insert(ob.index);
             }
@@ -77,10 +79,10 @@ pub fn nms(
 /// * `score_threshold` - when to exclude the from set by initial score. if `score_threshold` is None, then `f32::MAX` is used.
 ///
 pub fn parallel_nms(
-    detections: &[(GenericBBox, Option<f32>)],
+    detections: &[(Universal2DBox, Option<f32>)],
     nms_threshold: f32,
     score_threshold: Option<f32>,
-) -> Vec<&GenericBBox> {
+) -> Vec<&Universal2DBox> {
     let score_threshold = score_threshold.unwrap_or(f32::MIN);
     let nms_boxes = detections
         .iter()
@@ -102,7 +104,7 @@ pub fn parallel_nms(
                 .map(|(inner_index, ob)| {
                     (
                         (index, inner_index),
-                        GenericBBox::intersection(cb.bbox, ob.bbox) as f32 / ob.bbox.area(),
+                        Universal2DBox::intersection(cb.bbox, ob.bbox) as f32 / ob.bbox.area(),
                     )
                 })
                 .collect::<Vec<_>>()
@@ -137,16 +139,16 @@ pub fn parallel_nms(
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::bbox::GenericBBox;
+    use crate::utils::bbox::Universal2DBox;
     use crate::utils::nms::{nms, parallel_nms};
 
     #[test]
     fn nms_test() {
         let bboxes = [
-            (GenericBBox::new(0.0, 0.0, None, 1.0, 5.0), None),
-            (GenericBBox::new(0.0, 0.0, None, 1.05, 5.1), None),
-            (GenericBBox::new(0.0, 0.0, None, 1.0, 4.9), None),
-            (GenericBBox::new(3.0, 4.0, None, 1.0, 4.5), None),
+            (Universal2DBox::new(0.0, 0.0, None, 1.0, 5.0), None),
+            (Universal2DBox::new(0.0, 0.0, None, 1.05, 5.1), None),
+            (Universal2DBox::new(0.0, 0.0, None, 1.0, 4.9), None),
+            (Universal2DBox::new(3.0, 4.0, None, 1.0, 4.5), None),
         ];
         let res_serial = nms(&bboxes, 0.8, None);
         let res_parallel = parallel_nms(&bboxes, 0.8, None);

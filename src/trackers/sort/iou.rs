@@ -2,7 +2,7 @@ use crate::track::{
     MetricOutput, ObservationAttributes, ObservationMetric, ObservationMetricOk, ObservationSpec,
 };
 use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
-use crate::utils::bbox::GenericBBox;
+use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
 
 #[derive(Clone)]
@@ -22,15 +22,15 @@ impl IOUSortMetric {
     }
 }
 
-impl ObservationMetric<SortAttributes, GenericBBox> for IOUSortMetric {
+impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
     fn metric(
         _feature_class: u64,
         _attrs1: &SortAttributes,
         _attrs2: &SortAttributes,
-        e1: &ObservationSpec<GenericBBox>,
-        e2: &ObservationSpec<GenericBBox>,
+        e1: &ObservationSpec<Universal2DBox>,
+        e2: &ObservationSpec<Universal2DBox>,
     ) -> MetricOutput<f32> {
-        let box_m_opt = GenericBBox::calculate_metric_object(&e1.0, &e2.0);
+        let box_m_opt = Universal2DBox::calculate_metric_object(&e1.0, &e2.0);
         if let Some(box_m) = &box_m_opt {
             if *box_m < 0.01 {
                 None
@@ -47,7 +47,7 @@ impl ObservationMetric<SortAttributes, GenericBBox> for IOUSortMetric {
         _feature_class: &u64,
         _merge_history: &[u64],
         attrs: &mut SortAttributes,
-        features: &mut Vec<ObservationSpec<GenericBBox>>,
+        features: &mut Vec<ObservationSpec<Universal2DBox>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> anyhow::Result<()> {
@@ -87,8 +87,8 @@ impl ObservationMetric<SortAttributes, GenericBBox> for IOUSortMetric {
 
     fn postprocess_distances(
         &self,
-        unfiltered: Vec<ObservationMetricOk<GenericBBox>>,
-    ) -> Vec<ObservationMetricOk<GenericBBox>> {
+        unfiltered: Vec<ObservationMetricOk<Universal2DBox>>,
+    ) -> Vec<ObservationMetricOk<Universal2DBox>> {
         unfiltered
             .into_iter()
             .filter(|x| x.attribute_metric.unwrap_or(0.0) > self.threshold)

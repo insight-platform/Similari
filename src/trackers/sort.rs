@@ -2,9 +2,10 @@ use crate::track::{
     NoopLookup, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::sort::iou::IOUSortMetric;
-use crate::utils::bbox::GenericBBox;
+use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::State;
 use anyhow::Result;
+use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
@@ -25,10 +26,10 @@ pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
 #[derive(Debug, Clone, Default)]
 pub struct SortAttributes {
     pub history_len: usize,
-    pub predicted_boxes: VecDeque<GenericBBox>,
-    pub observed_boxes: VecDeque<GenericBBox>,
-    pub last_observation: GenericBBox,
-    pub last_prediction: GenericBBox,
+    pub predicted_boxes: VecDeque<Universal2DBox>,
+    pub observed_boxes: VecDeque<Universal2DBox>,
+    pub last_observation: Universal2DBox,
+    pub last_prediction: Universal2DBox,
     pub state: Option<State>,
     pub epoch: usize,
     pub current_epoch: Option<Arc<RwLock<HashMap<u64, usize>>>>,
@@ -94,9 +95,9 @@ impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
     }
 }
 
-impl TrackAttributes<SortAttributes, GenericBBox> for SortAttributes {
+impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
     type Update = SortAttributesUpdate;
-    type Lookup = NoopLookup<SortAttributes, GenericBBox>;
+    type Lookup = NoopLookup<SortAttributes, Universal2DBox>;
 
     fn compatible(&self, other: &SortAttributes) -> bool {
         self.scene_id == other.scene_id
@@ -107,7 +108,7 @@ impl TrackAttributes<SortAttributes, GenericBBox> for SortAttributes {
         Ok(())
     }
 
-    fn baked(&self, _observations: &ObservationsDb<GenericBBox>) -> Result<TrackStatus> {
+    fn baked(&self, _observations: &ObservationsDb<Universal2DBox>) -> Result<TrackStatus> {
         let scene_id = self.scene_id;
         if let Some(current_epoch) = &self.current_epoch {
             let current_epoch = current_epoch.read().unwrap();
@@ -130,14 +131,14 @@ mod track_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
     use crate::trackers::sort::iou::IOUSortMetric;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
-    use crate::utils::bbox::BBox;
+    use crate::utils::bbox::BoundingBox;
     use crate::utils::kalman::KalmanFilter;
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn construct() {
-        let observation_bb_0 = BBox::new(1.0, 1.0, 10.0, 15.0);
-        let observation_bb_1 = BBox::new(1.1, 1.3, 10.0, 15.0);
+        let observation_bb_0 = BoundingBox::new(1.0, 1.0, 10.0, 15.0);
+        let observation_bb_1 = BoundingBox::new(1.1, 1.3, 10.0, 15.0);
 
         let f = KalmanFilter::default();
         let init_state = f.initiate(observation_bb_0.into());
@@ -193,23 +194,38 @@ mod track_tests {
 /// Online track structure that contains tracking information for the last tracker epoch
 ///
 #[derive(Debug, Clone)]
+#[pyclass]
 pub struct SortTrack {
     /// id of the track
     pub id: u64,
     /// when the track was lastly updated
     pub epoch: usize,
     /// the bbox predicted by KF
-    pub predicted_bbox: GenericBBox,
+    pub predicted_bbox: Universal2DBox,
     /// the bbox passed by detector
-    pub observed_bbox: GenericBBox,
+    pub observed_bbox: Universal2DBox,
     /// user-defined scene id that splits tracking space on isolated realms
     pub scene_id: u64,
     /// current track length
     pub length: usize,
 }
 
-impl From<Track<SortAttributes, IOUSortMetric, GenericBBox>> for SortTrack {
-    fn from(track: Track<SortAttributes, IOUSortMetric, GenericBBox>) -> Self {
+#[pymethods]
+impl SortTrack {
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+}
+
+impl From<Track<SortAttributes, IOUSortMetric, Universal2DBox>> for SortTrack {
+    fn from(track: Track<SortAttributes, IOUSortMetric, Universal2DBox>) -> Self {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),

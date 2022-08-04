@@ -5,7 +5,7 @@ use similari::track::{
     MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
     ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
-use similari::utils::bbox::BBox;
+use similari::utils::bbox::BoundingBox;
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
 use std::thread;
@@ -16,12 +16,12 @@ const MAX_DIST: f32 = 0.1;
 
 #[derive(Debug, Clone, Default)]
 struct BBoxAttributes {
-    bboxes: Vec<BBox>,
+    bboxes: Vec<BoundingBox>,
 }
 
 #[derive(Clone, Debug)]
 struct BBoxAttributesUpdate {
-    bbox: BBox,
+    bbox: BoundingBox,
 }
 
 impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {

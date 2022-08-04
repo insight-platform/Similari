@@ -6,6 +6,8 @@ use crate::{EstimateClose, EPS};
 use anyhow::Result;
 use geo::{Area, BooleanOps, Coordinate, LineString, Polygon};
 use itertools::Itertools;
+use pyo3::exceptions::PyAttributeError;
+use pyo3::prelude::*;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::f32::consts::PI;
@@ -13,14 +15,27 @@ use std::f32::consts::PI;
 /// Bounding box in the format (x,y, width, height)
 ///
 #[derive(Clone, Default, Debug, Copy)]
-pub struct BBox {
+#[pyclass]
+pub struct BoundingBox {
     _x: f32,
     _y: f32,
     _width: f32,
     _height: f32,
 }
 
-impl BBox {
+#[pymethods]
+impl BoundingBox {
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
     pub fn x(&self) -> f32 {
         self._x
     }
@@ -36,7 +51,13 @@ impl BBox {
         self._height
     }
 
+    pub fn as_xyaah(&self) -> Universal2DBox {
+        Universal2DBox::from(self)
+    }
+
     /// Constructor
+    ///
+    #[new]
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
             _x: x,
@@ -47,7 +68,7 @@ impl BBox {
     }
 }
 
-impl EstimateClose for BBox {
+impl EstimateClose for BoundingBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
@@ -60,7 +81,8 @@ impl EstimateClose for BBox {
 
 /// Bounding box in the format (x, y, angle, aspect, height)
 #[derive(Default, Debug)]
-pub struct GenericBBox {
+#[pyclass]
+pub struct Universal2DBox {
     _x: f32,
     _y: f32,
     _angle: Option<f32>,
@@ -69,13 +91,25 @@ pub struct GenericBBox {
     _vertex_cache: Option<Polygon<f64>>,
 }
 
-impl Clone for GenericBBox {
+impl Clone for Universal2DBox {
     fn clone(&self) -> Self {
-        GenericBBox::new(self._x, self._y, self._angle, self._aspect, self._height)
+        Universal2DBox::new(self._x, self._y, self._angle, self._aspect, self._height)
     }
 }
 
-impl GenericBBox {
+#[pymethods]
+impl Universal2DBox {
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
     pub fn x(&self) -> f32 {
         self._x
     }
@@ -101,19 +135,34 @@ impl GenericBBox {
         (hw * hw + hh * hh).sqrt()
     }
 
-    pub fn get_vertices(&self) -> &Option<Polygon<f64>> {
-        &self._vertex_cache
+    #[pyo3(name = "as_xywh")]
+    pub fn as_xywh_py(&self) -> PyResult<BoundingBox> {
+        let r: Result<BoundingBox> = Result::from(self);
+        if let Ok(res) = r {
+            Ok(res)
+        } else {
+            Err(PyAttributeError::new_err(format!("{:?}", r)))
+        }
     }
 
-    pub fn gen_vertices(mut self) -> Self {
+    #[pyo3(name = "gen_vertices")]
+    pub fn gen_vertices_py(&mut self) {
+        let copy = self.clone();
         if self._angle.is_some() {
-            self._vertex_cache = Some(Polygon::from(&self));
+            self._vertex_cache = Some(Polygon::from(&copy));
         }
-        self
+    }
+
+    /// Sets the angle
+    ///
+    #[pyo3(name = "rotate")]
+    pub fn rotate_py(&mut self, angle: f32) {
+        self._angle = Some(angle)
     }
 
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
     ///
+    #[new]
     pub fn new(x: f32, y: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
             _x: x,
@@ -123,6 +172,31 @@ impl GenericBBox {
             _height: height,
             _vertex_cache: None,
         }
+    }
+
+    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+    ///
+    #[staticmethod]
+    pub fn xywh(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self::from(BoundingBox::new(x, y, width, height))
+    }
+
+    pub fn area(&self) -> f32 {
+        let w = self._height * self._aspect;
+        w * self._height
+    }
+}
+
+impl Universal2DBox {
+    pub fn get_vertices(&self) -> &Option<Polygon<f64>> {
+        &self._vertex_cache
+    }
+
+    pub fn gen_vertices(mut self) -> Self {
+        if self._angle.is_some() {
+            self._vertex_cache = Some(Polygon::from(&self));
+        }
+        self
     }
 
     /// Sets the angle
@@ -137,14 +211,9 @@ impl GenericBBox {
             _vertex_cache: None,
         }
     }
-
-    pub fn area(&self) -> f32 {
-        let w = self._height * self._aspect;
-        w * self._height
-    }
 }
 
-impl EstimateClose for GenericBBox {
+impl EstimateClose for Universal2DBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
@@ -156,9 +225,9 @@ impl EstimateClose for GenericBBox {
     }
 }
 
-impl From<BBox> for GenericBBox {
-    fn from(f: BBox) -> Self {
-        GenericBBox {
+impl From<BoundingBox> for Universal2DBox {
+    fn from(f: BoundingBox) -> Self {
+        Universal2DBox {
             _x: f._x + f._width / 2.0,
             _y: f._y + f._height / 2.0,
             _angle: None,
@@ -169,22 +238,35 @@ impl From<BBox> for GenericBBox {
     }
 }
 
-impl From<GenericBBox> for Result<BBox> {
+impl From<&BoundingBox> for Universal2DBox {
+    fn from(f: &BoundingBox) -> Self {
+        Universal2DBox {
+            _x: f._x + f._width / 2.0,
+            _y: f._y + f._height / 2.0,
+            _angle: None,
+            _aspect: f._width / f._height,
+            _height: f._height,
+            _vertex_cache: None,
+        }
+    }
+}
+
+impl From<Universal2DBox> for Result<BoundingBox> {
     /// This is a lossy translation. It is valid only when the angle is 0
-    fn from(f: GenericBBox) -> Self {
-        let r: Result<BBox> = Self::from(&f);
+    fn from(f: Universal2DBox) -> Self {
+        let r: Result<BoundingBox> = Self::from(&f);
         r
     }
 }
 
-impl From<&GenericBBox> for Result<BBox> {
+impl From<&Universal2DBox> for Result<BoundingBox> {
     /// This is a lossy translation. It is valid only when the angle is 0
-    fn from(f: &GenericBBox) -> Self {
+    fn from(f: &Universal2DBox) -> Self {
         if f._angle.is_some() {
             Err(GenericBBoxConversionError.into())
         } else {
             let width = f._height * f._aspect;
-            Ok(BBox {
+            Ok(BoundingBox {
                 _x: f._x - width / 2.0,
                 _y: f._y - f._height / 2.0,
                 _width: width,
@@ -194,8 +276,8 @@ impl From<&GenericBBox> for Result<BBox> {
     }
 }
 
-impl From<&GenericBBox> for Polygon<f64> {
-    fn from(b: &GenericBBox) -> Self {
+impl From<&Universal2DBox> for Polygon<f64> {
+    fn from(b: &Universal2DBox) -> Self {
         let angle = b._angle.unwrap_or(0.0) as f64;
         let height = b._height as f64;
         let aspect = b._aspect as f64;
@@ -242,7 +324,7 @@ impl From<&GenericBBox> for Polygon<f64> {
 #[cfg(test)]
 mod polygons {
     use crate::track::ObservationAttributes;
-    use crate::utils::bbox::GenericBBox;
+    use crate::utils::bbox::Universal2DBox;
     use crate::utils::clipping::sutherland_hodgman_clip;
     use crate::EPS;
     use geo::{Area, BooleanOps, Polygon};
@@ -250,9 +332,9 @@ mod polygons {
 
     #[test]
     fn transform() {
-        let bbox1 = GenericBBox::new(0.0, 0.0, Some(2.0), 0.5, 2.0);
+        let bbox1 = Universal2DBox::new(0.0, 0.0, Some(2.0), 0.5, 2.0);
         let polygon1 = Polygon::from(&bbox1);
-        let bbox2 = GenericBBox::new(0.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
+        let bbox2 = Universal2DBox::new(0.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
         let polygon2 = Polygon::from(&bbox2);
         let clip = sutherland_hodgman_clip(&polygon1, &polygon2);
         let int_area = clip.unsigned_area();
@@ -262,11 +344,11 @@ mod polygons {
         let union = polygon1.union(&polygon2).unsigned_area();
         assert!((union - 3.0).abs() < EPS as f64);
 
-        let res = GenericBBox::calculate_metric_object(&Some(bbox1.clone()), &Some(bbox2)).unwrap()
-            as f64;
+        let res = Universal2DBox::calculate_metric_object(&Some(bbox1.clone()), &Some(bbox2))
+            .unwrap() as f64;
         assert!((res - int / union).abs() < EPS as f64);
 
-        let bbox3 = GenericBBox::new(10.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
+        let bbox3 = Universal2DBox::new(10.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
         let polygon3 = Polygon::from(&bbox3);
 
         let int = polygon1.intersection(&polygon3).unsigned_area();
@@ -275,26 +357,26 @@ mod polygons {
         let union = polygon1.union(&polygon3).unsigned_area();
         assert!((union - 4.0).abs() < EPS as f64);
 
-        assert!(GenericBBox::calculate_metric_object(&Some(bbox1), &Some(bbox3)).is_none());
+        assert!(Universal2DBox::calculate_metric_object(&Some(bbox1), &Some(bbox3)).is_none());
     }
 
     #[test]
     fn corner_case_f32() {
-        let x = GenericBBox::new(8044.315, 8011.0454, Some(2.67877485), 1.00801, 49.8073);
+        let x = Universal2DBox::new(8044.315, 8011.0454, Some(2.67877485), 1.00801, 49.8073);
         let polygon_x = Polygon::from(&x);
 
-        let y = GenericBBox::new(8044.455, 8011.338, Some(2.67877485), 1.0083783, 49.79979);
+        let y = Universal2DBox::new(8044.455, 8011.338, Some(2.67877485), 1.0083783, 49.79979);
         let polygon_y = Polygon::from(&y);
 
         dbg!(&polygon_x, &polygon_y);
     }
 }
 
-impl From<&GenericBBox> for BBox {
+impl From<&Universal2DBox> for BoundingBox {
     /// This is a lossy translation. It is valid only when the angle is 0
-    fn from(f: &GenericBBox) -> Self {
+    fn from(f: &Universal2DBox) -> Self {
         let width = f._height * f._aspect;
-        BBox {
+        BoundingBox {
             _x: f._x - width / 2.0,
             _y: f._y - f._height / 2.0,
             _width: width,
@@ -303,8 +385,8 @@ impl From<&GenericBBox> for BBox {
     }
 }
 
-impl BBox {
-    pub fn intersection(l: &BBox, r: &BBox) -> f64 {
+impl BoundingBox {
+    pub fn intersection(l: &BoundingBox, r: &BoundingBox) -> f64 {
         assert!(l._width > 0.0);
         assert!(l._height > 0.0);
         assert!(r._width > 0.0);
@@ -327,7 +409,7 @@ impl BBox {
     }
 }
 
-impl ObservationAttributes for BBox {
+impl ObservationAttributes for BoundingBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
@@ -336,7 +418,7 @@ impl ObservationAttributes for BBox {
     ) -> Option<Self::MetricObject> {
         match (left, right) {
             (Some(l), Some(r)) => {
-                let intersection = BBox::intersection(l, r);
+                let intersection = BoundingBox::intersection(l, r);
                 let union = (l._height * l._width + r._height * r._width) as f64 - intersection;
                 let res = intersection / union;
                 Some(res as f32)
@@ -346,13 +428,13 @@ impl ObservationAttributes for BBox {
     }
 }
 
-impl PartialOrd for BBox {
+impl PartialOrd for BoundingBox {
     fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
         unreachable!()
     }
 }
 
-impl PartialEq<Self> for BBox {
+impl PartialEq<Self> for BoundingBox {
     fn eq(&self, other: &Self) -> bool {
         self.almost_same(other, EPS)
     }
@@ -383,8 +465,8 @@ mod tests_normalize_angle {
     }
 }
 
-impl GenericBBox {
-    pub fn too_far(l: &GenericBBox, r: &GenericBBox) -> bool {
+impl Universal2DBox {
+    pub fn too_far(l: &Universal2DBox, r: &Universal2DBox) -> bool {
         assert!(l._aspect > 0.0);
         assert!(l._height > 0.0);
         assert!(r._aspect > 0.0);
@@ -396,13 +478,13 @@ impl GenericBBox {
         x * x + y * y > max_distance * max_distance
     }
 
-    pub fn intersection(l: &GenericBBox, r: &GenericBBox) -> f64 {
+    pub fn intersection(l: &Universal2DBox, r: &Universal2DBox) -> f64 {
         if (normalize_angle(l._angle.unwrap_or(0.0)) - normalize_angle(r._angle.unwrap_or(0.0)))
             .abs()
             < EPS
         {
-            BBox::intersection(&l.into(), &r.into())
-        } else if GenericBBox::too_far(l, r) {
+            BoundingBox::intersection(&l.into(), &r.into())
+        } else if Universal2DBox::too_far(l, r) {
             0.0
         } else {
             let mut l = l.clone();
@@ -426,7 +508,7 @@ impl GenericBBox {
     }
 }
 
-impl ObservationAttributes for GenericBBox {
+impl ObservationAttributes for Universal2DBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
@@ -435,7 +517,7 @@ impl ObservationAttributes for GenericBBox {
     ) -> Option<Self::MetricObject> {
         match (left, right) {
             (Some(l), Some(r)) => {
-                let intersection = GenericBBox::intersection(l, r);
+                let intersection = Universal2DBox::intersection(l, r);
                 if intersection == 0.0 {
                     None
                 } else {
@@ -452,13 +534,13 @@ impl ObservationAttributes for GenericBBox {
     }
 }
 
-impl PartialOrd for GenericBBox {
+impl PartialOrd for Universal2DBox {
     fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
         unreachable!()
     }
 }
 
-impl PartialEq<Self> for GenericBBox {
+impl PartialEq<Self> for Universal2DBox {
     fn eq(&self, other: &Self) -> bool {
         self.almost_same(other, EPS)
     }
@@ -467,24 +549,24 @@ impl PartialEq<Self> for GenericBBox {
 #[cfg(test)]
 mod tests {
     use crate::track::ObservationAttributes;
-    use crate::utils::bbox::BBox;
+    use crate::utils::bbox::BoundingBox;
 
     #[test]
     fn test_iou() {
-        let bb1 = BBox {
+        let bb1 = BoundingBox {
             _x: -1.0,
             _y: -1.0,
             _width: 2.0,
             _height: 2.0,
         };
 
-        let bb2 = BBox {
+        let bb2 = BoundingBox {
             _x: -0.9,
             _y: -0.9,
             _width: 2.0,
             _height: 2.0,
         };
-        let bb3 = BBox {
+        let bb3 = BoundingBox {
             _x: 1.0,
             _y: 1.0,
             _width: 3.0,
@@ -492,24 +574,28 @@ mod tests {
         };
 
         assert!(
-            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap() > 0.999
+            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap()
+                > 0.999
         );
         assert!(
-            BBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap() > 0.999
+            BoundingBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap()
+                > 0.999
         );
         assert!(
-            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap() > 0.8
+            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap()
+                > 0.8
         );
         assert!(
-            BBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap() < 0.001
+            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap()
+                < 0.001
         );
         assert!(
-            BBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap() < 0.001
+            BoundingBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap()
+                < 0.001
         );
     }
 }
-
-/// TopN Voting engine for IoU metric
+/// Voting engine for IoU metric
 ///
 pub struct IOUTopNVoting {
     pub topn: usize,
@@ -517,12 +603,12 @@ pub struct IOUTopNVoting {
     pub min_votes: usize,
 }
 
-impl Voting<BBox> for IOUTopNVoting {
+impl Voting<BoundingBox> for IOUTopNVoting {
     type WinnerObject = TopNVotingElt;
 
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<TopNVotingElt>>
     where
-        T: IntoIterator<Item = ObservationMetricOk<BBox>>,
+        T: IntoIterator<Item = ObservationMetricOk<BoundingBox>>,
     {
         let counts: Vec<_> = distances
             .into_iter()

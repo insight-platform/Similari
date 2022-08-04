@@ -3,7 +3,7 @@
 extern crate test;
 
 use similari::examples::BoxGen2;
-use similari::utils::bbox::GenericBBox;
+use similari::utils::bbox::Universal2DBox;
 use similari::utils::nms::{nms, parallel_nms};
 use test::Bencher;
 
@@ -80,7 +80,7 @@ fn bench_parallel_nms_01000(b: &mut Bencher) {
 fn bench_sort(
     objects: usize,
     b: &mut Bencher,
-    f: fn(&[(GenericBBox, Option<f32>)], f32, Option<f32>) -> Vec<&GenericBBox>,
+    f: fn(&[(Universal2DBox, Option<f32>)], f32, Option<f32>) -> Vec<&Universal2DBox>,
 ) {
     let pos_drift = 10.0;
     let box_drift = 1.0;

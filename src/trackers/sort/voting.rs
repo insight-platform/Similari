@@ -1,5 +1,5 @@
 use crate::track::ObservationMetricOk;
-use crate::utils::bbox::GenericBBox;
+use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
 use core::option::Option::{None, Some};
 use pathfinding::kuhn_munkres::kuhn_munkres;
@@ -24,12 +24,12 @@ impl SortVoting {
     }
 }
 
-impl Voting<GenericBBox> for SortVoting {
+impl Voting<Universal2DBox> for SortVoting {
     type WinnerObject = u64;
 
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<Self::WinnerObject>>
     where
-        T: IntoIterator<Item = ObservationMetricOk<GenericBBox>>,
+        T: IntoIterator<Item = ObservationMetricOk<Universal2DBox>>,
     {
         let mut candidates_index: usize = 0;
 
