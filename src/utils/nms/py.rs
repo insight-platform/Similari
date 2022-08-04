@@ -1,6 +1,6 @@
-use pyo3::prelude::*;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::nms::{nms, parallel_nms};
+use pyo3::prelude::*;
 
 #[pyfunction]
 #[pyo3(name = "nms")]
@@ -9,7 +9,10 @@ pub fn nms_py(
     nms_threshold: f32,
     score_threshold: Option<f32>,
 ) -> Vec<Universal2DBox> {
-    nms(&detections, nms_threshold, score_threshold).into_iter().cloned().collect()
+    nms(&detections, nms_threshold, score_threshold)
+        .into_iter()
+        .cloned()
+        .collect()
 }
 
 #[pyfunction]
@@ -19,5 +22,8 @@ pub fn parallel_nms_py(
     nms_threshold: f32,
     score_threshold: Option<f32>,
 ) -> Vec<Universal2DBox> {
-    parallel_nms(&detections, nms_threshold, score_threshold).into_iter().cloned().collect()
+    parallel_nms(&detections, nms_threshold, score_threshold)
+        .into_iter()
+        .cloned()
+        .collect()
 }
