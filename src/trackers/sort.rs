@@ -186,7 +186,7 @@ mod track_tests {
 
         let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
         assert!(t1.get_attributes().predicted_boxes[1]
-            .almost_same(&predicted_state.generic_bbox(), EPS));
+            .almost_same(&predicted_state.universal_bbox(), EPS));
     }
 }
 
@@ -243,6 +243,20 @@ impl SortTrack {
     }
 
     fn __str__(&self) -> String {
-        self.__repr__()
+        format!("{:#?}", self)
+    }
+}
+
+#[pymethods]
+impl PyWastedSortTrack {
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:#?}", self)
     }
 }

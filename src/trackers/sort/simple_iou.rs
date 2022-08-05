@@ -1,4 +1,4 @@
-pub mod py;
+pub mod simple_iou_py;
 
 use crate::prelude::{ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;

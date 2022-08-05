@@ -1,4 +1,4 @@
-pub mod py;
+pub mod simple_maha_py;
 
 use crate::prelude::{ObservationBuilder, SortTrack, TrackStoreBuilder};
 use crate::store::TrackStore;
