@@ -136,7 +136,8 @@ pub enum PositionalMetricKind {
 pub struct VisualMetric {
     visual_kind: VisualMetricKind,
     positional_kind: PositionalMetricKind,
-    threshold: f32,
+    bbox_distance_threshold: f32,
+    min_required_track_visual_length: usize,
 }
 
 impl ObservationMetric<VisualAttributes, Universal2DBox> for VisualMetric {
@@ -184,14 +185,18 @@ impl ObservationMetric<VisualAttributes, Universal2DBox> for VisualMetric {
                     }
                     PositionalMetricKind::Ignore => None,
                 },
-                Some(match self.visual_kind {
-                    VisualMetricKind::Euclidean => {
-                        euclidean(candidate_observation_feature, track_observation_feature)
-                    }
-                    VisualMetricKind::Cosine => {
-                        cosine(candidate_observation_feature, track_observation_feature)
-                    }
-                }),
+                if self.min_required_track_visual_length >= track_attributes.length {
+                    Some(match self.visual_kind {
+                        VisualMetricKind::Euclidean => {
+                            euclidean(candidate_observation_feature, track_observation_feature)
+                        }
+                        VisualMetricKind::Cosine => {
+                            cosine(candidate_observation_feature, track_observation_feature)
+                        }
+                    })
+                } else {
+                    None
+                },
             ))
         }
     }
@@ -244,7 +249,7 @@ impl ObservationMetric<VisualAttributes, Universal2DBox> for VisualMetric {
     ) -> Vec<ObservationMetricOk<Universal2DBox>> {
         unfiltered
             .into_iter()
-            .filter(|x| x.attribute_metric.unwrap_or(0.0) > self.threshold)
+            .filter(|x| x.attribute_metric.unwrap_or(0.0) > self.bbox_distance_threshold)
             .collect()
     }
 }
