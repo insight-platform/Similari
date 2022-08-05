@@ -96,6 +96,7 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>:
     /// * `right_observation` - right track observation
     ///
     fn metric(
+        &self,
         feature_class: u64,
         self_attrs: &TA,
         right_attrs: &TA,
@@ -571,7 +572,7 @@ where
                     .iter()
                     .cartesian_product(right.iter())
                     .flat_map(|(l, r)| {
-                        let (attribute_metric, feature_distance) = M::metric(
+                        let (attribute_metric, feature_distance) = self.metric.metric(
                             feature_class,
                             self.get_attributes(),
                             other.get_attributes(),
@@ -648,6 +649,7 @@ mod tests {
     struct DefaultMetric;
     impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
         fn metric(
+            &self,
             _feature_class: u64,
             _attrs1: &DefaultAttrs,
             _attrs2: &DefaultAttrs,
@@ -826,6 +828,7 @@ mod tests {
         struct TimeMetric;
         impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
             fn metric(
+                &self,
                 _feature_class: u64,
                 _attrs1: &TimeAttrs,
                 _attrs2: &TimeAttrs,
@@ -977,6 +980,7 @@ mod tests {
         struct DefaultMetric;
         impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
             fn metric(
+                &self,
                 _feature_class: u64,
                 _attrs1: &DefaultAttrs,
                 _attrs2: &DefaultAttrs,
@@ -1129,6 +1133,7 @@ mod tests {
         struct UnitMetric;
         impl ObservationMetric<UnitAttrs, ()> for UnitMetric {
             fn metric(
+                &self,
                 _feature_class: u64,
                 _attrs1: &UnitAttrs,
                 _attrs2: &UnitAttrs,
@@ -1211,6 +1216,7 @@ mod tests {
 
         impl ObservationMetric<LookupAttrs, f32> for LookupMetric {
             fn metric(
+                &self,
                 _feature_class: u64,
                 _attrs1: &LookupAttrs,
                 _attrs2: &LookupAttrs,

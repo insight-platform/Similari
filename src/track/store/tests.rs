@@ -67,6 +67,7 @@ mod tests {
 
     impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
         fn metric(
+            &self,
             _feature_class: u64,
             _attrs1: &TimeAttrs,
             _attrs2: &TimeAttrs,
@@ -664,6 +665,7 @@ mod tests {
 
         impl ObservationMetric<LookupAttrs, f32> for LookupMetric {
             fn metric(
+                &self,
                 _feature_class: u64,
                 _attrs1: &LookupAttrs,
                 _attrs2: &LookupAttrs,

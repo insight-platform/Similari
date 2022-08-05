@@ -27,9 +27,9 @@ impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for SortTrack {
         SortTrack {
             id: track.get_track_id(),
             epoch: attrs.epoch,
-            observed_bbox: attrs.last_observation.clone(),
             scene_id: attrs.scene_id,
-            predicted_bbox: attrs.last_prediction.clone(),
+            observed_bbox: attrs.observed_boxes[attrs.observed_boxes.len() - 1].clone(),
+            predicted_bbox: attrs.predicted_boxes[attrs.predicted_boxes.len() - 1].clone(),
             length: attrs.length,
         }
     }
@@ -41,9 +41,9 @@ impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for PyWastedSor
         PyWastedSortTrack {
             id: track.get_track_id(),
             epoch: attrs.epoch,
-            observed_bbox: attrs.last_observation.clone(),
             scene_id: attrs.scene_id,
-            predicted_bbox: attrs.last_prediction.clone(),
+            observed_bbox: attrs.observed_boxes[attrs.observed_boxes.len() - 1].clone(),
+            predicted_bbox: attrs.predicted_boxes[attrs.predicted_boxes.len() - 1].clone(),
             length: attrs.length,
             predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
             observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),

@@ -9,6 +9,7 @@ pub struct MahaSortMetric;
 
 impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
     fn metric(
+        &self,
         _feature_class: u64,
         _candidate_attributes: &SortAttributes,
         track_attributes: &SortAttributes,
@@ -53,15 +54,12 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
         let prediction = f.predict(state);
         attrs.state = Some(prediction);
         let predicted_bbox = prediction.universal_bbox();
-
-        attrs.last_observation = observation_bbox.clone();
-        attrs.last_prediction = predicted_bbox.clone();
         attrs.length += 1;
 
         attrs.observed_boxes.push_back(observation_bbox.clone());
         attrs.predicted_boxes.push_back(predicted_bbox.clone());
 
-        if attrs.history_len > 0 && attrs.observed_boxes.len() > attrs.history_len {
+        if attrs.max_history_len > 0 && attrs.observed_boxes.len() > attrs.max_history_len {
             attrs.observed_boxes.pop_front();
             attrs.predicted_boxes.pop_front();
         }

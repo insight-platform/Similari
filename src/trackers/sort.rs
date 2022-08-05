@@ -8,33 +8,45 @@ use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
+/// SORT implementation with IoU distance
 pub mod iou;
 /// SORT implementation with Mahalanobis distance
 pub mod maha;
+
 /// SORT implementation with a very tiny interface (IoU)
 pub mod simple_iou;
 /// SORT implementation with a very tiny interface (Mahalanobis)
 pub mod simple_maha;
 
-/// Voting engine
+/// Voting engine with Hungarian algorithm
 pub mod voting;
 
 /// Default IoU threshold that is defined by SORT author in the original repo
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
 
+/// Attributes associated with SORT track
+///
 #[derive(Debug, Clone, Default)]
 pub struct SortAttributes {
-    pub history_len: usize,
+    /// The lastly predicted boxes
     pub predicted_boxes: VecDeque<Universal2DBox>,
+    /// The lastly observed boxes
     pub observed_boxes: VecDeque<Universal2DBox>,
-    pub last_observation: Universal2DBox,
-    pub last_prediction: Universal2DBox,
+    /// Kalman filter predicted state
     pub state: Option<State>,
+    /// The epoch when the track was lastly updated
     pub epoch: usize,
-    pub current_epoch: Option<Arc<RwLock<HashMap<u64, usize>>>>,
-    pub max_idle_epochs: usize,
+    /// The length of the track
     pub length: usize,
+    /// Customer-specific scene identifier that splits the objects by classes, realms, etc.
     pub scene_id: u64,
+
+    /// The map that stores current epochs for the scene_id
+    current_epochs: Option<Arc<RwLock<HashMap<u64, usize>>>>,
+    /// The maximum number of epochs without update while the track is alive
+    max_idle_epochs: usize,
+    /// The maximum length of collected objects for the track
+    max_history_len: usize,
 }
 
 impl SortAttributes {
@@ -51,9 +63,9 @@ impl SortAttributes {
         current_epoch: Arc<RwLock<HashMap<u64, usize>>>,
     ) -> Self {
         Self {
-            history_len,
+            max_history_len: history_len,
             max_idle_epochs,
-            current_epoch: Some(current_epoch),
+            current_epochs: Some(current_epoch),
             ..Default::default()
         }
     }
@@ -65,12 +77,14 @@ impl SortAttributes {
     ///
     pub fn new(history_len: usize) -> Self {
         Self {
-            history_len,
+            max_history_len: history_len,
             ..Default::default()
         }
     }
 }
 
+/// Update object for SortAttributes
+///
 #[derive(Clone, Debug, Default)]
 pub struct SortAttributesUpdate {
     epoch: usize,
@@ -78,9 +92,19 @@ pub struct SortAttributesUpdate {
 }
 
 impl SortAttributesUpdate {
+    /// update epoch with scene_id == 0
+    ///
+    /// # Parameters
+    /// * `epoch` - epoch update
+    ///
     pub fn new(epoch: usize) -> Self {
         Self { epoch, scene_id: 0 }
     }
+    /// update epoch for a specific scene_id
+    ///
+    /// # Parameters
+    /// * `epoch` - epoch
+    /// * `scene_id` - scene_id
     pub fn new_with_scene(epoch: usize, scene_id: u64) -> Self {
         Self { epoch, scene_id }
     }
@@ -109,7 +133,7 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
 
     fn baked(&self, _observations: &ObservationsDb<Universal2DBox>) -> Result<TrackStatus> {
         let scene_id = self.scene_id;
-        if let Some(current_epoch) = &self.current_epoch {
+        if let Some(current_epoch) = &self.current_epochs {
             let current_epoch = current_epoch.read().unwrap();
             if self.epoch + self.max_idle_epochs < *current_epoch.get(&scene_id).unwrap_or(&0) {
                 Ok(TrackStatus::Wasted)

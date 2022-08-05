@@ -70,6 +70,7 @@ pub struct SimpleMetric;
 
 impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
     fn metric(
+        &self,
         _feature_class: u64,
         _attrs1: &SimpleAttrs,
         _attrs2: &SimpleAttrs,
@@ -132,6 +133,7 @@ pub struct UnboundMetric;
 
 impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
     fn metric(
+        &self,
         _feature_class: u64,
         _attrs1: &UnboundAttrs,
         _attrs2: &UnboundAttrs,

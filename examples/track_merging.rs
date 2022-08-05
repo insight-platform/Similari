@@ -266,6 +266,7 @@ impl Default for CamTrackingAttributesMetric {
 
 impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetric {
     fn metric(
+        &self,
         _feature_class: u64,
         _attrs1: &CamTrackingAttributes,
         _attrs2: &CamTrackingAttributes,

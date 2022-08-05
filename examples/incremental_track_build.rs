@@ -54,6 +54,7 @@ pub struct TrackMetric;
 
 impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
     fn metric(
+        &self,
         _feature_class: u64,
         _attrs1: &BBoxAttributes,
         _attrs2: &BBoxAttributes,

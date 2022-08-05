@@ -50,6 +50,7 @@ impl Default for IOUMetric {
 
 impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
     fn metric(
+        &self,
         _feature_class: u64,
         _attrs1: &BBoxAttributes,
         _attrs2: &BBoxAttributes,

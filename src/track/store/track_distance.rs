@@ -272,6 +272,7 @@ mod tests {
 
     impl ObservationMetric<MockAttrs, f32> for MockMetric {
         fn metric(
+            &self,
             _feature_class: u64,
             _attrs1: &MockAttrs,
             _attrs2: &MockAttrs,

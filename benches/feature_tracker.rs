@@ -50,6 +50,7 @@ pub struct TrackMetric;
 
 impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
     fn metric(
+        &self,
         _feature_class: u64,
         _attrs1: &NoopAttributes,
         _attrs2: &NoopAttributes,
