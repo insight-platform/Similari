@@ -3,7 +3,10 @@ use crate::utils::nms::{nms, parallel_nms};
 use pyo3::prelude::*;
 
 #[pyfunction]
-#[pyo3(name = "nms")]
+#[pyo3(
+    name = "nms",
+    text_signature = "(detections, nms_threshold, score_threshold)"
+)]
 pub fn nms_py(
     detections: Vec<(Universal2DBox, Option<f32>)>,
     nms_threshold: f32,
@@ -16,7 +19,10 @@ pub fn nms_py(
 }
 
 #[pyfunction]
-#[pyo3(name = "parallel_nms")]
+#[pyo3(
+    name = "parallel_nms",
+    text_signature = "(detections, nms_threshold, score_threshold)"
+)]
 pub fn parallel_nms_py(
     detections: Vec<(Universal2DBox, Option<f32>)>,
     nms_threshold: f32,

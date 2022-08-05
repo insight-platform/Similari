@@ -1,3 +1,5 @@
+pub mod clipping_py;
+
 use geo::{Coordinate, CoordsIter, LineString, Polygon};
 
 fn is_inside(q: &Coordinate<f64>, p1: &Coordinate<f64>, p2: &Coordinate<f64>) -> bool {

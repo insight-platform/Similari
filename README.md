@@ -116,8 +116,9 @@ cargo bench
 Python interface is an PyO3 bindings to several ready-to-use functions and classes of Similari.
 
 As for now, the Python interface exposes:
-* NMS; 
-* parallel NMS;
+* Kalman filter for co-axial and oriented boxes prediction;
+* NMS, parallel NMS;
+* Sutherland-Hodgman clipping, intersection area for oriented boxes;
 * SORT with IoU metric;
 * SORT with Mahalanobis metric.
 

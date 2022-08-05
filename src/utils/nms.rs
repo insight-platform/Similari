@@ -1,4 +1,4 @@
-pub mod py;
+pub mod nms_py;
 
 use crate::utils::bbox::Universal2DBox;
 use itertools::Itertools;

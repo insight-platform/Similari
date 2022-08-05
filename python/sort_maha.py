@@ -6,4 +6,4 @@ if __name__ == '__main__':
     tracks = sort.predict([box])
     sort.skip_epochs(10)
     wasted = sort.wasted()
-    print(wasted)
+    print(wasted[0])

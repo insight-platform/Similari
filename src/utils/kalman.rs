@@ -1,3 +1,5 @@
+pub mod kalman_py;
+
 use std::ops::SubAssign;
 // Original source code idea from
 // https://github.com/nwojke/deep_sort/blob/master/deep_sort/kalman_filter.py
@@ -46,12 +48,12 @@ impl<const X: usize> State<X> {
     /// Fetch predicted bbox in (x,y,w,h) format from the state
     ///
     pub fn bbox(&self) -> Result<BoundingBox> {
-        self.generic_bbox().into()
+        self.universal_bbox().into()
     }
 
     /// Fetch predicted bbox in (x,y,a,h) format from the state
     ///
-    pub fn generic_bbox(&self) -> Universal2DBox {
+    pub fn universal_bbox(&self) -> Universal2DBox {
         Universal2DBox::new(
             self.mean[0],
             self.mean[1],
@@ -267,7 +269,7 @@ mod tests {
 
         let state = f.initiate(bbox.clone().into());
         let state = f.predict(state);
-        let p = state.generic_bbox();
+        let p = state.universal_bbox();
 
         let est_p = Universal2DBox::new(-9.0, 4.5, None, 0.4, 5.0);
         assert_eq!(p.almost_same(&est_p, EPS), true);
@@ -277,7 +279,7 @@ mod tests {
         let est_p = Universal2DBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
 
         let state = f.predict(state);
-        let p = state.generic_bbox();
+        let p = state.universal_bbox();
         assert_eq!(p.almost_same(&est_p, EPS), true);
     }
 

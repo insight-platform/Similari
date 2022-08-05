@@ -52,7 +52,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
 
         let prediction = f.predict(state);
         attrs.state = Some(prediction);
-        let predicted_bbox = prediction.generic_bbox();
+        let predicted_bbox = prediction.universal_bbox();
 
         attrs.last_observation = observation_bbox.clone();
         attrs.last_prediction = predicted_bbox.clone();
