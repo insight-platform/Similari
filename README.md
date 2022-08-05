@@ -5,35 +5,37 @@
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
-Similari is a framework that helps build sophisticated tracking systems. The operations that can be 
-efficiently implemented with Similari are collecting of observable object features, looking for similar objects, and 
-merging them into tracks based on features and attributes.
-
-With Similari one can develop highly efficient parallelized [SORT](https://github.com/abewley/sort), 
-[DeepSORT](https://github.com/nwojke/deep_sort), and other sophisticated single observer (e.g. Cam) or multi-observer 
-tracking engines.
+Similari is a framework that helps build sophisticated tracking systems. With Similari one can develop highly 
+efficient parallelized [SORT](https://github.com/abewley/sort), [DeepSORT](https://github.com/nwojke/deep_sort), and 
+other sophisticated single observer (e.g. Cam) or multi-observer tracking engines.
 
 Language bindings:
 * Rust - native support;
-* Python3 - ready-to-use functions and objects.
+* Python3 - ready-to-use functions and objects (see later).
 
 ## Introduction
 
-The primary purpose of Similari is to provide means to build sophisticated in-memory object tracking engines.
+The primary purpose of Similari is to provide means to build sophisticated in-memory multiple object tracking engines.
 
-The framework helps to build various kinds of tracking or similarity search engines - the simplest one that holds vector 
-features and allows comparing new vectors against the ones kept in the database. More sophisticated engines operate over 
-tracks - a series of observations for the same feature collected during the lifecycle. Such systems are often used in video 
-processing or other systems where the observer receives fuzzy or changing observation results.
+The framework helps to build various kinds of tracking and similarity search engines - the simplest one that holds 
+vector features and allows comparing new vectors against the ones kept in the database. More sophisticated engines 
+operate over tracks - a series of observations for the same feature collected during the lifecycle. Such systems are 
+often used in video processing or other systems where the observer receives fuzzy or changing observation results.
 
 ## Out-of-The-Box Stuff
 
-* **Kalman filter**, that predicts rectangular bounding boxes co-axial to scene, supports the oriented bounding 
+Similari is a tool to build trackers, but it also includes frequently used implementations for:
+
+**Kalman filter**, that predicts rectangular bounding boxes co-axial to scene, supports the oriented bounding 
   boxes as well.
-* **Non-Maximum Suppression (NMS)** - filters rectangular bounding boxes co-axial to scene, and supports the oriented 
-  bounding 
-  boxes.
-* **SORT tracking** algorithm (non-oriented and oriented boxes are supported) - IoU and Mahalanobis distances are 
+
+**Bounding box clipping**, that allows calculating the area of intersection for non-oriented and oriented bounding 
+boxes.
+
+**Non-Maximum Suppression (NMS)** - filters rectangular bounding boxes co-axial to scene, and supports the oriented 
+  bounding boxes.
+
+**SORT tracking** algorithm (non-oriented and oriented boxes are supported) - IoU and Mahalanobis distances are 
   supported.
 
 ## Applicability Notes
@@ -78,12 +80,13 @@ If the attributes of the two tracks are not compatible, their distance calculati
 
 ## Performance
 
-To keep the calculations performant the framework uses:
-* [ultraviolet](https://crates.io/crates/ultraviolet) - fast SIMD computations.
+The Similari is fast. It is usually faster than trackers built with Python and NumPy.
+
+To run visual feature calculations performant the framework uses [ultraviolet](https://crates.io/crates/ultraviolet) - the library for fast SIMD computations.
 
 Parallel computations are implemented with index sharding and parallel computations based on a dedicated thread workers pool.
 
-The vector operations performance depends a lot on the optimization level defined for the build. On low or default 
+Vector operations performance depends a lot on the optimization level defined for the build. On low or default 
 optimization levels Rust may not use f32 vectorization, so when running benchmarks take care of proper optimization 
 levels configured.
 
