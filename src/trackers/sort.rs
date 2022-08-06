@@ -32,15 +32,15 @@ pub struct SortAttributes {
     pub predicted_boxes: VecDeque<Universal2DBox>,
     /// The lastly observed boxes
     pub observed_boxes: VecDeque<Universal2DBox>,
-    /// Kalman filter predicted state
-    pub state: Option<State>,
     /// The epoch when the track was lastly updated
-    pub epoch: usize,
+    pub last_updated_epoch: usize,
     /// The length of the track
-    pub length: usize,
+    pub track_length: usize,
     /// Customer-specific scene identifier that splits the objects by classes, realms, etc.
     pub scene_id: u64,
 
+    /// Kalman filter predicted state
+    state: Option<State>,
     /// The map that stores current epochs for the scene_id
     current_epochs: Option<Arc<RwLock<HashMap<u64, usize>>>>,
     /// The maximum number of epochs without update while the track is alive
@@ -112,7 +112,7 @@ impl SortAttributesUpdate {
 
 impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
     fn apply(&self, attrs: &mut SortAttributes) -> Result<()> {
-        attrs.epoch = self.epoch;
+        attrs.last_updated_epoch = self.epoch;
         attrs.scene_id = self.scene_id;
         Ok(())
     }
@@ -127,7 +127,7 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
     }
 
     fn merge(&mut self, other: &SortAttributes) -> Result<()> {
-        self.epoch = other.epoch;
+        self.last_updated_epoch = other.last_updated_epoch;
         Ok(())
     }
 
@@ -135,7 +135,9 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
         let scene_id = self.scene_id;
         if let Some(current_epoch) = &self.current_epochs {
             let current_epoch = current_epoch.read().unwrap();
-            if self.epoch + self.max_idle_epochs < *current_epoch.get(&scene_id).unwrap_or(&0) {
+            if self.last_updated_epoch + self.max_idle_epochs
+                < *current_epoch.get(&scene_id).unwrap_or(&0)
+            {
                 Ok(TrackStatus::Wasted)
             } else {
                 Ok(TrackStatus::Pending)

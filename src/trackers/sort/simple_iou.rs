@@ -208,11 +208,11 @@ impl From<Track<SortAttributes, IOUSortMetric, Universal2DBox>> for SortTrack {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),
-            epoch: attrs.epoch,
+            epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,
-            observed_bbox: attrs.observed_boxes[attrs.observed_boxes.len() - 1].clone(),
-            predicted_bbox: attrs.predicted_boxes[attrs.predicted_boxes.len() - 1].clone(),
-            length: attrs.length,
+            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
+            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
+            length: attrs.track_length,
         }
     }
 }
@@ -222,11 +222,11 @@ impl From<Track<SortAttributes, IOUSortMetric, Universal2DBox>> for PyWastedSort
         let attrs = track.get_attributes();
         PyWastedSortTrack {
             id: track.get_track_id(),
-            epoch: attrs.epoch,
+            epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,
-            length: attrs.length,
-            observed_bbox: attrs.observed_boxes[attrs.observed_boxes.len() - 1].clone(),
-            predicted_bbox: attrs.predicted_boxes[attrs.predicted_boxes.len() - 1].clone(),
+            length: attrs.track_length,
+            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
+            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
             predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
             observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),
         }

@@ -284,7 +284,7 @@ impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetr
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         merge_history: &[u64],
         _attrs: &mut CamTrackingAttributes,
         features: &mut Vec<ObservationSpec<f32>>,

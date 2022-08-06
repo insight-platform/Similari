@@ -290,7 +290,7 @@ mod tests {
 
         fn optimize(
             &mut self,
-            _feature_class: &u64,
+            _feature_class: u64,
             _merge_history: &[u64],
             _attrs: &mut MockAttrs,
             _features: &mut Vec<ObservationSpec<f32>>,

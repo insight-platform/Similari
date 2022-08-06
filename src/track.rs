@@ -122,7 +122,7 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>:
     ///
     fn optimize(
         &mut self,
-        feature_class: &u64,
+        feature_class: u64,
         merge_history: &[u64],
         attributes: &mut TA,
         observations: &mut Vec<ObservationSpec<OA>>,
@@ -439,7 +439,7 @@ where
         let prev_length = observations.len() - 1;
 
         let res = self.metric.optimize(
-            &feature_class,
+            feature_class,
             &self.merge_history,
             &mut self.attributes,
             observations,
@@ -519,7 +519,7 @@ where
 
             if let Some(prev_length) = prev_length {
                 let res = self.metric.optimize(
-                    cls,
+                    *cls,
                     &merge_history,
                     &mut self.attributes,
                     self.observations.get_mut(cls).unwrap(),
@@ -667,7 +667,7 @@ mod tests {
 
         fn optimize(
             &mut self,
-            _feature_class: &u64,
+            _feature_class: u64,
             _merge_history: &[u64],
             _attributes: &mut DefaultAttrs,
             features: &mut Vec<ObservationSpec<f32>>,
@@ -846,7 +846,7 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut TimeAttrs,
                 features: &mut Vec<ObservationSpec<f32>>,
@@ -998,7 +998,7 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut DefaultAttrs,
                 _features: &mut Vec<ObservationSpec<f32>>,
@@ -1151,7 +1151,7 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut UnitAttrs,
                 features: &mut Vec<ObservationSpec<()>>,
@@ -1234,7 +1234,7 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attrs: &mut LookupAttrs,
                 _features: &mut Vec<ObservationSpec<f32>>,

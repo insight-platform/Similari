@@ -32,7 +32,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         attrs: &mut SortAttributes,
         features: &mut Vec<ObservationSpec<Universal2DBox>>,
@@ -54,7 +54,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
         let prediction = f.predict(state);
         attrs.state = Some(prediction);
         let predicted_bbox = prediction.universal_bbox();
-        attrs.length += 1;
+        attrs.track_length += 1;
 
         attrs.observed_boxes.push_back(observation_bbox.clone());
         attrs.predicted_boxes.push_back(predicted_bbox.clone());

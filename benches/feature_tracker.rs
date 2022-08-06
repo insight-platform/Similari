@@ -68,7 +68,7 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut NoopAttributes,
         observations: &mut Vec<ObservationSpec<()>>,

@@ -88,7 +88,7 @@ impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut SimpleAttrs,
         _features: &mut Vec<ObservationSpec<f32>>,
@@ -151,7 +151,7 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut UnboundAttrs,
         _features: &mut Vec<ObservationSpec<f32>>,

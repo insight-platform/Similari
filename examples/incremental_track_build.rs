@@ -72,7 +72,7 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut BBoxAttributes,
         observations: &mut Vec<ObservationSpec<f32>>,

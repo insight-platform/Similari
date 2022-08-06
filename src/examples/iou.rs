@@ -71,7 +71,7 @@ impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         attrs: &mut BBoxAttributes,
         features: &mut Vec<ObservationSpec<BoundingBox>>,

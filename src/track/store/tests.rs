@@ -85,7 +85,7 @@ mod tests {
 
         fn optimize(
             &mut self,
-            _feature_class: &u64,
+            _feature_class: u64,
             _merge_history: &[u64],
             _attrs: &mut TimeAttrs,
             features: &mut Vec<ObservationSpec<f32>>,
@@ -683,7 +683,7 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attrs: &mut LookupAttrs,
                 _features: &mut Vec<ObservationSpec<f32>>,
