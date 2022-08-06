@@ -7,7 +7,6 @@ use std::collections::{HashMap, HashSet};
 
 pub struct VisualVoting {
     positional_threshold: f32,
-    n_tracks: usize,
     max_allowed_feature_distance: f32,
     min_winner_feature_votes: usize,
 }
@@ -15,13 +14,11 @@ pub struct VisualVoting {
 impl VisualVoting {
     pub fn new(
         positional_threshold: f32,
-        n_tracks: usize,
         max_allowed_feature_distance: f32,
         min_winner_feature_votes: usize,
     ) -> Self {
         Self {
             positional_threshold,
-            n_tracks,
             max_allowed_feature_distance,
             min_winner_feature_votes,
         }
@@ -35,7 +32,7 @@ impl Voting<Universal2DBox> for VisualVoting {
     where
         T: IntoIterator<Item = ObservationMetricOk<Universal2DBox>>,
     {
-        let feature_voting: TopNVoting<Universal2DBox> = TopNVoting::new(
+        let topn_feature_voting: TopNVoting<Universal2DBox> = TopNVoting::new(
             1,
             self.max_allowed_feature_distance,
             self.min_winner_feature_votes,
@@ -45,7 +42,7 @@ impl Voting<Universal2DBox> for VisualVoting {
             .into_iter()
             .collect::<Vec<ObservationMetricOk<Universal2DBox>>>();
 
-        let feature_winners = feature_voting.winners(distances.clone());
+        let feature_winners = topn_feature_voting.winners(distances.clone());
 
         let mut excluded_tracks = HashSet::new();
         let feature_winners = feature_winners
@@ -58,6 +55,7 @@ impl Voting<Universal2DBox> for VisualVoting {
             .collect::<HashMap<_, _>>();
 
         let mut remaining_candidates = HashSet::new();
+        let mut remaining_tracks = HashSet::new();
         let remaining_distances = distances
             .into_iter()
             .filter(|e: &ObservationMetricOk<Universal2DBox>| {
@@ -65,6 +63,7 @@ impl Voting<Universal2DBox> for VisualVoting {
             })
             .map(|e| {
                 remaining_candidates.insert(e.from);
+                remaining_tracks.insert(e.to);
                 e
             })
             .collect::<Vec<_>>();
@@ -72,7 +71,7 @@ impl Voting<Universal2DBox> for VisualVoting {
         let positional_voting = SortVoting::new(
             self.positional_threshold,
             remaining_candidates.len(),
-            self.n_tracks,
+            remaining_tracks.len(),
         );
 
         let mut positional_winners = positional_voting.winners(remaining_distances);
