@@ -28,6 +28,8 @@ pub struct VisualAttributes {
     pub last_updated_epoch: usize,
     /// The length of the track
     pub track_length: usize,
+    /// Visual track elements amount collected
+    pub track_visual_features_count: usize,
     /// Custom scene id provided by the user
     pub scene_id: u64,
     /// Custom object id provided for the bbox and observation
@@ -225,7 +227,7 @@ impl VisualMetricBuilder {
     pub fn minimal_visual_track_len(mut self, length: usize) -> Self {
         assert!(
             length > 0,
-            "The minimum amount of visual features collected before visual metric is applied."
+            "The minimum amount of visual features collected before visual metric is applied should be greater than 0."
         );
         self.minimal_visual_track_len = length;
         self

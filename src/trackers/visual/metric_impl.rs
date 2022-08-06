@@ -25,20 +25,23 @@ impl ObservationMetric<VisualAttributes, Universal2DBox> for VisualMetric {
         let candidate_observation_feature = candidate_observation.1.as_ref().unwrap();
         let track_observation_feature = track_observation.1.as_ref().unwrap();
 
-        if !matches!(self.positional_kind, PositionalMetricType::Ignore)
-            && Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox)
-        {
-            None
-        } else {
-            let f = KalmanFilter::default();
-            let state = track_attributes.state.unwrap();
-            Some((
-                match self.positional_kind {
-                    PositionalMetricType::Mahalanobis => {
+        let f = KalmanFilter::default();
+        let state = track_attributes.state.unwrap();
+
+        Some((
+            match self.positional_kind {
+                PositionalMetricType::Mahalanobis => {
+                    if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
+                        None
+                    } else {
                         let dist = f.distance(state, candidate_observation_bbox);
                         Some(KalmanFilter::calculate_cost(dist, true))
                     }
-                    PositionalMetricType::IoU(threshold) => {
+                }
+                PositionalMetricType::IoU(threshold) => {
+                    if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
+                        None
+                    } else {
                         let box_m_opt = Universal2DBox::calculate_metric_object(
                             &candidate_observation.0,
                             &track_observation.0,
@@ -53,22 +56,22 @@ impl ObservationMetric<VisualAttributes, Universal2DBox> for VisualMetric {
                             None
                         }
                     }
-                    PositionalMetricType::Ignore => None,
-                },
-                if self.minimal_visual_track_len >= track_attributes.track_length {
-                    Some(match self.visual_kind {
-                        VisualMetricType::Euclidean => {
-                            euclidean(candidate_observation_feature, track_observation_feature)
-                        }
-                        VisualMetricType::Cosine => {
-                            cosine(candidate_observation_feature, track_observation_feature)
-                        }
-                    })
-                } else {
-                    None
-                },
-            ))
-        }
+                }
+                PositionalMetricType::Ignore => None,
+            },
+            if track_attributes.track_visual_features_count >= self.minimal_visual_track_len {
+                Some(match self.visual_kind {
+                    VisualMetricType::Euclidean => {
+                        euclidean(candidate_observation_feature, track_observation_feature)
+                    }
+                    VisualMetricType::Cosine => {
+                        cosine(candidate_observation_feature, track_observation_feature)
+                    }
+                })
+            } else {
+                None
+            },
+        ))
     }
 
     fn optimize(
@@ -112,6 +115,8 @@ impl ObservationMetric<VisualAttributes, Universal2DBox> for VisualMetric {
         if features.len() > attrs.max_observations {
             features.swap_remove(0);
         }
+
+        attrs.track_visual_features_count = features.iter().filter(|f| f.1.is_some()).count();
 
         Ok(())
     }
@@ -239,6 +244,7 @@ mod optimize {
             observed_features: VecDeque::default(),
             last_updated_epoch: 0,
             track_length: 0,
+            track_visual_features_count: 0,
             scene_id: 0,
             custom_object_id: None,
             state: None,
@@ -311,32 +317,267 @@ mod optimize {
 
 #[cfg(test)]
 mod metric {
-    use crate::trackers::visual::{PositionalMetricType, VisualMetricBuilder, VisualMetricType};
+    use crate::examples::vec2;
+    use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
+    use crate::store::TrackStore;
+    use crate::track::ObservationMetricOk;
+    use crate::trackers::visual::{
+        PositionalMetricType, VisualAttributes, VisualMetric, VisualMetricBuilder, VisualMetricType,
+    };
+    use crate::utils::bbox::{BoundingBox, Universal2DBox};
+    use crate::EPS;
+    use std::collections::VecDeque;
+
+    fn default_attrs() -> VisualAttributes {
+        VisualAttributes {
+            predicted_boxes: VecDeque::default(),
+            observed_boxes: VecDeque::default(),
+            observed_features: VecDeque::default(),
+            last_updated_epoch: 0,
+            track_length: 0,
+            track_visual_features_count: 0,
+            scene_id: 0,
+            custom_object_id: None,
+            state: None,
+            max_observations: 2,
+            max_history_len: 2,
+            max_idle_epochs: 3,
+            current_epochs: None,
+        }
+    }
+
+    fn default_store(
+        metric: VisualMetric,
+    ) -> TrackStore<VisualAttributes, VisualMetric, Universal2DBox, NoopNotifier> {
+        TrackStoreBuilder::default()
+            .metric(metric)
+            .notifier(NoopNotifier)
+            .default_attributes(default_attrs())
+            .build()
+    }
 
     #[test]
     fn metric_ignore() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::Ignore)
-            .visual_metric(VisualMetricType::Euclidean)
+            .minimal_visual_track_len(1)
             .build();
-        drop(metric);
+
+        let store = default_store(metric);
+
+        let track1 = store
+            .track_builder(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.1))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .track_builder(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: None, // ignored because of ignore
+                feature_distance: Some(x)
+            } if x > 0.0));
     }
 
     #[test]
-    fn metric_far() {}
+    fn metric_far() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::Mahalanobis)
+            .minimal_visual_track_len(1)
+            .build();
+
+        let store = default_store(metric);
+
+        let track1 = store
+            .track_builder(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.1))
+                    .observation_attributes(BoundingBox::new(100.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .track_builder(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: None, // ignored because objects are too far
+                feature_distance: Some(x)
+            } if x > 0.0));
+    }
 
     #[test]
-    fn metric_maha() {}
+    fn metric_iou() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Cosine)
+            .minimal_visual_track_len(1)
+            .build();
+        let store = default_store(metric);
+
+        let track1 = store
+            .track_builder(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(1.0, 0.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .track_builder(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(1.0, 0.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: Some(x), 
+                feature_distance: Some(y)
+            } if (x - 1.0).abs() < EPS && (y - 1.0).abs() < EPS));
+    }
 
     #[test]
-    fn metric_iou() {}
+    fn visual_track_too_short() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean)
+            .minimal_visual_track_len(3)
+            .build();
+
+        let store = default_store(metric);
+
+        let track1 = store
+            .track_builder(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.1))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .track_builder(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: Some(x),
+                feature_distance: None     // track too short
+            } if (x - 1.0).abs() < EPS));
+    }
 
     #[test]
-    fn metric_short() {}
+    fn visual_track_long_enough() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean)
+            .minimal_visual_track_len(2)
+            .build();
 
-    #[test]
-    fn metric_euclidean() {}
+        let store = default_store(metric);
 
-    #[test]
-    fn metric_cosine() {}
+        let track1 = store
+            .track_builder(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .track_builder(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah())
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 2);
+        for i in 0..1 {
+            assert!(matches!(
+            dists[i],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: Some(x),
+                feature_distance: Some(y)     // track too short
+            } if (x - 1.0).abs() < EPS && y.abs() < EPS));
+        }
+    }
 }
