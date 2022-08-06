@@ -5,13 +5,9 @@
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
-Similari is a framework that helps build sophisticated tracking systems. With Similari one can develop highly 
-efficient parallelized [SORT](https://github.com/abewley/sort), [DeepSORT](https://github.com/nwojke/deep_sort), and 
+Similari is a Rust framework with Python bindings that helps build sophisticated tracking systems. With Similari one 
+can develop highly efficient parallelized [SORT](https://github.com/abewley/sort), [DeepSORT](https://github.com/nwojke/deep_sort), and 
 other sophisticated single observer (e.g. Cam) or multi-observer tracking engines.
-
-Language bindings:
-* Rust - native support;
-* Python3 - ready-to-use functions and objects (see later).
 
 ## Introduction
 
@@ -24,7 +20,7 @@ often used in video processing or other systems where the observer receives fuzz
 
 ## Out-of-The-Box Stuff
 
-Similari is a tool to build trackers, but it also includes frequently used implementations for:
+Similari is a framework to build custom trackers, however it provides certain algorithms as an end-user functionality:
 
 **Kalman filter**, that predicts rectangular bounding boxes co-axial to scene, supports the oriented bounding 
   boxes as well.
@@ -38,13 +34,20 @@ boxes.
 **SORT tracking** algorithm (non-oriented and oriented boxes are supported) - IoU and Mahalanobis distances are 
   supported.
 
+**Visual-SORT tracking** - a DeepSORT-like algorithm (non-oriented and oriented boxes are supported) - IoU and 
+Mahalanobis distances are supported for positional tracking, euclidean, cosine distances are used for visual tracking on 
+feature vectors.
+
+
 ## Applicability Notes
 
-Although Similari allows building various similarity engines, there are competitive tools that sometime (or often) may 
-be more desirable. The section will explain where it is applicable and what alternatives exist.
+Although Similari allows building various tracking and similarity engines, there are competitive tools that sometime 
+(or often) may be more desirable. The section will explain where it is applicable and what alternatives exist.
 
-Similari fits best for the tasks where objects are described by multiple observations for a certain feature class, not a 
-single feature vector. Also, their behavior is dynamic - you remove them from the index or modify them as often as add new ones. This is a very important point - it is less efficient than tools that work with growing or static object spaces.
+Similari fits best for the tracking tasks where objects are described by multiple observations for a certain feature 
+class, not a single feature vector. Also, their behavior is dynamic - you remove them from the index or modify them as 
+often as add new ones. This is a very important point - it is less efficient than tools that work with growing or static 
+object spaces.
 
 **Fit**: track the person across the room: person ReID, age/gender, and face features are collected multiple times during 
 the tracking and used to merge tracks or provide aggregated results at the end of the track;
@@ -55,36 +58,38 @@ documents are added but not removed. The task is to find the top X most similar 
 If your task looks like **Not fit**, can use Similari, but you're probably looking for `HNSW` or `NMS` implementations:
 * HNSW Rust - [Link](https://github.com/jean-pierreBoth/hnswlib-rs)
 * HNSW C/Python - [link](https://github.com/nmslib/hnswlib)
-* NMS - [link](https://github.com/nmslib/nmslib)
+* NMSLib - [link](https://github.com/nmslib/nmslib)
 
-Objects in Similari index support following features:
+Similari objects support following features:
 
 **Track lifecycle** - the object is represented by its lifecycle (track) - it appears, evolves, and disappears. During 
 its lifetime object evolves according to its behavioral properties (attributes, and feature observations).
 
-**Feature Observation** - Similari assumes that an object is observed by an observer entity that collects its features 
-multiple times. Those features are presented by vectors of float numbers and observation attributes. When the observation 
-happened, the track is updated with gathered features. Future observations are used to find similar tracks in the index 
-and merge them.
+**Observations** - Similari assumes that an object is observed by an observer entity that collects its features 
+(uniform vectors) and custom observation attributes (like GPS or screen box position)multiple times. Those 
+features are presented by vectors of float numbers and observation attributes. When the observation happened, the 
+track is updated with gathered features. Future observations are used to find similar tracks in the index and merge them.
 
 **Track Attributes** - Arbitrary attributes describe additional track properties aside from feature observations. 
-Attributes is crucial part when you are comparing objects in the wild, because there may be attributes disposition when 
-objects are incompatible, like `animal_type` that prohibits you from comparing `dogs` and `cats` between each other. 
-Another popular use of attributes is a spatial or temporal characteristic of an object, e.g. objects that are situated 
-at distant locations at the same time cannot be compared. Attributes in Similari are dynamic and evolve upon every 
-feature observation addition and when objects are merged. They are used in both distance calculations and compatibility 
-guessing (which decreases compute space by skipping incompatible objects).
+Track attributes is crucial part when you are comparing objects in the wild, because there may be attributes 
+disposition when objects are incompatible, like `animal_type` that prohibits you from comparing `dogs` and `cats` 
+between each other. Another popular use of attributes is a spatial or temporal characteristic of an object, e.g. objects 
+that are situated at distant locations at the same time cannot be compared. Attributes in Similari are dynamic and 
+evolve upon every feature observation addition and when objects are merged. They are used in both distance calculations 
+and compatibility guessing (which decreases compute space by skipping incompatible objects).
 
-If you are planning to use Similari to search in a huge index, consider object attributes to decrease the lookup space. 
-If the attributes of the two tracks are not compatible, their distance calculations are skipped.
+If you plan to use Similari to search in a large index, consider object attributes to split the lookup space. If the 
+attributes of the two tracks are not compatible, their distance calculations are skipped.
 
 ## Performance
 
 The Similari is fast. It is usually faster than trackers built with Python and NumPy.
 
-To run visual feature calculations performant the framework uses [ultraviolet](https://crates.io/crates/ultraviolet) - the library for fast SIMD computations.
+To run visual feature calculations performant the framework uses [ultraviolet](https://crates.io/crates/ultraviolet) - 
+the library for fast SIMD computations.
 
-Parallel computations are implemented with index sharding and parallel computations based on a dedicated thread workers pool.
+Parallel computations are implemented with index sharding and parallel computations based on a dedicated thread workers 
+pool.
 
 Vector operations performance depends a lot on the optimization level defined for the build. On low or default 
 optimization levels Rust may not use f32 vectorization, so when running benchmarks take care of proper optimization 
@@ -114,24 +119,26 @@ rustup default nightly
 cargo bench
 ```
 
-## Build Similari Python Interface
+## Python API
 
-Python interface is an PyO3 bindings to several ready-to-use functions and classes of Similari.
-
-As for now, the Python interface exposes:
-* Kalman filter for co-axial and oriented boxes prediction;
+Python interface exposes ready-to-use functions and classes of Similari. As for now, the Python interface provides:
+* the Kalman filter for co-axial and oriented boxes prediction;
 * NMS, parallel NMS;
-* Sutherland-Hodgman clipping, intersection area for oriented boxes;
-* SORT with IoU metric;
-* SORT with Mahalanobis metric.
+* the Sutherland-Hodgman clipping, intersection area for oriented boxes;
+* SORT with IoU metric (IoUSort);
+* SORT with Mahalanobis metric (MahaSort);
+* VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
+  for positional tracking.
 
-### Build in Docker
+### Build Python API in Docker
 
 ```
 docker build -t similari_py -f python/Dockerfile .
 ```
 
-### Build in Host System (Linux)
+### Build in Host System
+
+#### Linux Instruction
 
 0. Install Rust 1.62:
 
