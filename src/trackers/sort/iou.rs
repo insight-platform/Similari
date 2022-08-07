@@ -1,5 +1,6 @@
 use crate::track::{
-    MetricOutput, Observation, ObservationAttributes, ObservationMetric, ObservationMetricOk,
+    MetricOutput, MetricQuery, Observation, ObservationAttributes, ObservationMetric,
+    ObservationMetricOk,
 };
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
@@ -23,15 +24,9 @@ impl IOUSortMetric {
 }
 
 impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
-    fn metric(
-        &self,
-        _feature_class: u64,
-        _attrs1: &SortAttributes,
-        _attrs2: &SortAttributes,
-        e1: &Observation<Universal2DBox>,
-        e2: &Observation<Universal2DBox>,
-    ) -> MetricOutput<f32> {
-        let box_m_opt = Universal2DBox::calculate_metric_object(&e1.attr(), &e2.attr());
+    fn metric(&self, mq: &MetricQuery<SortAttributes, Universal2DBox>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
+        let box_m_opt = Universal2DBox::calculate_metric_object(e1.attr(), e2.attr());
         box_m_opt.filter(|e| *e >= 0.01).map(|e| (Some(e), None))
     }
 

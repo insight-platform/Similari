@@ -3,8 +3,8 @@ pub mod iou;
 use crate::distance::euclidean;
 use crate::track::utils::FromVec;
 use crate::track::{
-    Feature, MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
-    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    Feature, MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes,
+    ObservationMetric, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::utils::bbox::BoundingBox;
 use anyhow::Result;
@@ -69,14 +69,8 @@ impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
 pub struct SimpleMetric;
 
 impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
-    fn metric(
-        &self,
-        _feature_class: u64,
-        _attrs1: &SimpleAttrs,
-        _attrs2: &SimpleAttrs,
-        e1: &Observation<f32>,
-        e2: &Observation<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<'_, SimpleAttrs, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -132,14 +126,8 @@ impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
 pub struct UnboundMetric;
 
 impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
-    fn metric(
-        &self,
-        _feature_class: u64,
-        _attrs1: &UnboundAttrs,
-        _attrs2: &UnboundAttrs,
-        e1: &Observation<f32>,
-        e2: &Observation<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<'_, UnboundAttrs, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {

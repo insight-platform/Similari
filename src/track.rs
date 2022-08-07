@@ -101,27 +101,27 @@ pub trait ObservationAttributes: Send + Sync + Clone + 'static {
 ///
 pub type MetricOutput<T> = Option<(Option<T>, Option<f32>)>;
 
+pub struct MetricQuery<'a, TA, OA: ObservationAttributes> {
+    /// * `feature_class` - class of currently used feature
+    pub feature_class: u64,
+    /// * `candidate_attrs` - candidate track attributes
+    pub candidate_attrs: &'a TA,
+    /// * `candidate_observation` - candidate track observation
+    pub candidate_observation: &'a Observation<OA>,
+    /// * `track_attrs` - track attributes
+    pub track_attrs: &'a TA,
+    /// * `track_observation` - track observation
+    pub track_observation: &'a Observation<OA>,
+}
+
 /// The trait that implements the methods for features comparison and filtering
 pub trait ObservationMetric<TA, OA: ObservationAttributes>: Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
-    /// The output is `Result<f32>` because the method may return distance calculation error if the distance
-    /// cannot be computed for two features. E.g. when one of them has low confidence.
     ///
     /// # Parameters
-    /// * `feature_class` - class of currently used feature
-    /// * `left_attrs` - left track attributes
-    /// * `right_attrs` - right track attributes
-    /// * `left_observation` - left track observation
-    /// * `right_observation` - right track observation
+    /// * `mq` - query to calculate metric
     ///
-    fn metric(
-        &self,
-        feature_class: u64,
-        self_attrs: &TA,
-        right_attrs: &TA,
-        self_observation: &Observation<OA>,
-        right_observation: &Observation<OA>,
-    ) -> MetricOutput<OA::MetricObject>;
+    fn metric(&self, mq: &'_ MetricQuery<'_, TA, OA>) -> MetricOutput<OA::MetricObject>;
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
     /// two tracks are merged.
@@ -574,12 +574,21 @@ where
                     .iter()
                     .cartesian_product(right.iter())
                     .flat_map(|(l, r)| {
-                        let (attribute_metric, feature_distance) = self.metric.metric(
+                        let mq = MetricQuery {
                             feature_class,
-                            self.get_attributes(),
-                            other.get_attributes(),
-                            l,
-                            r,
+                            candidate_attrs: self.get_attributes(),
+                            candidate_observation: l,
+                            track_attrs: other.get_attributes(),
+                            track_observation: r,
+                        };
+
+                        // let (attribute_metric, feature_distance) = self.metric.new_metric(&mq)?;
+                        let (attribute_metric, feature_distance) = self.metric.metric(
+                            &mq, // feature_class,
+                                // self.get_attributes(),
+                                // other.get_attributes(),
+                                // l,
+                                // r,
                         )?;
                         Some(ObservationMetricOk {
                             from: self.track_id,
@@ -611,9 +620,9 @@ mod tests {
     use crate::prelude::{NoopNotifier, TrackBuilder};
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
-        Feature, LookupRequest, MetricOutput, NoopLookup, Observation, ObservationAttributes,
-        ObservationMetric, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate,
-        TrackStatus,
+        Feature, LookupRequest, MetricOutput, MetricQuery, NoopLookup, Observation,
+        ObservationAttributes, ObservationMetric, ObservationsDb, Track, TrackAttributes,
+        TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -650,14 +659,8 @@ mod tests {
     #[derive(Clone)]
     struct DefaultMetric;
     impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
-        fn metric(
-            &self,
-            _feature_class: u64,
-            _attrs1: &DefaultAttrs,
-            _attrs2: &DefaultAttrs,
-            e1: &Observation<f32>,
-            e2: &Observation<f32>,
-        ) -> MetricOutput<f32> {
+        fn metric(&self, mq: &MetricQuery<'_, DefaultAttrs, f32>) -> MetricOutput<f32> {
+            let (e1, e2) = (mq.candidate_observation, mq.track_observation);
             Some((
                 f32::calculate_metric_object(&e1.0, &e2.0),
                 match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -829,14 +832,8 @@ mod tests {
         #[derive(Default, Clone)]
         struct TimeMetric;
         impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
-            fn metric(
-                &self,
-                _feature_class: u64,
-                _attrs1: &TimeAttrs,
-                _attrs2: &TimeAttrs,
-                e1: &Observation<f32>,
-                e2: &Observation<f32>,
-            ) -> MetricOutput<f32> {
+            fn metric(&self, mq: &MetricQuery<'_, TimeAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
                     match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -979,14 +976,8 @@ mod tests {
         #[derive(Clone)]
         struct LocalMetric;
         impl ObservationMetric<LocalAttrs, f32> for LocalMetric {
-            fn metric(
-                &self,
-                _feature_class: u64,
-                _attrs1: &LocalAttrs,
-                _attrs2: &LocalAttrs,
-                e1: &Observation<f32>,
-                e2: &Observation<f32>,
-            ) -> MetricOutput<f32> {
+            fn metric(&self, mq: &MetricQuery<LocalAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
                     match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -1132,14 +1123,8 @@ mod tests {
         #[derive(Clone)]
         struct UnitMetric;
         impl ObservationMetric<UnitAttrs, ()> for UnitMetric {
-            fn metric(
-                &self,
-                _feature_class: u64,
-                _attrs1: &UnitAttrs,
-                _attrs2: &UnitAttrs,
-                e1: &Observation<()>,
-                e2: &Observation<()>,
-            ) -> MetricOutput<()> {
+            fn metric(&self, mq: &MetricQuery<UnitAttrs, ()>) -> MetricOutput<()> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
                     None,
                     match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -1215,14 +1200,8 @@ mod tests {
         pub struct LookupMetric;
 
         impl ObservationMetric<LookupAttrs, f32> for LookupMetric {
-            fn metric(
-                &self,
-                _feature_class: u64,
-                _attrs1: &LookupAttrs,
-                _attrs2: &LookupAttrs,
-                e1: &Observation<f32>,
-                e2: &Observation<f32>,
-            ) -> MetricOutput<f32> {
+            fn metric(&self, mq: &MetricQuery<LookupAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
                     match (e1.1.as_ref(), e2.1.as_ref()) {

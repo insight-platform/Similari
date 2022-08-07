@@ -1,5 +1,5 @@
 use crate::distance::{cosine, euclidean};
-use crate::track::{Feature, ObservationAttributes};
+use crate::track::{Feature, MetricQuery, ObservationAttributes};
 use crate::track::{MetricOutput, Observation, ObservationMetric};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
@@ -254,31 +254,29 @@ impl VisualMetric {
 impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for VisualMetric {
     fn metric(
         &self,
-        _feature_class: u64,
-        _candidate_attributes: &VisualAttributes,
-        track_attributes: &VisualAttributes,
-        candidate_observation: &Observation<VisualObservationAttributes>,
-        track_observation: &Observation<VisualObservationAttributes>,
+        mq: &MetricQuery<VisualAttributes, VisualObservationAttributes>,
     ) -> MetricOutput<f32> {
-        let candidate_bbox_opt = candidate_observation
+        let candidate_bbox_opt = mq
+            .candidate_observation
             .attr()
             .as_ref()
             .expect("Observation attributes must always present.")
             .bbox_opt();
 
-        let track_bbox_opt = track_observation
+        let track_bbox_opt = mq
+            .track_observation
             .attr()
             .as_ref()
             .expect("Observation attributes must always present.")
             .bbox_opt();
 
-        let candidate_feature_opt = candidate_observation.feature().as_ref();
-        let track_feature_opt = track_observation.feature().as_ref();
+        let candidate_feature_opt = mq.candidate_observation.feature().as_ref();
+        let track_feature_opt = mq.track_observation.feature().as_ref();
 
         Some((
-            self.positional_metric(candidate_bbox_opt, track_bbox_opt, track_attributes),
+            self.positional_metric(candidate_bbox_opt, track_bbox_opt, mq.track_attrs),
             match (candidate_feature_opt, track_feature_opt) {
-                (Some(c), Some(t)) => self.visual_metric(c, t, track_attributes),
+                (Some(c), Some(t)) => self.visual_metric(c, t, mq.track_attrs),
                 _ => None,
             },
         ))

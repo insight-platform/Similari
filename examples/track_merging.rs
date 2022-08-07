@@ -8,7 +8,7 @@ use similari::examples::FeatGen2;
 use similari::store::TrackStore;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
-    MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
+    MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
     ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
@@ -265,14 +265,8 @@ impl Default for CamTrackingAttributesMetric {
 }
 
 impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetric {
-    fn metric(
-        &self,
-        _feature_class: u64,
-        _attrs1: &CamTrackingAttributes,
-        _attrs2: &CamTrackingAttributes,
-        e1: &Observation<f32>,
-        e2: &Observation<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<CamTrackingAttributes, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {

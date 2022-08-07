@@ -233,8 +233,9 @@ mod tests {
     use crate::examples::vec2;
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
     use crate::track::{
-        MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
-        ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+        MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes,
+        ObservationMetric, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate,
+        TrackStatus,
     };
     use anyhow::Result;
 
@@ -271,14 +272,8 @@ mod tests {
     pub struct MockMetric;
 
     impl ObservationMetric<MockAttrs, f32> for MockMetric {
-        fn metric(
-            &self,
-            _feature_class: u64,
-            _attrs1: &MockAttrs,
-            _attrs2: &MockAttrs,
-            e1: &Observation<f32>,
-            e2: &Observation<f32>,
-        ) -> MetricOutput<f32> {
+        fn metric(&self, mq: &MetricQuery<MockAttrs, f32>) -> MetricOutput<f32> {
+            let (e1, e2) = (mq.candidate_observation, mq.track_observation);
             Some((
                 f32::calculate_metric_object(&e1.0, &e2.0),
                 match (e1.1.as_ref(), e2.1.as_ref()) {

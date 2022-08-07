@@ -1,4 +1,6 @@
-use crate::track::{MetricOutput, Observation, ObservationMetric, ObservationMetricOk};
+use crate::track::{
+    MetricOutput, MetricQuery, Observation, ObservationMetric, ObservationMetricOk,
+};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::SortAttributes;
 use crate::utils::bbox::Universal2DBox;
@@ -9,22 +11,15 @@ use anyhow::Result;
 pub struct MahaSortMetric;
 
 impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
-    fn metric(
-        &self,
-        _feature_class: u64,
-        _candidate_attributes: &SortAttributes,
-        track_attributes: &SortAttributes,
-        candidate_observation: &Observation<Universal2DBox>,
-        track_observation: &Observation<Universal2DBox>,
-    ) -> MetricOutput<f32> {
-        let candidate_observation = candidate_observation.attr().as_ref().unwrap();
-        let track_observation = track_observation.attr().as_ref().unwrap();
+    fn metric(&self, mq: &MetricQuery<SortAttributes, Universal2DBox>) -> MetricOutput<f32> {
+        let candidate_observation = mq.candidate_observation.attr().as_ref().unwrap();
+        let track_observation = mq.track_observation.attr().as_ref().unwrap();
 
         if Universal2DBox::too_far(candidate_observation, track_observation) {
             None
         } else {
             let f = KalmanFilter::default();
-            let state = track_attributes.state.unwrap();
+            let state = mq.track_attrs.state.unwrap();
             let dist = f.distance(state, candidate_observation);
             let dist = KalmanFilter::calculate_cost(dist, true);
             Some((Some(dist), None))

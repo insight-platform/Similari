@@ -6,9 +6,9 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::{
-        LookupRequest, MetricOutput, NoopLookup, NoopNotifier, Observation, ObservationAttributes,
-        ObservationMetric, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate,
-        TrackStatus,
+        LookupRequest, MetricOutput, MetricQuery, NoopLookup, NoopNotifier, Observation,
+        ObservationAttributes, ObservationMetric, ObservationsDb, Track, TrackAttributes,
+        TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -66,14 +66,8 @@ mod tests {
     }
 
     impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
-        fn metric(
-            &self,
-            _feature_class: u64,
-            _attrs1: &TimeAttrs,
-            _attrs2: &TimeAttrs,
-            e1: &Observation<f32>,
-            e2: &Observation<f32>,
-        ) -> MetricOutput<f32> {
+        fn metric(&self, mq: &MetricQuery<TimeAttrs, f32>) -> MetricOutput<f32> {
+            let (e1, e2) = (mq.candidate_observation, mq.track_observation);
             Some((
                 f32::calculate_metric_object(&e1.0, &e2.0),
                 match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -668,14 +662,8 @@ mod tests {
         pub struct LookupMetric;
 
         impl ObservationMetric<LookupAttrs, f32> for LookupMetric {
-            fn metric(
-                &self,
-                _feature_class: u64,
-                _attrs1: &LookupAttrs,
-                _attrs2: &LookupAttrs,
-                e1: &Observation<f32>,
-                e2: &Observation<f32>,
-            ) -> MetricOutput<f32> {
+            fn metric(&self, mq: &MetricQuery<LookupAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
                     match (e1.1.as_ref(), e2.1.as_ref()) {

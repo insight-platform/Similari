@@ -2,7 +2,7 @@ use similari::distance::euclidean;
 use similari::examples::{BoxGen2, FeatGen2};
 use similari::prelude::*;
 use similari::track::{
-    MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
+    MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
     ObservationMetricOk, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::utils::bbox::BoundingBox;
@@ -53,14 +53,8 @@ impl TrackAttributes<BBoxAttributes, f32> for BBoxAttributes {
 pub struct TrackMetric;
 
 impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
-    fn metric(
-        &self,
-        _feature_class: u64,
-        _attrs1: &BBoxAttributes,
-        _attrs2: &BBoxAttributes,
-        e1: &Observation<f32>,
-        e2: &Observation<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<BBoxAttributes, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
             match (e1.1.as_ref(), e2.1.as_ref()) {
