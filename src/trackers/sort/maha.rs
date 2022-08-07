@@ -1,4 +1,5 @@
 use crate::track::{MetricOutput, ObservationMetric, ObservationMetricOk, ObservationSpec};
+use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::SortAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
@@ -43,26 +44,8 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
         let observation_bbox = observation.0.as_ref().unwrap();
         features.clear();
 
-        let f = KalmanFilter::default();
-
-        let state = if let Some(state) = attrs.state {
-            f.update(state, observation_bbox.clone())
-        } else {
-            f.initiate(observation_bbox.clone())
-        };
-
-        let prediction = f.predict(state);
-        attrs.state = Some(prediction);
-        let predicted_bbox = prediction.universal_bbox();
-        attrs.track_length += 1;
-
-        attrs.observed_boxes.push_back(observation_bbox.clone());
-        attrs.predicted_boxes.push_back(predicted_bbox.clone());
-
-        if attrs.opts.history_len > 0 && attrs.observed_boxes.len() > attrs.opts.history_len {
-            attrs.observed_boxes.pop_front();
-            attrs.predicted_boxes.pop_front();
-        }
+        let predicted_bbox = attrs.make_prediction(&observation_bbox);
+        attrs.update_history(observation_bbox, &predicted_bbox);
 
         observation.0 = Some(predicted_bbox);
         features.push(observation);

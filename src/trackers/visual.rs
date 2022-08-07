@@ -8,8 +8,8 @@
 //
 //pub mod voting;
 
-// Track attributes for visual tracker
-//pub mod track_attributes;
+/// Track attributes for visual tracker
+pub mod track_attributes;
 
 /// Observation attributes for visual tracker
 pub mod observation_attributes;

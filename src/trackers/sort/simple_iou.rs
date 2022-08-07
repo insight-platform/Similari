@@ -3,6 +3,7 @@ pub mod simple_iou_py;
 use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
+use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::iou::IOUSortMetric;
 use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::{
@@ -14,6 +15,7 @@ use pyo3::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+
 /// Easy to use SORT tracker implementation
 ///
 

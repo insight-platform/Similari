@@ -1,6 +1,8 @@
 use crate::track::{
     NoopLookup, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
+use crate::trackers::epoch_db::EpochDb;
+use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanState;
 use anyhow::Result;
@@ -31,60 +33,29 @@ pub struct SortAttributesOptions {
     /// The maximum number of epochs without update while the track is alive
     max_idle_epochs: usize,
     /// The maximum length of collected objects for the track
-    history_len: usize,
+    history_length: usize,
+}
+
+impl EpochDb for SortAttributesOptions {
+    fn epoch_db(&self) -> &Option<RwLock<HashMap<u64, usize>>> {
+        &self.epoch_db
+    }
+
+    fn max_idle_epochs(&self) -> usize {
+        self.max_idle_epochs
+    }
 }
 
 impl SortAttributesOptions {
     pub fn new(
         epoch_db: Option<RwLock<HashMap<u64, usize>>>,
         max_idle_epochs: usize,
-        history_len: usize,
+        history_length: usize,
     ) -> Self {
         Self {
             epoch_db,
             max_idle_epochs,
-            history_len,
-        }
-    }
-
-    pub fn skip_epochs_for_scene(&self, scene_id: u64, n: usize) {
-        if let Some(epoch_store) = &self.epoch_db {
-            let mut epoch_store = epoch_store.write().unwrap();
-            if let Some(epoch) = epoch_store.get_mut(&scene_id) {
-                *epoch += n;
-            } else {
-                epoch_store.insert(scene_id, n);
-            }
-        }
-    }
-
-    pub fn current_epoch_with_scene(&self, scene_id: u64) -> Option<usize> {
-        if let Some(epoch_store) = &self.epoch_db {
-            let mut epoch_store = epoch_store.write().unwrap();
-            let epoch = epoch_store.get_mut(&scene_id);
-            if let Some(epoch) = epoch {
-                Some(*epoch)
-            } else {
-                Some(0)
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn next_epoch(&self, scene_id: u64) -> Option<usize> {
-        if let Some(epoch_store) = &self.epoch_db {
-            let mut epoch_store = epoch_store.write().unwrap();
-            let epoch = epoch_store.get_mut(&scene_id);
-            if let Some(epoch) = epoch {
-                *epoch += 1;
-                Some(*epoch)
-            } else {
-                epoch_store.insert(scene_id, 1);
-                Some(1)
-            }
-        } else {
-            None
+            history_length,
         }
     }
 }
@@ -107,6 +78,16 @@ pub struct SortAttributes {
     /// Kalman filter predicted state
     state: Option<KalmanState>,
     opts: Arc<SortAttributesOptions>,
+}
+
+impl TrackAttributesKalmanPrediction for SortAttributes {
+    fn get_state(&self) -> Option<KalmanState> {
+        self.state.clone()
+    }
+
+    fn set_state(&mut self, state: KalmanState) {
+        self.state = Some(state);
+    }
 }
 
 impl Default for SortAttributes {
@@ -133,6 +114,22 @@ impl SortAttributes {
         Self {
             opts,
             ..Default::default()
+        }
+    }
+
+    fn update_history(
+        &mut self,
+        observation_bbox: &Universal2DBox,
+        predicted_bbox: &Universal2DBox,
+    ) {
+        self.track_length += 1;
+
+        self.observed_boxes.push_back(observation_bbox.clone());
+        self.predicted_boxes.push_back(predicted_bbox.clone());
+
+        if self.opts.history_length > 0 && self.observed_boxes.len() > self.opts.history_length {
+            self.observed_boxes.pop_front();
+            self.predicted_boxes.pop_front();
         }
     }
 }
@@ -186,22 +183,7 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
     }
 
     fn baked(&self, _observations: &ObservationsDb<Universal2DBox>) -> Result<TrackStatus> {
-        let scene_id = self.scene_id;
-        if let Some(current_epoch) = &self.opts.epoch_db {
-            let current_epoch = current_epoch.read().unwrap();
-            if self.last_updated_epoch + self.opts.max_idle_epochs
-                < *current_epoch.get(&scene_id).unwrap_or(&0)
-            {
-                Ok(TrackStatus::Wasted)
-            } else {
-                Ok(TrackStatus::Pending)
-            }
-        } else {
-            // If epoch expiration is not set the tracks are always ready.
-            // If set, then only when certain amount of epochs pass they are Wasted.
-            //
-            Ok(TrackStatus::Ready)
-        }
+        self.opts.baked(self.scene_id, self.last_updated_epoch)
     }
 }
 

@@ -3,6 +3,7 @@ pub mod simple_maha_py;
 use crate::prelude::{NoopNotifier, ObservationBuilder, SortTrack, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
+use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::maha::MahaSortMetric;
 use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::{

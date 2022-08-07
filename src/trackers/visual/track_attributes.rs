@@ -1,6 +1,7 @@
 use crate::track::{
     NoopLookup, Observation, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
+use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::{KalmanFilter, KalmanState};
@@ -8,27 +9,33 @@ use anyhow::Result;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct VisualAttributesOpts {
-    // how many observations store for voting
-    max_observations: usize,
     // how long history (bboxes, observations) can be kept in attributes
-    max_history_length: usize,
+    history_length: usize,
     // when the track becomes wasted
     max_idle_epochs: usize,
     epoch_db: Option<RwLock<HashMap<u64, usize>>>,
 }
 
+impl EpochDb for VisualAttributesOpts {
+    fn epoch_db(&self) -> &Option<RwLock<HashMap<u64, usize>>> {
+        &self.epoch_db
+    }
+
+    fn max_idle_epochs(&self) -> usize {
+        self.max_idle_epochs
+    }
+}
+
 impl VisualAttributesOpts {
     pub fn new(
-        max_observations: usize,
-        max_history_len: usize,
-        max_idle_epochs: usize,
         epoch_db: Option<RwLock<HashMap<u64, usize>>>,
+        max_idle_epochs: usize,
+        history_length: usize,
     ) -> Self {
         Self {
-            max_observations,
-            max_history_length: max_history_len,
+            history_length,
             max_idle_epochs,
             epoch_db,
         }
@@ -87,7 +94,7 @@ impl VisualAttributes {
     ///
     pub fn new(opts: Arc<VisualAttributesOpts>) -> Self {
         Self {
-            opts: VisualAttributesOpts,
+            opts,
             ..Default::default()
         }
     }
@@ -104,9 +111,7 @@ impl VisualAttributes {
         self.predicted_boxes.push_back(predicted_bbox.clone());
         self.observed_features.push_back(observation_feature);
 
-        if self.opts.max_history_length > 0
-            && self.observed_boxes.len() > self.opts.max_history_length
-        {
+        if self.opts.history_length > 0 && self.observed_boxes.len() > self.opts.history_length {
             self.observed_boxes.pop_front();
             self.predicted_boxes.pop_front();
             self.observed_features.pop_front();
@@ -179,21 +184,6 @@ impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAt
         &self,
         _observations: &ObservationsDb<VisualObservationAttributes>,
     ) -> Result<TrackStatus> {
-        let scene_id = self.scene_id;
-        if let Some(current_epoch) = &self.current_epochs {
-            let current_epoch = current_epoch.read().unwrap();
-            if self.last_updated_epoch + self.max_idle_epochs
-                < *current_epoch.get(&scene_id).unwrap_or(&0)
-            {
-                Ok(TrackStatus::Wasted)
-            } else {
-                Ok(TrackStatus::Pending)
-            }
-        } else {
-            // If epoch expiration is not set the tracks are always ready.
-            // If set, then only when certain amount of epochs pass they are Wasted.
-            //
-            Ok(TrackStatus::Ready)
-        }
+        self.opts.baked(self.scene_id, self.last_updated_epoch)
     }
 }
