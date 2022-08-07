@@ -51,7 +51,7 @@ where
 }
 
 /// Internal feature vector representation.
-pub type Observation = Vec<f32x8>;
+pub type Feature = Vec<f32x8>;
 
 /// Number of SIMD lanes used to store observation parts internally
 const FEATURE_LANES_SIZE: usize = 8;
@@ -60,12 +60,33 @@ const FEATURE_LANES_SIZE: usize = 8;
 /// is used to support the estimation for every observation during the collecting. If the model doesn't provide the feature attributes
 /// `()` may be used.
 #[derive(Default, Clone)]
-pub struct ObservationSpec<T>(pub Option<T>, pub Option<Observation>)
+pub struct Observation<T>(pub Option<T>, pub Option<Feature>)
 where
     T: Send + Sync + Clone + 'static;
 
+impl<T> Observation<T>
+where
+    T: Send + Sync + Clone + 'static,
+{
+    pub fn attr(&self) -> &Option<T> {
+        &self.0
+    }
+
+    pub fn attr_mut(&mut self) -> &mut Option<T> {
+        &mut self.0
+    }
+
+    pub fn feature(&self) -> &Option<Feature> {
+        &self.1
+    }
+
+    pub fn feature_mut(&mut self) -> &mut Option<Feature> {
+        &mut self.1
+    }
+}
+
 /// Table that accumulates observed features across the tracks (or objects)
-pub type ObservationsDb<T> = HashMap<u64, Vec<ObservationSpec<T>>>;
+pub type ObservationsDb<T> = HashMap<u64, Vec<Observation<T>>>;
 
 /// Custom feature attributes object that accompanies the observation itself
 pub trait ObservationAttributes: Send + Sync + Clone + 'static {
@@ -98,8 +119,8 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>: Send + Sync + Clone 
         feature_class: u64,
         self_attrs: &TA,
         right_attrs: &TA,
-        self_observation: &ObservationSpec<OA>,
-        right_observation: &ObservationSpec<OA>,
+        self_observation: &Observation<OA>,
+        right_observation: &Observation<OA>,
     ) -> MetricOutput<OA::MetricObject>;
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
@@ -123,7 +144,7 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>: Send + Sync + Clone 
         feature_class: u64,
         merge_history: &[u64],
         attributes: &mut TA,
-        observations: &mut Vec<ObservationSpec<OA>>,
+        observations: &mut Vec<Observation<OA>>,
         prev_length: usize,
         is_merge: bool,
     ) -> Result<()>;
@@ -345,7 +366,7 @@ where
         &self.attributes
     }
 
-    pub fn get_observations(&self, feature_class: u64) -> Option<&Vec<ObservationSpec<OA>>> {
+    pub fn get_observations(&self, feature_class: u64) -> Option<&Vec<Observation<OA>>> {
         self.observations.get(&feature_class)
     }
 
@@ -384,7 +405,7 @@ where
         &mut self,
         feature_class: u64,
         feature_attributes: Option<OA>,
-        feature: Option<Observation>,
+        feature: Option<Feature>,
         track_attributes_update: Option<TA::Update>,
     ) -> Result<()> {
         let last_attributes = self.attributes.clone();
@@ -409,11 +430,11 @@ where
             None => {
                 self.observations.insert(
                     feature_class,
-                    vec![ObservationSpec(feature_attributes, feature)],
+                    vec![Observation(feature_attributes, feature)],
                 );
             }
             Some(observations) => {
-                observations.push(ObservationSpec(feature_attributes, feature));
+                observations.push(Observation(feature_attributes, feature));
             }
         }
         let observations = self.observations.get_mut(&feature_class).unwrap();
@@ -590,9 +611,9 @@ mod tests {
     use crate::prelude::{NoopNotifier, TrackBuilder};
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
-        LookupRequest, MetricOutput, NoopLookup, Observation, ObservationAttributes,
-        ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
-        TrackAttributesUpdate, TrackStatus,
+        Feature, LookupRequest, MetricOutput, NoopLookup, Observation, ObservationAttributes,
+        ObservationMetric, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate,
+        TrackStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -634,8 +655,8 @@ mod tests {
             _feature_class: u64,
             _attrs1: &DefaultAttrs,
             _attrs2: &DefaultAttrs,
-            e1: &ObservationSpec<f32>,
-            e2: &ObservationSpec<f32>,
+            e1: &Observation<f32>,
+            e2: &Observation<f32>,
         ) -> MetricOutput<f32> {
             Some((
                 f32::calculate_metric_object(&e1.0, &e2.0),
@@ -651,7 +672,7 @@ mod tests {
             _feature_class: u64,
             _merge_history: &[u64],
             _attributes: &mut DefaultAttrs,
-            features: &mut Vec<ObservationSpec<f32>>,
+            features: &mut Vec<Observation<f32>>,
             _prev_length: usize,
             _is_merge: bool,
         ) -> Result<()> {
@@ -673,7 +694,7 @@ mod tests {
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
@@ -681,7 +702,7 @@ mod tests {
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
 
@@ -698,7 +719,7 @@ mod tests {
         t2.add_observation(
             0,
             Some(0.2),
-            Some(Observation::from_vec(vec![1f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 1.0f32, 0.0])),
             None,
         )?;
 
@@ -718,7 +739,7 @@ mod tests {
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
@@ -726,7 +747,7 @@ mod tests {
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
         let r = t1.merge(&t2, &vec![0], true);
@@ -741,7 +762,7 @@ mod tests {
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
@@ -749,7 +770,7 @@ mod tests {
         t2.add_observation(
             1,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
         let r = t1.merge(&t2, &vec![1], true);
@@ -813,8 +834,8 @@ mod tests {
                 _feature_class: u64,
                 _attrs1: &TimeAttrs,
                 _attrs2: &TimeAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
+                e1: &Observation<f32>,
+                e2: &Observation<f32>,
             ) -> MetricOutput<f32> {
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
@@ -830,7 +851,7 @@ mod tests {
                 _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut TimeAttrs,
-                features: &mut Vec<ObservationSpec<f32>>,
+                features: &mut Vec<Observation<f32>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
@@ -844,7 +865,7 @@ mod tests {
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             Some(TimeAttrUpdates { time: 2 }),
         )?;
 
@@ -852,7 +873,7 @@ mod tests {
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             Some(TimeAttrUpdates { time: 3 }),
         )?;
 
@@ -866,7 +887,7 @@ mod tests {
         t3.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             Some(TimeAttrUpdates { time: 1 }),
         )?;
 
@@ -881,14 +902,14 @@ mod tests {
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
         t1.add_observation(
             1,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
         let mut classes = t1.get_feature_classes();
@@ -963,8 +984,8 @@ mod tests {
                 _feature_class: u64,
                 _attrs1: &LocalAttrs,
                 _attrs2: &LocalAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
+                e1: &Observation<f32>,
+                e2: &Observation<f32>,
             ) -> MetricOutput<f32> {
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
@@ -980,7 +1001,7 @@ mod tests {
                 _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut LocalAttrs,
-                _features: &mut Vec<ObservationSpec<f32>>,
+                _features: &mut Vec<Observation<f32>>,
                 prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
@@ -997,7 +1018,7 @@ mod tests {
         let res = t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             Some(LocalAttrsUpdates { ignore: false }),
         );
         assert!(res.is_ok());
@@ -1006,7 +1027,7 @@ mod tests {
         let res = t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             Some(LocalAttrsUpdates { ignore: true }),
         );
         assert!(res.is_err());
@@ -1028,7 +1049,7 @@ mod tests {
         let res = t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             Some(LocalAttrsUpdates { ignore: false }),
         );
         assert!(res.is_ok());
@@ -1056,14 +1077,14 @@ mod tests {
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
 
@@ -1116,8 +1137,8 @@ mod tests {
                 _feature_class: u64,
                 _attrs1: &UnitAttrs,
                 _attrs2: &UnitAttrs,
-                e1: &ObservationSpec<()>,
-                e2: &ObservationSpec<()>,
+                e1: &Observation<()>,
+                e2: &Observation<()>,
             ) -> MetricOutput<()> {
                 Some((
                     None,
@@ -1133,7 +1154,7 @@ mod tests {
                 _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut UnitAttrs,
-                features: &mut Vec<ObservationSpec<()>>,
+                features: &mut Vec<Observation<()>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
@@ -1199,8 +1220,8 @@ mod tests {
                 _feature_class: u64,
                 _attrs1: &LookupAttrs,
                 _attrs2: &LookupAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
+                e1: &Observation<f32>,
+                e2: &Observation<f32>,
             ) -> MetricOutput<f32> {
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
@@ -1216,7 +1237,7 @@ mod tests {
                 _feature_class: u64,
                 _merge_history: &[u64],
                 _attrs: &mut LookupAttrs,
-                _features: &mut Vec<ObservationSpec<f32>>,
+                _features: &mut Vec<Observation<f32>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {

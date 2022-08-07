@@ -5,8 +5,8 @@ pub mod track_distance;
 use crate::prelude::TrackBuilder;
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
 use crate::track::{
-    Observation, ObservationAttributes, ObservationMetric, ObservationMetricOk, ObservationSpec,
-    Track, TrackAttributes, TrackStatus,
+    Feature, Observation, ObservationAttributes, ObservationMetric, ObservationMetricOk, Track,
+    TrackAttributes, TrackStatus,
 };
 use crate::Errors;
 use anyhow::Result;
@@ -535,7 +535,7 @@ where
         track_id: u64,
         feature_class: u64,
         feature_attribute: Option<OA>,
-        feature: Option<Observation>,
+        feature: Option<Feature>,
         attributes_update: Option<TA::Update>,
     ) -> Result<()> {
         let mut tracks = self.get_store(track_id as usize);
@@ -548,7 +548,7 @@ where
                     track_id,
                     observations: HashMap::from([(
                         feature_class,
-                        vec![ObservationSpec(feature_attribute, feature)],
+                        vec![Observation(feature_attribute, feature)],
                     )]),
                     metric: self.metric.clone(),
                     merge_history: vec![track_id],

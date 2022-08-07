@@ -4,7 +4,7 @@ extern crate test;
 
 use rand::{distributions::Uniform, Rng};
 use similari::examples::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
-use similari::track::Observation;
+use similari::track::Feature;
 
 use similari::prelude::TrackStoreBuilder;
 use similari::track::notify::NoopNotifier;
@@ -27,7 +27,7 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
                 i as u64,
                 DEFAULT_FEATURE,
                 Some(1.0),
-                Some(Observation::from_vec(
+                Some(Feature::from_vec(
                     (0..vec_len).map(|_| rng.sample(&gen)).collect(),
                 )),
                 None,
@@ -41,7 +41,7 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
         let _ = t.add_observation(
             DEFAULT_FEATURE,
             Some(1.0),
-            Some(Observation::from_vec(
+            Some(Feature::from_vec(
                 (0..vec_len).map(|_| rng.sample(&gen)).collect(),
             )),
             Some(UnboundAttributeUpdate),

@@ -1,5 +1,5 @@
 use crate::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
+    MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
     ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::utils::bbox::BoundingBox;
@@ -54,8 +54,8 @@ impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
         _feature_class: u64,
         _attrs1: &BBoxAttributes,
         _attrs2: &BBoxAttributes,
-        e1: &ObservationSpec<BoundingBox>,
-        e2: &ObservationSpec<BoundingBox>,
+        e1: &Observation<BoundingBox>,
+        e2: &Observation<BoundingBox>,
     ) -> MetricOutput<f32> {
         let box_m_opt = BoundingBox::calculate_metric_object(&e1.0, &e2.0);
         if let Some(box_m) = &box_m_opt {
@@ -74,7 +74,7 @@ impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
         _feature_class: u64,
         _merge_history: &[u64],
         attrs: &mut BBoxAttributes,
-        features: &mut Vec<ObservationSpec<BoundingBox>>,
+        features: &mut Vec<Observation<BoundingBox>>,
         prev_length: usize,
         is_merge: bool,
     ) -> Result<()> {

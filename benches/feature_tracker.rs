@@ -6,8 +6,8 @@ use similari::distance::euclidean;
 use similari::examples::FeatGen;
 use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use similari::track::{
-    MetricOutput, NoopLookup, ObservationMetric, ObservationMetricOk, ObservationSpec,
-    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, NoopLookup, Observation, ObservationMetric, ObservationMetricOk, ObservationsDb,
+    TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -54,8 +54,8 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
         _feature_class: u64,
         _attrs1: &NoopAttributes,
         _attrs2: &NoopAttributes,
-        e1: &ObservationSpec<()>,
-        e2: &ObservationSpec<()>,
+        e1: &Observation<()>,
+        e2: &Observation<()>,
     ) -> MetricOutput<()> {
         Some((
             None,
@@ -71,7 +71,7 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
         _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut NoopAttributes,
-        observations: &mut Vec<ObservationSpec<()>>,
+        observations: &mut Vec<Observation<()>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> anyhow::Result<()> {

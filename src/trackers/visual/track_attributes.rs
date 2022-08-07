@@ -1,5 +1,5 @@
 use crate::track::{
-    NoopLookup, Observation, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    Feature, NoopLookup, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
@@ -20,7 +20,7 @@ pub struct VisualAttributes {
     /// Boxes observed by detector
     pub observed_boxes: VecDeque<Universal2DBox>,
     /// Features observed by feature extractor model
-    pub observed_features: VecDeque<Option<Observation>>,
+    pub observed_features: VecDeque<Option<Feature>>,
     /// The last epoch when attributes were updated
     pub last_updated_epoch: usize,
     /// The length of the track
@@ -70,7 +70,7 @@ impl VisualAttributes {
         &mut self,
         observation_bbox: &Universal2DBox,
         predicted_bbox: &Universal2DBox,
-        observation_feature: Option<Observation>,
+        observation_feature: Option<Feature>,
     ) {
         self.track_length += 1;
 

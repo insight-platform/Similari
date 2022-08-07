@@ -1,4 +1,4 @@
-use crate::track::{MetricOutput, ObservationMetric, ObservationMetricOk, ObservationSpec};
+use crate::track::{MetricOutput, Observation, ObservationMetric, ObservationMetricOk};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::SortAttributes;
 use crate::utils::bbox::Universal2DBox;
@@ -14,11 +14,11 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
         _feature_class: u64,
         _candidate_attributes: &SortAttributes,
         track_attributes: &SortAttributes,
-        candidate_observation: &ObservationSpec<Universal2DBox>,
-        track_observation: &ObservationSpec<Universal2DBox>,
+        candidate_observation: &Observation<Universal2DBox>,
+        track_observation: &Observation<Universal2DBox>,
     ) -> MetricOutput<f32> {
-        let candidate_observation = candidate_observation.0.as_ref().unwrap();
-        let track_observation = track_observation.0.as_ref().unwrap();
+        let candidate_observation = candidate_observation.attr().as_ref().unwrap();
+        let track_observation = track_observation.attr().as_ref().unwrap();
 
         if Universal2DBox::too_far(candidate_observation, track_observation) {
             None
@@ -36,18 +36,18 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
         _feature_class: u64,
         _merge_history: &[u64],
         attrs: &mut SortAttributes,
-        features: &mut Vec<ObservationSpec<Universal2DBox>>,
+        features: &mut Vec<Observation<Universal2DBox>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
         let mut observation = features.pop().unwrap();
-        let observation_bbox = observation.0.as_ref().unwrap();
+        let observation_bbox = observation.attr().as_ref().unwrap();
         features.clear();
 
         let predicted_bbox = attrs.make_prediction(observation_bbox);
         attrs.update_history(observation_bbox, &predicted_bbox);
 
-        observation.0 = Some(predicted_bbox);
+        *observation.attr_mut() = Some(predicted_bbox);
         features.push(observation);
 
         Ok(())

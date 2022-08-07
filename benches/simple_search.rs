@@ -7,7 +7,7 @@ use similari::examples::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
 use similari::prelude::{ObservationBuilder, TrackStoreBuilder};
 use similari::track::notify::NoopNotifier;
 use similari::track::utils::FromVec;
-use similari::track::Observation;
+use similari::track::Feature;
 use test::Bencher;
 
 #[bench]
@@ -45,7 +45,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             i as u64,
             DEFAULT_FEATURE,
             Some(1.0),
-            Some(Observation::from_vec(
+            Some(Feature::from_vec(
                 (0..vec_len).map(|_| rng.sample(&gen)).collect(),
             )),
             Some(UnboundAttributeUpdate {}),
@@ -59,7 +59,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             .observation(
                 ObservationBuilder::new(DEFAULT_FEATURE)
                     .observation_attributes(1.0)
-                    .observation(Observation::from_vec(
+                    .observation(Feature::from_vec(
                         (0..vec_len).map(|_| rng.sample(&gen)).collect(),
                     ))
                     .build(),

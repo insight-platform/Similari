@@ -1,6 +1,6 @@
 use crate::distance::{cosine, euclidean};
-use crate::track::{MetricOutput, ObservationMetric, ObservationSpec};
-use crate::track::{Observation, ObservationAttributes};
+use crate::track::{Feature, ObservationAttributes};
+use crate::track::{MetricOutput, Observation, ObservationMetric};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::trackers::visual::track_attributes::VisualAttributes;
@@ -38,7 +38,6 @@ pub enum PositionalMetricType {
     #[default]
     Mahalanobis,
     IoU(f32),
-    Ignore,
 }
 
 pub struct VisualMetricOptions {
@@ -163,9 +162,9 @@ impl VisualMetricBuilder {
 }
 
 impl VisualMetric {
-    fn cleanup_observations(
+    fn optimize_observations(
         &self,
-        observations: &mut Vec<ObservationSpec<VisualObservationAttributes>>,
+        observations: &mut Vec<Observation<VisualObservationAttributes>>,
     ) {
         if observations.len() > self.opts.visual_max_observations {
             observations.swap_remove(0);
@@ -176,7 +175,7 @@ impl VisualMetric {
 
         // remove all old bboxes
         observations.iter_mut().skip(1).for_each(|f| {
-            if let Some(e) = &mut f.0 {
+            if let Some(e) = &mut f.attr_mut() {
                 e.drop_bbox();
             }
         });
@@ -224,7 +223,6 @@ impl VisualMetric {
                         box_m_opt.filter(|e| *e >= threshold)
                     }
                 }
-                PositionalMetricType::Ignore => None,
             }
         } else {
             None
@@ -233,8 +231,8 @@ impl VisualMetric {
 
     fn visual_metric(
         &self,
-        candidate_observation_feature: &Observation,
-        track_observation_feature: &Observation,
+        candidate_observation_feature: &Feature,
+        track_observation_feature: &Feature,
         track_attributes: &VisualAttributes,
     ) -> Option<f32> {
         if track_attributes.visual_features_collected_count >= self.opts.visual_minimal_track_length
@@ -259,26 +257,30 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
         _feature_class: u64,
         _candidate_attributes: &VisualAttributes,
         track_attributes: &VisualAttributes,
-        candidate_observation: &ObservationSpec<VisualObservationAttributes>,
-        track_observation: &ObservationSpec<VisualObservationAttributes>,
+        candidate_observation: &Observation<VisualObservationAttributes>,
+        track_observation: &Observation<VisualObservationAttributes>,
     ) -> MetricOutput<f32> {
-        let candidate_observation_bbox_opt = candidate_observation.0.as_ref().unwrap().bbox_opt();
-        let track_observation_bbox_opt = track_observation.0.as_ref().unwrap().bbox_opt();
+        let candidate_bbox_opt = candidate_observation
+            .attr()
+            .as_ref()
+            .expect("Observation attributes must always present.")
+            .bbox_opt();
 
-        let candidate_observation_feature = candidate_observation.1.as_ref().unwrap();
-        let track_observation_feature = track_observation.1.as_ref().unwrap();
+        let track_bbox_opt = track_observation
+            .attr()
+            .as_ref()
+            .expect("Observation attributes must always present.")
+            .bbox_opt();
+
+        let candidate_feature_opt = candidate_observation.feature().as_ref();
+        let track_feature_opt = track_observation.feature().as_ref();
 
         Some((
-            self.positional_metric(
-                candidate_observation_bbox_opt,
-                track_observation_bbox_opt,
-                track_attributes,
-            ),
-            self.visual_metric(
-                candidate_observation_feature,
-                track_observation_feature,
-                track_attributes,
-            ),
+            self.positional_metric(candidate_bbox_opt, track_bbox_opt, track_attributes),
+            match (candidate_feature_opt, track_feature_opt) {
+                (Some(c), Some(t)) => self.visual_metric(c, t, track_attributes),
+                _ => None,
+            },
         ))
     }
 
@@ -287,32 +289,49 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
         _feature_class: u64,
         _merge_history: &[u64],
         attrs: &mut VisualAttributes,
-        observations: &mut Vec<ObservationSpec<VisualObservationAttributes>>,
+        observations: &mut Vec<Observation<VisualObservationAttributes>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
-        let mut observation_spec = observations.pop().unwrap();
-        let observation_bbox = observation_spec.0.as_ref().unwrap().unchecked_bbox_ref();
-        let feature_quality = observation_spec.0.as_ref().unwrap().visual_quality();
-        let observation_feature = observation_spec.1.clone();
+        let mut observation = observations
+            .pop()
+            .expect("At least one observation must present in the track.");
+
+        let observation_bbox = observation
+            .attr()
+            .as_ref()
+            .expect("New track element must have bbox.")
+            .unchecked_bbox_ref();
+
+        let feature_quality = observation
+            .attr()
+            .as_ref()
+            .expect("New track element must have feature quality parameter.")
+            .visual_quality();
 
         let predicted_bbox = attrs.make_prediction(observation_bbox);
-        attrs.update_history(observation_bbox, &predicted_bbox, observation_feature);
+        attrs.update_history(
+            observation_bbox,
+            &predicted_bbox,
+            observation.feature().clone(),
+        );
 
-        observation_spec.0 = Some(VisualObservationAttributes::new(
+        *observation.attr_mut() = Some(VisualObservationAttributes::new(
             feature_quality,
             match self.opts.positional_kind {
-                PositionalMetricType::Mahalanobis | PositionalMetricType::Ignore => predicted_bbox,
+                PositionalMetricType::Mahalanobis => predicted_bbox,
                 PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
             },
         ));
 
-        observations.push(observation_spec);
+        observations.push(observation);
 
-        self.cleanup_observations(observations);
+        self.optimize_observations(observations);
 
-        attrs.visual_features_collected_count =
-            observations.iter().filter(|f| f.1.is_some()).count();
+        attrs.visual_features_collected_count = observations
+            .iter()
+            .filter(|f| f.feature().is_some())
+            .count();
 
         Ok(())
     }
@@ -321,7 +340,7 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
 #[cfg(test)]
 mod optimize {
     use crate::examples::vec2;
-    use crate::track::{ObservationMetric, ObservationSpec};
+    use crate::track::{Observation, ObservationMetric};
     use crate::trackers::sort::SortAttributesOptions;
     use crate::trackers::visual::metric::{
         PositionalMetricType, VisualMetricBuilder, VisualMetricType,
@@ -340,7 +359,7 @@ mod optimize {
 
         let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
 
-        let mut obs = vec![ObservationSpec(
+        let mut obs = vec![Observation(
             Some(VisualObservationAttributes::new(
                 1.0,
                 BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
@@ -359,14 +378,14 @@ mod optimize {
         assert_eq!(obs.len(), 1);
 
         let mut obs = vec![
-            ObservationSpec(
+            Observation(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
                 )),
                 Some(vec2(0.0, 1.0)),
             ),
-            ObservationSpec(
+            Observation(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.2, 0.2, 5.0, 10.0).as_xyaah(),
@@ -400,21 +419,21 @@ mod optimize {
         );
 
         let mut obs = vec![
-            ObservationSpec(
+            Observation(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
                 )),
                 Some(vec2(0.0, 1.0)),
             ),
-            ObservationSpec(
+            Observation(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.2, 0.2, 5.0, 10.0).as_xyaah(),
                 )),
                 None,
             ),
-            ObservationSpec(
+            Observation(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
@@ -434,7 +453,7 @@ mod optimize {
         assert_eq!(obs.len(), 2);
         assert!(matches!(
             &obs[0],
-            ObservationSpec(Some(a), Some(o)) if a.bbox_opt().is_some() && o[0].to_array()[..2] == [0.1 , 1.1]
+            Observation(Some(a), Some(o)) if a.bbox_opt().is_some() && o[0].to_array()[..2] == [0.1 , 1.1]
         ));
     }
 }
@@ -467,55 +486,6 @@ mod metric {
             .notifier(NoopNotifier)
             .default_attributes(default_attrs())
             .build()
-    }
-
-    #[test]
-    fn metric_ignore() {
-        let metric = VisualMetricBuilder::default()
-            .positional_metric(PositionalMetricType::Ignore)
-            .visual_minimal_track_length(1)
-            .build();
-
-        let store = default_store(metric);
-
-        let track1 = store
-            .new_track(1)
-            .observation(
-                ObservationBuilder::new(0)
-                    .observation(vec2(0.1, 1.1))
-                    .observation_attributes(VisualObservationAttributes::new(
-                        1.0,
-                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
-                    ))
-                    .build(),
-            )
-            .build()
-            .unwrap();
-
-        let track2 = store
-            .new_track(2)
-            .observation(
-                ObservationBuilder::new(0)
-                    .observation(vec2(0.1, 1.0))
-                    .observation_attributes(VisualObservationAttributes::new(
-                        1.0,
-                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
-                    ))
-                    .build(),
-            )
-            .build()
-            .unwrap();
-
-        let dists = track1.distances(&track2, 0).unwrap();
-        assert_eq!(dists.len(), 1);
-        assert!(matches!(
-            dists[0],
-            ObservationMetricOk {
-                from: 1,
-                to: 2,
-                attribute_metric: None, // ignored because of ignore
-                feature_distance: Some(x)
-            } if x > 0.0));
     }
 
     #[test]

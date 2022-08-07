@@ -1,4 +1,4 @@
-use crate::track::{ObservationAttributes, ObservationSpec};
+use crate::track::{Observation, ObservationAttributes};
 use crate::utils::bbox::Universal2DBox;
 use crate::{EstimateClose, EPS};
 use std::fmt::Formatter;
@@ -34,7 +34,7 @@ impl VisualObservationAttributes {
     }
 }
 
-impl std::fmt::Debug for ObservationSpec<VisualObservationAttributes> {
+impl std::fmt::Debug for Observation<VisualObservationAttributes> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "({:?}, {:?})", self.0, self.1)
     }

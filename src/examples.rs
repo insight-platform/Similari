@@ -3,8 +3,8 @@ pub mod iou;
 use crate::distance::euclidean;
 use crate::track::utils::FromVec;
 use crate::track::{
-    MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
-    ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    Feature, MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
+    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::utils::bbox::BoundingBox;
 use anyhow::Result;
@@ -74,8 +74,8 @@ impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
         _feature_class: u64,
         _attrs1: &SimpleAttrs,
         _attrs2: &SimpleAttrs,
-        e1: &ObservationSpec<f32>,
-        e2: &ObservationSpec<f32>,
+        e1: &Observation<f32>,
+        e2: &Observation<f32>,
     ) -> MetricOutput<f32> {
         Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
@@ -91,7 +91,7 @@ impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
         _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut SimpleAttrs,
-        _features: &mut Vec<ObservationSpec<f32>>,
+        _features: &mut Vec<Observation<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
@@ -137,8 +137,8 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
         _feature_class: u64,
         _attrs1: &UnboundAttrs,
         _attrs2: &UnboundAttrs,
-        e1: &ObservationSpec<f32>,
-        e2: &ObservationSpec<f32>,
+        e1: &Observation<f32>,
+        e2: &Observation<f32>,
     ) -> MetricOutput<f32> {
         Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
@@ -154,7 +154,7 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
         _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut UnboundAttrs,
-        _features: &mut Vec<ObservationSpec<f32>>,
+        _features: &mut Vec<Observation<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
@@ -162,8 +162,8 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
     }
 }
 
-pub fn vec2(x: f32, y: f32) -> Observation {
-    Observation::from_vec(vec![x, y])
+pub fn vec2(x: f32, y: f32) -> Feature {
+    Feature::from_vec(vec![x, y])
 }
 
 pub struct FeatGen2 {
@@ -185,12 +185,12 @@ impl FeatGen2 {
 }
 
 impl Iterator for FeatGen2 {
-    type Item = ObservationSpec<f32>;
+    type Item = Observation<f32>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist);
         self.y += self.gen.sample(&self.dist);
-        Some(ObservationSpec(
+        Some(Observation(
             Some(self.gen.sample(&self.dist) + 0.7),
             Some(vec2(self.x, self.y)),
         ))
@@ -294,13 +294,13 @@ impl FeatGen {
 }
 
 impl Iterator for FeatGen {
-    type Item = ObservationSpec<()>;
+    type Item = Observation<()>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let v = (0..self.len)
             .into_iter()
             .map(|_| self.x + self.gen.sample(&self.dist))
             .collect::<Vec<_>>();
-        Some(ObservationSpec::<()>(None, Some(Observation::from_vec(v))))
+        Some(Observation::<()>(None, Some(Feature::from_vec(v))))
     }
 }

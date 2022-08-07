@@ -233,7 +233,7 @@ mod tests {
     use crate::examples::vec2;
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
     use crate::track::{
-        MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
+        MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
         ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
     };
     use anyhow::Result;
@@ -276,8 +276,8 @@ mod tests {
             _feature_class: u64,
             _attrs1: &MockAttrs,
             _attrs2: &MockAttrs,
-            e1: &ObservationSpec<f32>,
-            e2: &ObservationSpec<f32>,
+            e1: &Observation<f32>,
+            e2: &Observation<f32>,
         ) -> MetricOutput<f32> {
             Some((
                 f32::calculate_metric_object(&e1.0, &e2.0),
@@ -293,7 +293,7 @@ mod tests {
             _feature_class: u64,
             _merge_history: &[u64],
             _attrs: &mut MockAttrs,
-            _features: &mut Vec<ObservationSpec<f32>>,
+            _features: &mut Vec<Observation<f32>>,
             _prev_length: usize,
             _is_merge: bool,
         ) -> Result<()> {

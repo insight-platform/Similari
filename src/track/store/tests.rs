@@ -6,9 +6,9 @@ mod tests {
     use crate::track::store::TrackStore;
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::{
-        LookupRequest, MetricOutput, NoopLookup, NoopNotifier, ObservationAttributes,
-        ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
-        TrackAttributesUpdate, TrackStatus,
+        LookupRequest, MetricOutput, NoopLookup, NoopNotifier, Observation, ObservationAttributes,
+        ObservationMetric, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate,
+        TrackStatus,
     };
     use crate::EPS;
     use anyhow::Result;
@@ -71,8 +71,8 @@ mod tests {
             _feature_class: u64,
             _attrs1: &TimeAttrs,
             _attrs2: &TimeAttrs,
-            e1: &ObservationSpec<f32>,
-            e2: &ObservationSpec<f32>,
+            e1: &Observation<f32>,
+            e2: &Observation<f32>,
         ) -> MetricOutput<f32> {
             Some((
                 f32::calculate_metric_object(&e1.0, &e2.0),
@@ -88,7 +88,7 @@ mod tests {
             _feature_class: u64,
             _merge_history: &[u64],
             _attrs: &mut TimeAttrs,
-            features: &mut Vec<ObservationSpec<f32>>,
+            features: &mut Vec<Observation<f32>>,
             _prev_length: usize,
             _is_merge: bool,
         ) -> Result<()> {
@@ -673,8 +673,8 @@ mod tests {
                 _feature_class: u64,
                 _attrs1: &LookupAttrs,
                 _attrs2: &LookupAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
+                e1: &Observation<f32>,
+                e2: &Observation<f32>,
             ) -> MetricOutput<f32> {
                 Some((
                     f32::calculate_metric_object(&e1.0, &e2.0),
@@ -690,7 +690,7 @@ mod tests {
                 _feature_class: u64,
                 _merge_history: &[u64],
                 _attrs: &mut LookupAttrs,
-                _features: &mut Vec<ObservationSpec<f32>>,
+                _features: &mut Vec<Observation<f32>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {

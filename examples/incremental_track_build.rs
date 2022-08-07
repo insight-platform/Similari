@@ -2,8 +2,8 @@ use similari::distance::euclidean;
 use similari::examples::{BoxGen2, FeatGen2};
 use similari::prelude::*;
 use similari::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
-    ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
+    ObservationMetricOk, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::utils::bbox::BoundingBox;
 use similari::voting::topn::TopNVoting;
@@ -58,8 +58,8 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
         _feature_class: u64,
         _attrs1: &BBoxAttributes,
         _attrs2: &BBoxAttributes,
-        e1: &ObservationSpec<f32>,
-        e2: &ObservationSpec<f32>,
+        e1: &Observation<f32>,
+        e2: &Observation<f32>,
     ) -> MetricOutput<f32> {
         Some((
             f32::calculate_metric_object(&e1.0, &e2.0),
@@ -75,7 +75,7 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
         _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut BBoxAttributes,
-        observations: &mut Vec<ObservationSpec<f32>>,
+        observations: &mut Vec<Observation<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> anyhow::Result<()> {

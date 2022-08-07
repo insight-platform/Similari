@@ -1,5 +1,5 @@
 use crate::track::{
-    MetricOutput, ObservationAttributes, ObservationMetric, ObservationMetricOk, ObservationSpec,
+    MetricOutput, Observation, ObservationAttributes, ObservationMetric, ObservationMetricOk,
 };
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
@@ -28,10 +28,10 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
         _feature_class: u64,
         _attrs1: &SortAttributes,
         _attrs2: &SortAttributes,
-        e1: &ObservationSpec<Universal2DBox>,
-        e2: &ObservationSpec<Universal2DBox>,
+        e1: &Observation<Universal2DBox>,
+        e2: &Observation<Universal2DBox>,
     ) -> MetricOutput<f32> {
-        let box_m_opt = Universal2DBox::calculate_metric_object(&e1.0, &e2.0);
+        let box_m_opt = Universal2DBox::calculate_metric_object(&e1.attr(), &e2.attr());
         box_m_opt.filter(|e| *e >= 0.01).map(|e| (Some(e), None))
     }
 
@@ -40,18 +40,18 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
         _feature_class: u64,
         _merge_history: &[u64],
         attrs: &mut SortAttributes,
-        features: &mut Vec<ObservationSpec<Universal2DBox>>,
+        features: &mut Vec<Observation<Universal2DBox>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> anyhow::Result<()> {
         let mut observation = features.pop().unwrap();
-        let observation_bbox = observation.0.as_ref().unwrap();
+        let observation_bbox = observation.attr().as_ref().unwrap();
         features.clear();
 
         let predicted_bbox = attrs.make_prediction(observation_bbox);
         attrs.update_history(observation_bbox, &predicted_bbox);
 
-        observation.0 = Some(predicted_bbox.gen_vertices());
+        *observation.attr_mut() = Some(predicted_bbox.gen_vertices());
         features.push(observation);
 
         Ok(())

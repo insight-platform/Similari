@@ -20,9 +20,4 @@ impl PyPositionalMetricType {
         );
         PyPositionalMetricType(PositionalMetricType::IoU(threshold))
     }
-
-    #[staticmethod]
-    pub fn ignore() -> Self {
-        PyPositionalMetricType(PositionalMetricType::Ignore)
-    }
 }
