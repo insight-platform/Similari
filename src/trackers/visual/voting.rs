@@ -1,5 +1,6 @@
 use crate::track::ObservationMetricOk;
 use crate::trackers::sort::voting::SortVoting;
+use crate::trackers::visual::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::topn::TopNVoting;
 use crate::voting::Voting;
@@ -25,22 +26,40 @@ impl VisualVoting {
     }
 }
 
-impl Voting<Universal2DBox> for VisualVoting {
-    type WinnerObject = u64;
+#[derive(Default, Debug, Clone)]
+pub enum VotingType {
+    #[default]
+    Visual,
+    Positional,
+}
+
+impl From<ObservationMetricOk<VisualObservationAttributes>>
+    for ObservationMetricOk<Universal2DBox>
+{
+    fn from(e: ObservationMetricOk<VisualObservationAttributes>) -> Self {
+        ObservationMetricOk {
+            from: e.from,
+            to: e.to,
+            attribute_metric: e.attribute_metric,
+            feature_distance: e.feature_distance,
+        }
+    }
+}
+
+impl Voting<VisualObservationAttributes> for VisualVoting {
+    type WinnerObject = (u64, VotingType);
 
     fn winners<T>(&self, distances: T) -> HashMap<u64, Vec<Self::WinnerObject>>
     where
-        T: IntoIterator<Item = ObservationMetricOk<Universal2DBox>>,
+        T: IntoIterator<Item = ObservationMetricOk<VisualObservationAttributes>>,
     {
-        let topn_feature_voting: TopNVoting<Universal2DBox> = TopNVoting::new(
+        let topn_feature_voting: TopNVoting<VisualObservationAttributes> = TopNVoting::new(
             1,
             self.max_allowed_feature_distance,
             self.min_winner_feature_votes,
         );
 
-        let distances = distances
-            .into_iter()
-            .collect::<Vec<ObservationMetricOk<Universal2DBox>>>();
+        let distances = distances.into_iter().collect::<Vec<_>>();
 
         let feature_winners = topn_feature_voting.winners(distances.clone());
 
@@ -50,7 +69,7 @@ impl Voting<Universal2DBox> for VisualVoting {
             .map(|(from, w)| {
                 let winner_track = w[0].winner_track;
                 excluded_tracks.insert(winner_track);
-                (from, vec![winner_track])
+                (from, vec![(winner_track, VotingType::Visual)])
             })
             .collect::<HashMap<_, _>>();
 
@@ -58,13 +77,13 @@ impl Voting<Universal2DBox> for VisualVoting {
         let mut remaining_tracks = HashSet::new();
         let remaining_distances = distances
             .into_iter()
-            .filter(|e: &ObservationMetricOk<Universal2DBox>| {
+            .filter(|e: &ObservationMetricOk<VisualObservationAttributes>| {
                 !(feature_winners.contains_key(&e.from) || excluded_tracks.contains(&e.to))
             })
             .map(|e| {
                 remaining_candidates.insert(e.from);
                 remaining_tracks.insert(e.to);
-                e
+                e.into()
             })
             .collect::<Vec<_>>();
 
@@ -74,15 +93,27 @@ impl Voting<Universal2DBox> for VisualVoting {
             remaining_tracks.len(),
         );
 
-        let mut positional_winners = positional_voting.winners(remaining_distances);
-        positional_winners.extend(feature_winners);
+        let mut winners = positional_voting
+            .winners(remaining_distances)
+            .into_iter()
+            .map(|(from, winner)| (from, vec![(winner[0], VotingType::Positional)]))
+            .collect::<HashMap<_, _>>();
 
-        positional_winners
+        winners.extend(feature_winners);
+
+        winners
     }
 }
 
 #[cfg(test)]
 mod voting {
+    use crate::track::ObservationMetricOk;
+    use crate::trackers::visual::voting::VisualVoting;
+    use crate::voting::Voting;
+
     #[test]
-    fn test() {}
+    fn test_visual() {
+        let v = VisualVoting::new(0.3, 0.7, 2);
+        let _winners = v.winners(vec![ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7))]);
+    }
 }

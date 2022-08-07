@@ -1,6 +1,6 @@
 pub mod simple_maha_py;
 
-use crate::prelude::{ObservationBuilder, SortTrack, TrackStoreBuilder};
+use crate::prelude::{NoopNotifier, ObservationBuilder, SortTrack, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
 use crate::trackers::sort::maha::MahaSortMetric;
@@ -70,6 +70,7 @@ impl MahaSort {
                 epoch.clone(),
             ))
             .metric(MahaSortMetric::default())
+            .notifier(NoopNotifier)
             .build();
 
         Self { epoch, store }

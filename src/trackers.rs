@@ -2,5 +2,5 @@
 ///
 pub mod sort;
 
-/// Visual tracker implementations
-pub mod visual;
+// Visual tracker implementations
+// pub mod visual;

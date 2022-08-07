@@ -231,7 +231,7 @@ where
 mod tests {
     use crate::distance::euclidean;
     use crate::examples::vec2;
-    use crate::prelude::{ObservationBuilder, TrackBuilder, TrackStoreBuilder};
+    use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
     use crate::track::{
         MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
         ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
@@ -303,10 +303,15 @@ mod tests {
 
     #[test]
     fn result_iterators() {
-        let mut store = TrackStoreBuilder::default().build();
+        let mut store = TrackStoreBuilder::default()
+            .default_attributes(MockAttrs)
+            .metric(MockMetric)
+            .notifier(NoopNotifier)
+            .build();
         const N: usize = 10000;
         for _ in 0..N {
-            let t: Track<MockAttrs, MockMetric, f32> = TrackBuilder::default()
+            let t = store
+                .track_builder_random_id()
                 .observation(
                     ObservationBuilder::new(0)
                         .observation(vec2(1.0, 0.0))
@@ -317,7 +322,8 @@ mod tests {
             store.add_track(t).unwrap();
         }
 
-        let t1: Track<MockAttrs, MockMetric, f32> = TrackBuilder::default()
+        let t1: Track<MockAttrs, MockMetric, f32> = store
+            .track_builder_random_id()
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.0, 0.0))
@@ -326,7 +332,8 @@ mod tests {
             .build()
             .unwrap();
 
-        let t2: Track<MockAttrs, MockMetric, f32> = TrackBuilder::default()
+        let t2: Track<MockAttrs, MockMetric, f32> = store
+            .track_builder_random_id()
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(-1.0, 0.0))

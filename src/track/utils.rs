@@ -5,7 +5,7 @@ use ultraviolet::f32x8;
 /// Utility function that can be used by [ObservationMetric](crate::track::ObservationMetric::metric) implementors to sort
 /// features by attributes decreasingly.
 ///
-pub fn feature_attributes_sort_dec<FA: ObservationAttributes>(
+pub fn feature_attributes_sort_dec<FA: ObservationAttributes + PartialOrd>(
     e1: &ObservationSpec<FA>,
     e2: &ObservationSpec<FA>,
 ) -> Ordering {
@@ -15,7 +15,7 @@ pub fn feature_attributes_sort_dec<FA: ObservationAttributes>(
 /// Utility function that can be used by [ObservationMetric](crate::track::ObservationMetric::metric) implementors to sort
 /// features by attributes increasingly.
 ///
-pub fn feature_attributes_sort_inc<FA: ObservationAttributes>(
+pub fn feature_attributes_sort_inc<FA: ObservationAttributes + PartialOrd>(
     e1: &ObservationSpec<FA>,
     e2: &ObservationSpec<FA>,
 ) -> Ordering {

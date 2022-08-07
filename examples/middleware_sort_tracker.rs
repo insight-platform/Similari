@@ -1,10 +1,8 @@
 use similari::examples::{current_time_ms, BoxGen2};
-use similari::prelude::{ObservationBuilder, TrackStoreBuilder};
-use similari::store::TrackStore;
+use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use similari::trackers::sort::iou::IOUSortMetric;
 use similari::trackers::sort::voting::SortVoting;
 use similari::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
-use similari::utils::bbox::Universal2DBox;
 use similari::voting::Voting;
 use std::thread;
 use std::time::Duration;
@@ -13,10 +11,11 @@ const FEAT0: u64 = 0;
 const BBOX_HISTORY: usize = 100;
 
 fn main() {
-    let mut store: TrackStore<SortAttributes, IOUSortMetric, Universal2DBox> =
-        TrackStoreBuilder::default()
-            .default_attributes(SortAttributes::new(BBOX_HISTORY))
-            .build();
+    let mut store = TrackStoreBuilder::default()
+        .default_attributes(SortAttributes::new(BBOX_HISTORY))
+        .metric(IOUSortMetric::default())
+        .notifier(NoopNotifier)
+        .build();
 
     let pos_drift = 1.0;
     let box_drift = 0.2;

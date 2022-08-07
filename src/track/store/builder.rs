@@ -93,9 +93,9 @@ where
     ///
     pub fn build(self) -> TrackStore<TA, M, OA, N> {
         TrackStore::new(
-            self.metric,
-            self.default_attributes,
-            self.notifier,
+            self.metric.unwrap(),
+            self.default_attributes.unwrap(),
+            self.notifier.unwrap(),
             self.shards,
         )
     }

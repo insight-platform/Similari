@@ -1,6 +1,6 @@
 use similari::examples::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
 use similari::examples::{current_time_ms, BoxGen2};
-use similari::store::TrackStore;
+use similari::prelude::{NoopNotifier, TrackStoreBuilder};
 use similari::track::Track;
 use similari::utils::bbox::{BoundingBox, IOUTopNVoting};
 use similari::voting::Voting;
@@ -10,7 +10,11 @@ use std::time::Duration;
 const FEAT0: u64 = 0;
 
 fn main() {
-    let mut store: TrackStore<BBoxAttributes, IOUMetric, BoundingBox> = TrackStore::default();
+    let mut store = TrackStoreBuilder::default()
+        .metric(IOUMetric::default())
+        .default_attributes(BBoxAttributes::default())
+        .notifier(NoopNotifier)
+        .build();
 
     let voting = IOUTopNVoting {
         topn: 1,
@@ -28,8 +32,12 @@ fn main() {
         let obj1b = b1.next();
         let obj2b = b2.next();
 
-        let mut obj1t: Track<BBoxAttributes, IOUMetric, BoundingBox> =
-            Track::new(u64::try_from(current_time_ms()).unwrap(), None, None, None);
+        let mut obj1t = Track::new(
+            u64::try_from(current_time_ms()).unwrap(),
+            IOUMetric::default(),
+            BBoxAttributes::default(),
+            NoopNotifier,
+        );
 
         obj1t
             .add_observation(FEAT0, obj1b, None, Some(BBoxAttributesUpdate))
@@ -37,9 +45,9 @@ fn main() {
 
         let mut obj2t: Track<BBoxAttributes, IOUMetric, BoundingBox> = Track::new(
             u64::try_from(current_time_ms()).unwrap() + 1,
-            None,
-            None,
-            None,
+            IOUMetric::default(),
+            BBoxAttributes::default(),
+            NoopNotifier,
         );
 
         obj2t

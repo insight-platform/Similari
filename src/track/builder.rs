@@ -166,7 +166,12 @@ where
     }
 
     pub fn build(self) -> Result<Track<TA, M, OA, N>> {
-        let mut track = Track::new(self.id, self.metric, self.track_attrs, self.notifier);
+        let mut track = Track::new(
+            self.id,
+            self.metric.unwrap(),
+            self.track_attrs.unwrap(),
+            self.notifier.unwrap(),
+        );
         for (cls, oa, feat, upd) in self.observations {
             track.add_observation(cls, oa, feat, upd)?;
         }

@@ -1,6 +1,6 @@
 pub mod simple_iou_py;
 
-use crate::prelude::{ObservationBuilder, TrackStoreBuilder};
+use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
 use crate::trackers::sort::iou::IOUSortMetric;
@@ -41,6 +41,7 @@ impl IoUSort {
                 epoch.clone(),
             ))
             .metric(IOUSortMetric::new(threshold))
+            .notifier(NoopNotifier)
             .build();
 
         Self {

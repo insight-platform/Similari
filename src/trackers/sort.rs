@@ -2,7 +2,7 @@ use crate::track::{
     NoopLookup, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::State;
+use crate::utils::kalman::KalmanState;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
@@ -40,7 +40,7 @@ pub struct SortAttributes {
     pub scene_id: u64,
 
     /// Kalman filter predicted state
-    state: Option<State>,
+    state: Option<KalmanState>,
     /// The map that stores current epochs for the scene_id
     current_epochs: Option<Arc<RwLock<HashMap<u64, usize>>>>,
     /// The maximum number of epochs without update while the track is alive

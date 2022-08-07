@@ -2,7 +2,7 @@
 mod tests {
     use crate::distance::euclidean;
     use crate::examples::{current_time_ms, vec2};
-    use crate::prelude::{TrackBuilder, TrackStoreBuilder};
+    use crate::prelude::TrackStoreBuilder;
     use crate::track::store::TrackStore;
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::{
@@ -100,7 +100,11 @@ mod tests {
 
     #[test]
     fn new_default_store() -> Result<()> {
-        let default_store: TrackStore<TimeAttrs, TimeMetric, f32> = TrackStore::default();
+        let default_store: TrackStore<TimeAttrs, TimeMetric, f32> = TrackStoreBuilder::default()
+            .default_attributes(TimeAttrs::default())
+            .metric(TimeMetric::default())
+            .notifier(NoopNotifier)
+            .build();
         drop(default_store);
         Ok(())
     }
@@ -108,12 +112,12 @@ mod tests {
     #[test]
     fn new_store_10_shards() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             10,
         );
         store.add(
@@ -138,12 +142,12 @@ mod tests {
     #[test]
     fn sharding_n_fetch() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             2,
         );
 
@@ -183,12 +187,12 @@ mod tests {
     #[test]
     fn general_ops() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             1,
         );
         store.add(
@@ -299,12 +303,12 @@ mod tests {
     #[test]
     fn baked_similarity() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             2,
         );
         thread::sleep(Duration::from_millis(1));
@@ -318,12 +322,12 @@ mod tests {
 
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
         );
 
         //thread::sleep(Duration::from_millis(10));
@@ -366,12 +370,12 @@ mod tests {
     fn all_similarity() -> Result<()> {
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -383,12 +387,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             2,
         );
         thread::sleep(Duration::from_millis(1));
@@ -430,12 +434,12 @@ mod tests {
     fn add_track_ok() -> Result<()> {
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -447,12 +451,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -472,12 +476,12 @@ mod tests {
     fn add_track_dup_id() -> Result<()> {
         let mut ext_track = Track::new(
             0, // duplicate track id
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -489,12 +493,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -515,12 +519,12 @@ mod tests {
     fn merge_ext_tracks() -> Result<()> {
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -539,12 +543,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -573,12 +577,12 @@ mod tests {
     #[test]
     fn merge_own_tracks() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -694,10 +698,14 @@ mod tests {
             }
         }
 
-        let mut store = TrackStoreBuilder::default().build();
+        let mut store = TrackStoreBuilder::default()
+            .metric(LookupMetric::default())
+            .default_attributes(LookupAttrs::default())
+            .notifier(NoopNotifier)
+            .build();
         const N: usize = 10;
         for _ in 0..N {
-            let t: Track<LookupAttrs, LookupMetric, f32> = TrackBuilder::default().build().unwrap();
+            let t = store.track_builder_random_id().build().unwrap();
             store.add_track(t).unwrap();
         }
         let res = store.lookup(Lookup);

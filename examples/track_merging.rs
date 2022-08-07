@@ -210,8 +210,8 @@ fn feat_gen() {
 
     let drift = 0.01;
     let mut gen = FeatGen2::new(0.0, 0.0, drift);
-    let v1 = gen.next().unwrap().1[0];
-    let v2 = gen.next().unwrap().1[0];
+    let v1 = gen.next().unwrap().1.as_ref().unwrap()[0];
+    let v2 = gen.next().unwrap().1.as_ref().unwrap()[0];
     assert!(v1.sub(v2).abs().reduce_add() <= 2.0 * f32x8::splat(drift).reduce_add());
 }
 
@@ -376,12 +376,12 @@ fn main() {
 
     // collect tracks here until they are initially ready
     let mut temp_store = TrackStore::new(
-        Some(CamTrackingAttributesMetric::default()),
-        Some(CamTrackingAttributes {
+        CamTrackingAttributesMetric::default(),
+        CamTrackingAttributes {
             baked_period_ms: 20,
             ..Default::default()
-        }),
-        Some(NoopNotifier),
+        },
+        NoopNotifier,
         1,
     );
 
@@ -389,12 +389,12 @@ fn main() {
     let merge_store_baked_period_ms = 60;
     let mut merge_store: TrackStore<CamTrackingAttributes, CamTrackingAttributesMetric, f32> =
         TrackStore::new(
-            Some(CamTrackingAttributesMetric::default()),
-            Some(CamTrackingAttributes {
+            CamTrackingAttributesMetric::default(),
+            CamTrackingAttributes {
                 baked_period_ms: merge_store_baked_period_ms,
                 ..Default::default()
-            }),
-            Some(NoopNotifier),
+            },
+            NoopNotifier,
             1,
         );
     let voting_machine: TopNVoting<f32> = TopNVoting::new(1, 0.1, 3);

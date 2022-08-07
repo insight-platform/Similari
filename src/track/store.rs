@@ -117,7 +117,7 @@ where
     OA: ObservationAttributes,
     N: ChangeNotifier,
 {
-    attributes: TA,
+    default_attributes: TA,
     metric: M,
     notifier: N,
     num_shards: usize,
@@ -151,18 +151,6 @@ where
                 }
             }
         }
-    }
-}
-
-impl<TA, M, OA, N> Default for TrackStore<TA, M, OA, N>
-where
-    TA: TrackAttributes<TA, OA>,
-    M: ObservationMetric<TA, OA>,
-    OA: ObservationAttributes,
-    N: ChangeNotifier,
-{
-    fn default() -> Self {
-        Self::new(None, None, None, 1)
     }
 }
 
@@ -328,12 +316,7 @@ where
     ///
     /// If `None` is passed, `Default` initializers are used.
     ///
-    pub fn new(
-        metric: Option<M>,
-        default_attributes: Option<TA>,
-        notifier: Option<N>,
-        shards: usize,
-    ) -> Self {
+    pub fn new(metric: M, default_attributes: TA, notifier: N, shards: usize) -> Self {
         let stores = Arc::new(
             (0..shards)
                 .into_iter()
@@ -345,21 +328,9 @@ where
         Self {
             //receiver: results_receiver,
             num_shards: shards,
-            notifier: if let Some(notifier) = notifier {
-                notifier
-            } else {
-                N::default()
-            },
-            attributes: if let Some(a) = default_attributes {
-                a
-            } else {
-                TA::default()
-            },
-            metric: if let Some(m) = metric {
-                m
-            } else {
-                M::default()
-            },
+            notifier,
+            default_attributes,
+            metric,
             stores: my_stores,
             executors: {
                 (0..shards)
@@ -435,7 +406,18 @@ where
     pub fn track_builder(&self, track_id: u64) -> TrackBuilder<TA, M, OA, N> {
         TrackBuilder::new(track_id)
             .metric(self.metric.clone())
-            .attributes(self.attributes.clone())
+            .attributes(self.default_attributes.clone())
+            .notifier(self.notifier.clone())
+    }
+
+    /// Returns track builder object that can build new track compatible with the storage.
+    ///
+    /// Attributes, metric, notifier are cloned from store
+    ///
+    pub fn track_builder_random_id(&self) -> TrackBuilder<TA, M, OA, N> {
+        TrackBuilder::default()
+            .metric(self.metric.clone())
+            .attributes(self.default_attributes.clone())
             .notifier(self.notifier.clone())
     }
 
@@ -562,7 +544,7 @@ where
             None => {
                 let mut t = Track {
                     notifier: self.notifier.clone(),
-                    attributes: self.attributes.clone(),
+                    attributes: self.default_attributes.clone(),
                     track_id,
                     observations: HashMap::from([(
                         feature_class,

@@ -9,7 +9,6 @@ use geo::{Area, Coordinate, LineString, Polygon};
 use itertools::Itertools;
 use pyo3::exceptions::PyAttributeError;
 use pyo3::prelude::*;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
@@ -429,12 +428,6 @@ impl ObservationAttributes for BoundingBox {
     }
 }
 
-impl PartialOrd for BoundingBox {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unreachable!()
-    }
-}
-
 impl PartialEq<Self> for BoundingBox {
     fn eq(&self, other: &Self) -> bool {
         self.almost_same(other, EPS)
@@ -533,12 +526,6 @@ impl ObservationAttributes for Universal2DBox {
             }
             _ => None,
         }
-    }
-}
-
-impl PartialOrd for Universal2DBox {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unreachable!()
     }
 }
 
