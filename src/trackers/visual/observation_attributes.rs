@@ -1,6 +1,7 @@
-use crate::track::ObservationAttributes;
+use crate::track::{ObservationAttributes, ObservationSpec};
 use crate::utils::bbox::Universal2DBox;
 use crate::{EstimateClose, EPS};
+use std::fmt::Formatter;
 
 #[derive(Clone, Debug, Default)]
 pub struct VisualObservationAttributes {
@@ -30,6 +31,12 @@ impl VisualObservationAttributes {
 
     pub fn visual_quality(&self) -> f32 {
         self.visual_quality
+    }
+}
+
+impl std::fmt::Debug for ObservationSpec<VisualObservationAttributes> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({:?}, {:?})", self.0, self.1)
     }
 }
 

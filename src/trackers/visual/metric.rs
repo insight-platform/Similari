@@ -218,8 +218,8 @@ impl VisualMetric {
                         None
                     } else {
                         let box_m_opt = Universal2DBox::calculate_metric_object(
-                            &candidate_observation_bbox_opt,
-                            &track_observation_bbox_opt,
+                            candidate_observation_bbox_opt,
+                            track_observation_bbox_opt,
                         );
                         box_m_opt.filter(|e| *e >= threshold)
                     }
@@ -328,7 +328,7 @@ mod optimize {
     };
     use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
     use crate::trackers::visual::track_attributes::VisualAttributes;
-    use crate::utils::bbox::BoundingBox;
+    use crate::utils::bbox::{BoundingBox, Universal2DBox};
     use std::sync::Arc;
 
     #[test]
@@ -384,6 +384,20 @@ mod optimize {
         assert_eq!(attrs.predicted_boxes.len(), 2);
         assert_eq!(attrs.track_length, 2);
         assert_eq!(obs.len(), 2);
+        dbg!(&obs);
+        assert!(
+            {
+                let e = &obs[0];
+                e.1.is_none()
+                    && matches!(
+                        e.0.as_ref().unwrap().bbox_opt(),
+                        Some(Universal2DBox { .. })
+                    )
+            } && {
+                let e = &obs[1];
+                e.1.is_some() && matches!(e.0.as_ref().unwrap().bbox_opt(), None)
+            }
+        );
 
         let mut obs = vec![
             ObservationSpec(
@@ -419,7 +433,7 @@ mod optimize {
         assert_eq!(attrs.track_length, 3);
         assert_eq!(obs.len(), 2);
         assert!(matches!(
-            obs[0].clone(),
+            &obs[0],
             ObservationSpec(Some(a), Some(o)) if a.bbox_opt().is_some() && o[0].to_array()[..2] == [0.1 , 1.1]
         ));
     }
@@ -505,7 +519,7 @@ mod metric {
     }
 
     #[test]
-    fn metric_far() {
+    fn pos_metric_far() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(1)
