@@ -16,7 +16,7 @@ impl VisualObservationAttributes {
         }
     }
 
-    pub fn bbox_ref(&self) -> &Universal2DBox {
+    pub fn unchecked_bbox_ref(&self) -> &Universal2DBox {
         self.bbox.as_ref().unwrap()
     }
 }
@@ -55,5 +55,45 @@ impl PartialEq<Self> for VisualObservationAttributes {
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::track::ObservationAttributes;
+    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+    use crate::utils::bbox::BoundingBox;
+    use crate::EPS;
+
+    #[test]
+    fn operations() {
+        let mut attrs1 =
+            VisualObservationAttributes::new(0.7, BoundingBox::new(0.0, 0.0, 3.0, 5.0).as_xyaah());
+        let attrs2 =
+            VisualObservationAttributes::new(0.7, BoundingBox::new(0.0, 0.0, 3.0, 5.0).as_xyaah());
+
+        let dist = VisualObservationAttributes::calculate_metric_object(
+            &Some(attrs1.clone()),
+            &Some(attrs2.clone()),
+        )
+        .unwrap();
+        assert!((dist - 1.0).abs() < EPS);
+
+        assert_eq!(&attrs1, &attrs2);
+
+        attrs1.bbox = None;
+        let dist = VisualObservationAttributes::calculate_metric_object(
+            &Some(attrs1.clone()),
+            &Some(attrs2.clone()),
+        );
+        assert_eq!(dist, None);
+
+        let dist =
+            VisualObservationAttributes::calculate_metric_object(&None, &Some(attrs2.clone()));
+        assert_eq!(dist, None);
+
+        let dist =
+            VisualObservationAttributes::calculate_metric_object(&Some(attrs1.clone()), &None);
+        assert_eq!(dist, None);
     }
 }
