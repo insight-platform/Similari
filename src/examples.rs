@@ -72,8 +72,8 @@ impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
     fn metric(&self, mq: &MetricQuery<'_, SimpleAttrs, f32>) -> MetricOutput<f32> {
         let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
-            f32::calculate_metric_object(&e1.0, &e2.0),
-            match (e1.1.as_ref(), e2.1.as_ref()) {
+            f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+            match (e1.feature().as_ref(), e2.feature().as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
@@ -129,7 +129,7 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
     fn metric(&self, mq: &MetricQuery<'_, UnboundAttrs, f32>) -> MetricOutput<f32> {
         let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
-            f32::calculate_metric_object(&e1.0, &e2.0),
+            f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
             match (e1.1.as_ref(), e2.1.as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,

@@ -344,8 +344,8 @@ mod polygons {
         let union = polygon1.union(&polygon2).unsigned_area();
         assert!((union - 3.0).abs() < EPS as f64);
 
-        let res = Universal2DBox::calculate_metric_object(&Some(bbox1.clone()), &Some(bbox2))
-            .unwrap() as f64;
+        let res =
+            Universal2DBox::calculate_metric_object(&Some(&bbox1), &Some(&bbox2)).unwrap() as f64;
         assert!((res - int / union).abs() < EPS as f64);
 
         let bbox3 = Universal2DBox::new(10.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
@@ -357,7 +357,7 @@ mod polygons {
         let union = polygon1.union(&polygon3).unsigned_area();
         assert!((union - 4.0).abs() < EPS as f64);
 
-        assert!(Universal2DBox::calculate_metric_object(&Some(bbox1), &Some(bbox3)).is_none());
+        assert!(Universal2DBox::calculate_metric_object(&Some(&bbox1), &Some(&bbox3)).is_none());
     }
 
     #[test]
@@ -413,8 +413,8 @@ impl ObservationAttributes for BoundingBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
-        left: &Option<Self>,
-        right: &Option<Self>,
+        left: &Option<&Self>,
+        right: &Option<&Self>,
     ) -> Option<Self::MetricObject> {
         match (left, right) {
             (Some(l), Some(r)) => {
@@ -506,8 +506,8 @@ impl ObservationAttributes for Universal2DBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
-        left: &Option<Self>,
-        right: &Option<Self>,
+        left: &Option<&Self>,
+        right: &Option<&Self>,
     ) -> Option<Self::MetricObject> {
         match (left, right) {
             (Some(l), Some(r)) => {
@@ -560,26 +560,11 @@ mod tests {
             _height: 3.0,
         };
 
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1), &Some(bb1)).unwrap()
-                > 0.999
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb2), &Some(bb2)).unwrap()
-                > 0.999
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1), &Some(bb2)).unwrap()
-                > 0.8
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1), &Some(bb3)).unwrap()
-                < 0.001
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb2), &Some(bb3)).unwrap()
-                < 0.001
-        );
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb1)).unwrap() > 0.999);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb2), &Some(&bb2)).unwrap() > 0.999);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb2)).unwrap() > 0.8);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb3)).unwrap() < 0.001);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb2), &Some(&bb3)).unwrap() < 0.001);
     }
 }
 /// Voting engine for IoU metric

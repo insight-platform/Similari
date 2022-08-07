@@ -217,8 +217,8 @@ impl VisualMetric {
                         None
                     } else {
                         let box_m_opt = Universal2DBox::calculate_metric_object(
-                            candidate_observation_bbox_opt,
-                            track_observation_bbox_opt,
+                            &candidate_observation_bbox_opt.as_ref(),
+                            &track_observation_bbox_opt.as_ref(),
                         );
                         box_m_opt.filter(|e| *e >= threshold)
                     }

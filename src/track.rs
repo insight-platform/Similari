@@ -91,7 +91,7 @@ pub type ObservationsDb<T> = HashMap<u64, Vec<Observation<T>>>;
 /// Custom feature attributes object that accompanies the observation itself
 pub trait ObservationAttributes: Send + Sync + Clone + 'static {
     type MetricObject: Debug + Send + Sync + Clone + 'static;
-    fn calculate_metric_object(l: &Option<Self>, r: &Option<Self>) -> Option<Self::MetricObject>;
+    fn calculate_metric_object(l: &Option<&Self>, r: &Option<&Self>) -> Option<Self::MetricObject>;
 }
 
 /// Output result type used by metric when pairwise metric is calculated
@@ -662,8 +662,8 @@ mod tests {
         fn metric(&self, mq: &MetricQuery<'_, DefaultAttrs, f32>) -> MetricOutput<f32> {
             let (e1, e2) = (mq.candidate_observation, mq.track_observation);
             Some((
-                f32::calculate_metric_object(&e1.0, &e2.0),
-                match (e1.1.as_ref(), e2.1.as_ref()) {
+                f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                match (e1.feature().as_ref(), e2.feature().as_ref()) {
                     (Some(x), Some(y)) => Some(euclidean(x, y)),
                     _ => None,
                 },
@@ -835,8 +835,8 @@ mod tests {
             fn metric(&self, mq: &MetricQuery<'_, TimeAttrs, f32>) -> MetricOutput<f32> {
                 let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
-                    f32::calculate_metric_object(&e1.0, &e2.0),
-                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                    f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                    match (e1.feature().as_ref(), e2.feature().as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
@@ -979,8 +979,8 @@ mod tests {
             fn metric(&self, mq: &MetricQuery<LocalAttrs, f32>) -> MetricOutput<f32> {
                 let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
-                    f32::calculate_metric_object(&e1.0, &e2.0),
-                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                    f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                    match (e1.feature().as_ref(), e2.feature().as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
@@ -1203,8 +1203,8 @@ mod tests {
             fn metric(&self, mq: &MetricQuery<LookupAttrs, f32>) -> MetricOutput<f32> {
                 let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
-                    f32::calculate_metric_object(&e1.0, &e2.0),
-                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                    f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                    match (e1.feature().as_ref(), e2.feature().as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },

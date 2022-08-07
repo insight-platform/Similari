@@ -43,7 +43,7 @@ impl std::fmt::Debug for Observation<VisualObservationAttributes> {
 impl ObservationAttributes for VisualObservationAttributes {
     type MetricObject = f32;
 
-    fn calculate_metric_object(l: &Option<Self>, r: &Option<Self>) -> Option<Self::MetricObject> {
+    fn calculate_metric_object(l: &Option<&Self>, r: &Option<&Self>) -> Option<Self::MetricObject> {
         if let (Some(l), Some(r)) = (l, r) {
             if let (Some(l), Some(r)) = (&l.bbox, &r.bbox) {
                 let intersection = Universal2DBox::intersection(l, r);
@@ -91,28 +91,22 @@ mod tests {
         let attrs2 =
             VisualObservationAttributes::new(0.7, BoundingBox::new(0.0, 0.0, 3.0, 5.0).as_xyaah());
 
-        let dist = VisualObservationAttributes::calculate_metric_object(
-            &Some(attrs1.clone()),
-            &Some(attrs2.clone()),
-        )
-        .unwrap();
+        let dist =
+            VisualObservationAttributes::calculate_metric_object(&Some(&attrs1), &Some(&attrs2))
+                .unwrap();
         assert!((dist - 1.0).abs() < EPS);
 
         assert_eq!(&attrs1, &attrs2);
 
         attrs1.bbox = None;
-        let dist = VisualObservationAttributes::calculate_metric_object(
-            &Some(attrs1.clone()),
-            &Some(attrs2.clone()),
-        );
+        let dist =
+            VisualObservationAttributes::calculate_metric_object(&Some(&attrs1), &Some(&attrs2));
         assert_eq!(dist, None);
 
-        let dist =
-            VisualObservationAttributes::calculate_metric_object(&None, &Some(attrs2));
+        let dist = VisualObservationAttributes::calculate_metric_object(&None, &Some(&attrs2));
         assert_eq!(dist, None);
 
-        let dist =
-            VisualObservationAttributes::calculate_metric_object(&Some(attrs1), &None);
+        let dist = VisualObservationAttributes::calculate_metric_object(&Some(&attrs1), &None);
         assert_eq!(dist, None);
     }
 }

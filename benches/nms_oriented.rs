@@ -9,34 +9,30 @@ use test::Bencher;
 
 #[bench]
 fn nms_oriented_00010(b: &mut Bencher) {
-    bench_nms(10, b, nms);
+    bench_nms(10, b);
 }
 
 #[bench]
 fn nms_oriented_00100(b: &mut Bencher) {
-    bench_nms(100, b, nms);
+    bench_nms(100, b);
 }
 
 #[bench]
 fn nms_oriented_00300(b: &mut Bencher) {
-    bench_nms(300, b, nms);
+    bench_nms(300, b);
 }
 
 #[bench]
 fn nms_oriented_00500(b: &mut Bencher) {
-    bench_nms(500, b, nms);
+    bench_nms(500, b);
 }
 
 #[bench]
 fn nms_oriented_01000(b: &mut Bencher) {
-    bench_nms(1000, b, nms);
+    bench_nms(1000, b);
 }
 
-fn bench_nms(
-    objects: usize,
-    b: &mut Bencher,
-    f: fn(&[(Universal2DBox, Option<f32>)], f32, Option<f32>) -> Vec<&Universal2DBox>,
-) {
+fn bench_nms(objects: usize, b: &mut Bencher) {
     let pos_drift = 10.0;
     let box_drift = 1.0;
     let mut iterators = Vec::default();
@@ -53,6 +49,6 @@ fn bench_nms(
             let bb: Universal2DBox = b.unwrap().into();
             observations.push((bb.rotate(indx as f32 / 10.0).gen_vertices(), None));
         }
-        f(&observations, 0.8, None);
+        nms(&observations, 0.8, None);
     });
 }

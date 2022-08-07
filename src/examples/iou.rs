@@ -51,7 +51,8 @@ impl Default for IOUMetric {
 impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
     fn metric(&self, mq: &MetricQuery<'_, BBoxAttributes, BoundingBox>) -> MetricOutput<f32> {
         let (e1, e2) = (mq.candidate_observation, mq.track_observation);
-        let box_m_opt = BoundingBox::calculate_metric_object(&e1.0, &e2.0);
+        let box_m_opt =
+            BoundingBox::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref());
         if let Some(box_m) = &box_m_opt {
             if *box_m < 0.01 {
                 None

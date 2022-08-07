@@ -26,7 +26,8 @@ impl IOUSortMetric {
 impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
     fn metric(&self, mq: &MetricQuery<SortAttributes, Universal2DBox>) -> MetricOutput<f32> {
         let (e1, e2) = (mq.candidate_observation, mq.track_observation);
-        let box_m_opt = Universal2DBox::calculate_metric_object(e1.attr(), e2.attr());
+        let box_m_opt =
+            Universal2DBox::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref());
         box_m_opt.filter(|e| *e >= 0.01).map(|e| (Some(e), None))
     }
 
