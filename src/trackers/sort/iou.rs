@@ -56,7 +56,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
         let observation_bbox = observation.0.as_ref().unwrap();
         features.clear();
 
-        let predicted_bbox = attrs.make_prediction(&observation_bbox);
+        let predicted_bbox = attrs.make_prediction(observation_bbox);
         attrs.update_history(observation_bbox, &predicted_bbox);
 
         observation.0 = Some(predicted_bbox.gen_vertices());

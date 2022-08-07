@@ -82,7 +82,7 @@ pub struct SortAttributes {
 
 impl TrackAttributesKalmanPrediction for SortAttributes {
     fn get_state(&self) -> Option<KalmanState> {
-        self.state.clone()
+        self.state
     }
 
     fn set_state(&mut self, state: KalmanState) {

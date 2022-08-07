@@ -2,9 +2,10 @@ use crate::track::{
     NoopLookup, Observation, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::epoch_db::EpochDb;
+use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::{KalmanFilter, KalmanState};
+use crate::utils::kalman::KalmanState;
 use anyhow::Result;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
@@ -99,7 +100,7 @@ impl VisualAttributes {
         }
     }
 
-    fn update_history(
+    pub fn update_history(
         &mut self,
         observation_bbox: &Universal2DBox,
         predicted_bbox: &Universal2DBox,
@@ -117,19 +118,15 @@ impl VisualAttributes {
             self.observed_features.pop_front();
         }
     }
+}
 
-    fn update_bbox_prediction(&mut self, observation_bbox: &Universal2DBox) -> Universal2DBox {
-        let f = KalmanFilter::default();
+impl TrackAttributesKalmanPrediction for VisualAttributes {
+    fn get_state(&self) -> Option<KalmanState> {
+        self.state
+    }
 
-        let state = if let Some(state) = self.state {
-            f.update(state, observation_bbox.clone())
-        } else {
-            f.initiate(observation_bbox.clone())
-        };
-
-        let prediction = f.predict(state);
-        self.state = Some(prediction);
-        prediction.universal_bbox()
+    fn set_state(&mut self, state: KalmanState) {
+        self.state = Some(state);
     }
 }
 
@@ -142,12 +139,9 @@ pub struct VisualAttributesUpdate {
 
 impl VisualAttributesUpdate {
     pub fn new(epoch: usize, custom_object_id: Option<u64>) -> Self {
-        Self {
-            epoch,
-            scene_id: 0,
-            custom_object_id,
-        }
+        Self::new_with_scene(epoch, 0, custom_object_id)
     }
+
     pub fn new_with_scene(epoch: usize, scene_id: u64, custom_object_id: Option<u64>) -> Self {
         Self {
             epoch,

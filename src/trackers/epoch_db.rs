@@ -64,3 +64,56 @@ pub trait EpochDb {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::track::TrackStatus;
+    use crate::trackers::epoch_db::EpochDb;
+    use std::collections::HashMap;
+    use std::sync::RwLock;
+
+    #[test]
+    fn test_epoch_db() {
+        #[derive(Debug, Default)]
+        pub struct DbOptions {
+            /// The map that stores current epochs for the scene_id
+            epoch_db: Option<RwLock<HashMap<u64, usize>>>,
+            /// The maximum number of epochs without update while the track is alive
+            max_idle_epochs: usize,
+        }
+
+        impl EpochDb for DbOptions {
+            fn epoch_db(&self) -> &Option<RwLock<HashMap<u64, usize>>> {
+                &self.epoch_db
+            }
+
+            fn max_idle_epochs(&self) -> usize {
+                self.max_idle_epochs
+            }
+        }
+
+        let db = DbOptions {
+            epoch_db: Some(RwLock::new(HashMap::default())),
+            max_idle_epochs: 2,
+        };
+
+        assert_eq!(db.next_epoch(0), Some(1));
+        assert_eq!(db.next_epoch(0), Some(2));
+
+        assert_eq!(db.next_epoch(1), Some(1));
+        assert_eq!(db.next_epoch(1), Some(2));
+
+        assert_eq!(db.current_epoch_with_scene(0), Some(2));
+        assert_eq!(db.current_epoch_with_scene(1), Some(2));
+        assert_eq!(db.current_epoch_with_scene(2), Some(0));
+
+        db.skip_epochs_for_scene(0, 10);
+        db.skip_epochs_for_scene(1, 2);
+
+        assert!(matches!(db.baked(0, 2), Ok(TrackStatus::Wasted)));
+        assert!(matches!(db.baked(1, 2), Ok(TrackStatus::Pending)));
+
+        db.skip_epochs_for_scene(1, 1);
+        assert!(matches!(db.baked(1, 2), Ok(TrackStatus::Wasted)));
+    }
+}
