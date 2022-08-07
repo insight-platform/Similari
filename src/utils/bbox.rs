@@ -498,7 +498,6 @@ impl Universal2DBox {
             let p2 = r.get_vertices().as_ref().unwrap();
 
             sutherland_hodgman_clip(p1, p2).unsigned_area()
-            //p1.intersection(p2).unsigned_area()
         }
     }
 }
@@ -519,7 +518,6 @@ impl ObservationAttributes for Universal2DBox {
                     let union = (l._height * l._height * l._aspect
                         + r._height * r._height * r._aspect) as f64
                         - intersection;
-                    //let union = p1.union(p2).unsigned_area();
                     let res = intersection / union;
                     Some(res as f32)
                 }
