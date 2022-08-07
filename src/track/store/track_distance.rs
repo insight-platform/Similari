@@ -311,7 +311,7 @@ mod tests {
         const N: usize = 10000;
         for _ in 0..N {
             let t = store
-                .track_builder_random_id()
+                .new_track_random_id()
                 .observation(
                     ObservationBuilder::new(0)
                         .observation(vec2(1.0, 0.0))
@@ -323,7 +323,7 @@ mod tests {
         }
 
         let t1: Track<MockAttrs, MockMetric, f32> = store
-            .track_builder_random_id()
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.0, 0.0))
@@ -333,7 +333,7 @@ mod tests {
             .unwrap();
 
         let t2: Track<MockAttrs, MockMetric, f32> = store
-            .track_builder_random_id()
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(-1.0, 0.0))

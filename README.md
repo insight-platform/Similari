@@ -123,7 +123,7 @@ cargo bench
 
 Python interface exposes ready-to-use functions and classes of Similari. As for now, the Python interface provides:
 * the Kalman filter for co-axial and oriented boxes prediction;
-* NMS, parallel NMS;
+* NMS (Non-maximum suppression);
 * the Sutherland-Hodgman clipping, intersection area for oriented boxes;
 * SORT with IoU metric (IoUSort);
 * SORT with Mahalanobis metric (MahaSort);

@@ -705,7 +705,7 @@ mod tests {
             .build();
         const N: usize = 10;
         for _ in 0..N {
-            let t = store.track_builder_random_id().build().unwrap();
+            let t = store.new_track_random_id().build().unwrap();
             store.add_track(t).unwrap();
         }
         let res = store.lookup(Lookup);

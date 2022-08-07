@@ -118,7 +118,7 @@ fn main() {
         let (obj1f, obj1b) = (p1.next().unwrap(), b1.next().unwrap());
 
         let obj1t = store
-            .track_builder_random_id()
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj1f.0.unwrap())
@@ -132,7 +132,7 @@ fn main() {
         let (obj2f, obj2b) = (p2.next().unwrap(), b2.next().unwrap());
 
         let obj2t = store
-            .track_builder_random_id()
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj2f.0.unwrap())

@@ -4,21 +4,20 @@ extern crate test;
 
 use rand::{distributions::Uniform, Rng};
 use similari::examples::{UnboundAttributeUpdate, UnboundAttrs, UnboundMetric};
-use similari::store;
-use similari::track::{Observation, Track};
+use similari::track::Observation;
 
+use similari::prelude::TrackStoreBuilder;
 use similari::track::notify::NoopNotifier;
 use similari::track::utils::FromVec;
 use test::Bencher;
 
 fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Bencher) {
     const DEFAULT_FEATURE: u64 = 0;
-    let mut db = store::TrackStore::new(
-        Some(UnboundMetric::default()),
-        Some(UnboundAttrs::default()),
-        None,
-        num_cpus::get(),
-    );
+    let mut db = TrackStoreBuilder::new(num_cpus::get())
+        .metric(UnboundMetric::default())
+        .default_attributes(UnboundAttrs::default())
+        .notifier(NoopNotifier)
+        .build();
     let mut rng = rand::thread_rng();
     let gen = Uniform::new(0.0, 1.0);
 
@@ -37,12 +36,7 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
         }
     }
 
-    let mut t = Track::new(
-        count as u64 + 1,
-        Some(UnboundMetric::default()),
-        Some(UnboundAttrs::default()),
-        Some(NoopNotifier::default()),
-    );
+    let mut t = db.new_track(count as u64 + 1).build().unwrap();
     for _j in 0..track_len {
         let _ = t.add_observation(
             DEFAULT_FEATURE,

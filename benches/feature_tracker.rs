@@ -4,10 +4,10 @@ extern crate test;
 
 use similari::distance::euclidean;
 use similari::examples::FeatGen;
-use similari::store::TrackStore;
+use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use similari::track::{
     MetricOutput, NoopLookup, ObservationMetric, ObservationMetricOk, ObservationSpec,
-    ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -105,8 +105,11 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut store: TrackStore<NoopAttributes, TrackMetric, ()> =
-        TrackStore::new(None, None, None, ncores);
+    let mut store = TrackStoreBuilder::new(ncores)
+        .metric(TrackMetric::default())
+        .default_attributes(NoopAttributes::default())
+        .notifier(NoopNotifier)
+        .build();
 
     let voting: TopNVoting<()> = TopNVoting::new(1, 100.0, 1);
 
@@ -124,10 +127,14 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         for i in &mut iterators {
             iteration += 1;
             let b = i.next().unwrap().1;
-            let mut t: Track<NoopAttributes, TrackMetric, ()> =
-                Track::new(iteration, None, None, None);
-
-            t.add_observation(FEAT0, None, b, Some(NoopAttributesUpdate))
+            let t = store
+                .new_track(iteration)
+                .observation(
+                    ObservationBuilder::new(FEAT0)
+                        .observation(b.unwrap())
+                        .build(),
+                )
+                .build()
                 .unwrap();
             tracks.push(t);
         }

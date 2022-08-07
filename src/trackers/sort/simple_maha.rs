@@ -164,7 +164,7 @@ impl MahaSort {
             .iter()
             .map(|bb| {
                 self.store
-                    .track_builder(rng.gen())
+                    .new_track(rng.gen())
                     .observation(
                         ObservationBuilder::new(0)
                             .observation_attributes(bb.clone())

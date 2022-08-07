@@ -4,9 +4,8 @@ extern crate test;
 
 use similari::examples::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
 use similari::examples::BoxGen2;
-use similari::store::TrackStore;
-use similari::track::Track;
-use similari::utils::bbox::{BoundingBox, IOUTopNVoting};
+use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
+use similari::utils::bbox::IOUTopNVoting;
 use similari::voting::Voting;
 use std::time::Instant;
 use test::Bencher;
@@ -40,8 +39,11 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut store: TrackStore<BBoxAttributes, IOUMetric, BoundingBox> =
-        TrackStore::new(None, None, None, ncores);
+    let mut store = TrackStoreBuilder::new(ncores)
+        .metric(IOUMetric::default())
+        .default_attributes(BBoxAttributes::default())
+        .notifier(NoopNotifier)
+        .build();
 
     let voting = IOUTopNVoting {
         topn: 1,
@@ -70,11 +72,16 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         let tm = Instant::now();
         for i in &mut iterators {
             iteration += 1;
-            let b = i.next();
-            let mut t: Track<BBoxAttributes, IOUMetric, BoundingBox> =
-                Track::new(iteration, None, None, None);
-
-            t.add_observation(FEAT0, b, None, Some(BBoxAttributesUpdate))
+            let b = i.next().unwrap();
+            let t = store
+                .new_track(iteration)
+                .observation(
+                    ObservationBuilder::new(FEAT0)
+                        .observation_attributes(b)
+                        .track_attributes_update(BBoxAttributesUpdate)
+                        .build(),
+                )
+                .build()
                 .unwrap();
             tracks.push(t);
         }

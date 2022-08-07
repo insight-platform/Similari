@@ -29,7 +29,7 @@ fn main() {
 
         let track_id = u64::try_from(current_time_ms()).unwrap();
         let obj1t = store
-            .track_builder(track_id)
+            .new_track(track_id)
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj1b.into())
@@ -39,7 +39,7 @@ fn main() {
             .unwrap();
 
         let obj2t = store
-            .track_builder(track_id + 1)
+            .new_track(track_id + 1)
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj2b.into())

@@ -403,7 +403,7 @@ where
     ///
     /// Attributes, metric, notifier are cloned from store
     ///
-    pub fn track_builder(&self, track_id: u64) -> TrackBuilder<TA, M, OA, N> {
+    pub fn new_track(&self, track_id: u64) -> TrackBuilder<TA, M, OA, N> {
         TrackBuilder::new(track_id)
             .metric(self.metric.clone())
             .attributes(self.default_attributes.clone())
@@ -414,7 +414,7 @@ where
     ///
     /// Attributes, metric, notifier are cloned from store
     ///
-    pub fn track_builder_random_id(&self) -> TrackBuilder<TA, M, OA, N> {
+    pub fn new_track_random_id(&self) -> TrackBuilder<TA, M, OA, N> {
         TrackBuilder::default()
             .metric(self.metric.clone())
             .attributes(self.default_attributes.clone())
