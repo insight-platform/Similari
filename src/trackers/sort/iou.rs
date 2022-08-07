@@ -72,7 +72,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
         attrs.observed_boxes.push_back(observation_bbox.clone());
         attrs.predicted_boxes.push_back(predicted_bbox.clone());
 
-        if attrs.max_history_len > 0 && attrs.observed_boxes.len() > attrs.max_history_len {
+        if attrs.opts.history_len > 0 && attrs.observed_boxes.len() > attrs.opts.history_len {
             attrs.observed_boxes.pop_front();
             attrs.predicted_boxes.pop_front();
         }

@@ -59,7 +59,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
         attrs.observed_boxes.push_back(observation_bbox.clone());
         attrs.predicted_boxes.push_back(predicted_bbox.clone());
 
-        if attrs.max_history_len > 0 && attrs.observed_boxes.len() > attrs.max_history_len {
+        if attrs.opts.history_len > 0 && attrs.observed_boxes.len() > attrs.opts.history_len {
             attrs.observed_boxes.pop_front();
             attrs.predicted_boxes.pop_front();
         }
@@ -86,14 +86,17 @@ mod tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
     use crate::track::ObservationMetricOk;
     use crate::trackers::sort::maha::MahaSortMetric;
-    use crate::trackers::sort::SortAttributes;
+    use crate::trackers::sort::{SortAttributes, SortAttributesOptions};
     use crate::utils::bbox::Universal2DBox;
+    use std::sync::Arc;
 
     #[test]
     fn maha_track() {
         let mut track = TrackBuilder::new(0)
             .metric(MahaSortMetric::default())
-            .attributes(SortAttributes::new(5))
+            .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
+                None, 0, 5,
+            ))))
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(
@@ -108,7 +111,9 @@ mod tests {
 
         let new_seg = TrackBuilder::new(1)
             .metric(MahaSortMetric::default())
-            .attributes(SortAttributes::new(5))
+            .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
+                None, 0, 5,
+            ))))
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(
@@ -135,7 +140,9 @@ mod tests {
 
         let new_seg = TrackBuilder::new(1)
             .metric(MahaSortMetric::default())
-            .attributes(SortAttributes::new(5))
+            .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
+                None, 0, 5,
+            ))))
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(
@@ -161,7 +168,9 @@ mod tests {
 
         let new_seg = TrackBuilder::new(1)
             .metric(MahaSortMetric::default())
-            .attributes(SortAttributes::new(5))
+            .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
+                None, 0, 5,
+            ))))
             .observation(
                 ObservationBuilder::new(0)
                     .observation_attributes(

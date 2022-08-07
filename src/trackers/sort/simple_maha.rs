@@ -5,7 +5,9 @@ use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
 use crate::trackers::sort::maha::MahaSortMetric;
 use crate::trackers::sort::voting::SortVoting;
-use crate::trackers::sort::{PyWastedSortTrack, SortAttributes, SortAttributesUpdate};
+use crate::trackers::sort::{
+    PyWastedSortTrack, SortAttributes, SortAttributesOptions, SortAttributesUpdate,
+};
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
 use pyo3::prelude::*;
@@ -18,7 +20,7 @@ use std::sync::{Arc, RwLock};
 #[pyclass(text_signature = "(shards, bbox_history, max_idle_epochs)")]
 pub struct MahaSort {
     store: TrackStore<SortAttributes, MahaSortMetric, Universal2DBox>,
-    epoch: Arc<RwLock<HashMap<u64, usize>>>,
+    opts: Arc<SortAttributesOptions>,
 }
 
 impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for SortTrack {
@@ -62,18 +64,19 @@ impl MahaSort {
     ///
     pub fn new(shards: usize, bbox_history: usize, max_idle_epochs: usize) -> Self {
         assert!(bbox_history > 0);
-        let epoch = Arc::new(RwLock::new(HashMap::default()));
+        let epoch_db = RwLock::new(HashMap::default());
+        let opts = Arc::new(SortAttributesOptions::new(
+            Some(epoch_db),
+            max_idle_epochs,
+            bbox_history,
+        ));
         let store = TrackStoreBuilder::new(shards)
-            .default_attributes(SortAttributes::new_with_epochs(
-                bbox_history,
-                max_idle_epochs,
-                epoch.clone(),
-            ))
+            .default_attributes(SortAttributes::new(opts.clone()))
             .metric(MahaSortMetric::default())
             .notifier(NoopNotifier)
             .build();
 
-        Self { epoch, store }
+        Self { opts, store }
     }
 
     /// Skip number of epochs to force tracks to turn to terminal state
@@ -92,12 +95,7 @@ impl MahaSort {
     /// * `scene_id` - scene to skip epochs
     ///
     pub fn skip_epochs_for_scene(&mut self, scene_id: u64, n: usize) {
-        let mut epoch_store = self.epoch.write().unwrap();
-        if let Some(epoch) = epoch_store.get_mut(&scene_id) {
-            *epoch += n;
-        } else {
-            epoch_store.insert(scene_id, n);
-        }
+        self.opts.skip_epochs_for_scene(scene_id, n)
     }
 
     /// Get the amount of stored tracks per shard
@@ -118,13 +116,7 @@ impl MahaSort {
     /// * `scene_id` - scene id
     ///
     pub fn current_epoch_with_scene(&self, scene_id: u64) -> usize {
-        let mut epoch_map = self.epoch.write().unwrap();
-        let epoch = epoch_map.get_mut(&scene_id);
-        if let Some(epoch) = epoch {
-            *epoch
-        } else {
-            0
-        }
+        self.opts.current_epoch_with_scene(scene_id).unwrap()
     }
 
     /// Receive tracking information for observed bboxes of `scene_id` == 0
@@ -148,17 +140,7 @@ impl MahaSort {
         bboxes: &[Universal2DBox],
     ) -> Vec<SortTrack> {
         let mut rng = rand::thread_rng();
-        let epoch = {
-            let mut epoch_map = self.epoch.write().unwrap();
-            let epoch = epoch_map.get_mut(&scene_id);
-            if let Some(epoch) = epoch {
-                *epoch += 1;
-                *epoch
-            } else {
-                epoch_map.insert(scene_id, 1);
-                1
-            }
-        };
+        let epoch = self.opts.next_epoch(scene_id).unwrap();
 
         let tracks = bboxes
             .iter()

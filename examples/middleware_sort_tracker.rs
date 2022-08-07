@@ -2,8 +2,9 @@ use similari::examples::{current_time_ms, BoxGen2};
 use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use similari::trackers::sort::iou::IOUSortMetric;
 use similari::trackers::sort::voting::SortVoting;
-use similari::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
+use similari::trackers::sort::{SortAttributes, SortAttributesOptions, DEFAULT_SORT_IOU_THRESHOLD};
 use similari::voting::Voting;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -12,7 +13,11 @@ const BBOX_HISTORY: usize = 100;
 
 fn main() {
     let mut store = TrackStoreBuilder::default()
-        .default_attributes(SortAttributes::new(BBOX_HISTORY))
+        .default_attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            BBOX_HISTORY,
+        ))))
         .metric(IOUSortMetric::default())
         .notifier(NoopNotifier)
         .build();
