@@ -172,21 +172,16 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_ft_0010_256(b: &mut Bencher) {
+fn ft_0010_256x3(b: &mut Bencher) {
     benchmark(10, 256, b);
 }
 
 #[bench]
-fn bench_ft_0100_256(b: &mut Bencher) {
+fn ft_0100_256x3(b: &mut Bencher) {
     benchmark(100, 256, b);
 }
 
 #[bench]
-fn bench_ft_0500_256(b: &mut Bencher) {
+fn ft_0500_256x3(b: &mut Bencher) {
     benchmark(500, 256, b);
-}
-
-#[bench]
-fn bench_ft_1000_256(b: &mut Bencher) {
-    benchmark(1000, 256, b);
 }

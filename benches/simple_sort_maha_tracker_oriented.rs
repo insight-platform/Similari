@@ -8,23 +8,18 @@ use similari::utils::bbox::Universal2DBox;
 use test::Bencher;
 
 #[bench]
-fn bench_sort_maha_oriented_00010(b: &mut Bencher) {
+fn sort_maha_oriented_00010(b: &mut Bencher) {
     bench_sort(10, b);
 }
 
 #[bench]
-fn bench_sort_maha_oriented_00100(b: &mut Bencher) {
+fn sort_maha_oriented_00100(b: &mut Bencher) {
     bench_sort(100, b);
 }
 
 #[bench]
-fn bench_sort_maha_oriented_00500(b: &mut Bencher) {
+fn sort_maha_oriented_00500(b: &mut Bencher) {
     bench_sort(500, b);
-}
-
-#[bench]
-fn bench_sort_maha_oriented_01000(b: &mut Bencher) {
-    bench_sort(1000, b);
 }
 
 fn bench_sort(objects: usize, b: &mut Bencher) {

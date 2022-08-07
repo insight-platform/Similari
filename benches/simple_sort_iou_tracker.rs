@@ -8,23 +8,18 @@ use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use test::Bencher;
 
 #[bench]
-fn bench_sort_iou_00010(b: &mut Bencher) {
+fn sort_iou_00010(b: &mut Bencher) {
     bench_sort(10, b);
 }
 
 #[bench]
-fn bench_sort_iou_00100(b: &mut Bencher) {
+fn sort_iou_00100(b: &mut Bencher) {
     bench_sort(100, b);
 }
 
 #[bench]
-fn bench_sort_iou_00500(b: &mut Bencher) {
+fn sort_iou_00500(b: &mut Bencher) {
     bench_sort(500, b);
-}
-
-#[bench]
-fn bench_sort_iou_01000(b: &mut Bencher) {
-    bench_sort(1000, b);
 }
 
 fn bench_sort(objects: usize, b: &mut Bencher) {

@@ -13,22 +13,22 @@ use test::Bencher;
 const FEAT0: u64 = 0;
 
 #[bench]
-fn bench_iou_00010_4cores(b: &mut Bencher) {
+fn iou_00010x3(b: &mut Bencher) {
     bench_iou(10, b);
 }
 
 #[bench]
-fn bench_iou_00100_4cores(b: &mut Bencher) {
+fn iou_00100x3(b: &mut Bencher) {
     bench_iou(100, b);
 }
 
 #[bench]
-fn bench_iou_00500_4cores(b: &mut Bencher) {
+fn iou_00500x3(b: &mut Bencher) {
     bench_iou(500, b);
 }
 
 #[bench]
-fn bench_iou_01000_4cores(b: &mut Bencher) {
+fn iou_01000x3(b: &mut Bencher) {
     bench_iou(1000, b);
 }
 

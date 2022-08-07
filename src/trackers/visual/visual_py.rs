@@ -1,4 +1,4 @@
-use crate::trackers::visual::PositionalMetricType;
+use crate::trackers::visual::metric::PositionalMetricType;
 use pyo3::prelude::*;
 
 #[pyclass]

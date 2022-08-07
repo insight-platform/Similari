@@ -1,6 +1,6 @@
 use crate::track::ObservationMetricOk;
 use crate::trackers::sort::voting::SortVoting;
-use crate::trackers::visual::VisualObservationAttributes;
+use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::topn::TopNVoting;
 use crate::voting::Voting;

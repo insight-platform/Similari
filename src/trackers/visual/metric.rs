@@ -45,9 +45,9 @@ pub struct VisualMetricOptions {
     visual_kind: VisualMetricType,
     positional_kind: PositionalMetricType,
     visual_minimal_track_length: usize,
-    visual_minimal_area: f32,
-    visual_minimal_quality_use: f32,
-    visual_minimal_quality_collect: f32,
+    // visual_minimal_area: f32,
+    // visual_minimal_quality_use: f32,
+    // visual_minimal_quality_collect: f32,
     visual_max_observations: usize,
 }
 
@@ -153,9 +153,9 @@ impl VisualMetricBuilder {
                 visual_kind: self.visual_kind,
                 positional_kind: self.positional_kind,
                 visual_minimal_track_length: self.visual_minimal_track_length,
-                visual_minimal_area: self.visual_minimal_area,
-                visual_minimal_quality_use: self.visual_minimal_quality_use,
-                visual_minimal_quality_collect: self.visual_minimal_quality_collect,
+                // visual_minimal_area: self.visual_minimal_area,
+                // visual_minimal_quality_use: self.visual_minimal_quality_use,
+                // visual_minimal_quality_collect: self.visual_minimal_quality_collect,
                 visual_max_observations: self.visual_max_observations,
             }),
         }
