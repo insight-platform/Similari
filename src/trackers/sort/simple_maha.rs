@@ -72,7 +72,7 @@ impl MahaSort {
         ));
         let store = TrackStoreBuilder::new(shards)
             .default_attributes(SortAttributes::new(opts.clone()))
-            .metric(MahaSortMetric::default())
+            .metric(MahaSortMetric)
             .notifier(NoopNotifier)
             .build();
 

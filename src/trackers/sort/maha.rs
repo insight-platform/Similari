@@ -4,7 +4,7 @@ use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
 use anyhow::Result;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct MahaSortMetric;
 
 impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn maha_track() {
         let mut track = TrackBuilder::new(0)
-            .metric(MahaSortMetric::default())
+            .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
                 None, 0, 5,
             ))))
@@ -110,7 +110,7 @@ mod tests {
         assert!(track.get_attributes().state.is_some());
 
         let new_seg = TrackBuilder::new(1)
-            .metric(MahaSortMetric::default())
+            .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
                 None, 0, 5,
             ))))
@@ -139,7 +139,7 @@ mod tests {
         track.merge(&new_seg, &[0], true).unwrap();
 
         let new_seg = TrackBuilder::new(1)
-            .metric(MahaSortMetric::default())
+            .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
                 None, 0, 5,
             ))))
@@ -167,7 +167,7 @@ mod tests {
         ));
 
         let new_seg = TrackBuilder::new(1)
-            .metric(MahaSortMetric::default())
+            .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
                 None, 0, 5,
             ))))
