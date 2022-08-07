@@ -32,15 +32,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for IOUSortMetric {
         e2: &ObservationSpec<Universal2DBox>,
     ) -> MetricOutput<f32> {
         let box_m_opt = Universal2DBox::calculate_metric_object(&e1.0, &e2.0);
-        if let Some(box_m) = &box_m_opt {
-            if *box_m < 0.01 {
-                None
-            } else {
-                Some((box_m_opt, None))
-            }
-        } else {
-            None
-        }
+        box_m_opt.filter(|e| *e >= 0.01).map(|e| (Some(e), None))
     }
 
     fn optimize(

@@ -19,6 +19,18 @@ impl VisualObservationAttributes {
     pub fn unchecked_bbox_ref(&self) -> &Universal2DBox {
         self.bbox.as_ref().unwrap()
     }
+
+    pub fn bbox_opt(&self) -> &Option<Universal2DBox> {
+        &self.bbox
+    }
+
+    pub fn drop_bbox(&mut self) {
+        self.bbox = None;
+    }
+
+    pub fn visual_quality(&self) -> f32 {
+        self.visual_quality
+    }
 }
 
 impl ObservationAttributes for VisualObservationAttributes {

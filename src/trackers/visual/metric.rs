@@ -1,16 +1,16 @@
 use crate::distance::{cosine, euclidean};
 use crate::track::{MetricOutput, ObservationMetric, ObservationSpec};
 use crate::track::{Observation, ObservationAttributes};
-use crate::trackers::visual::{
-    PositionalMetricType, VisualAttributes, VisualMetric, VisualMetricType,
-    VisualObservationAttributes,
-};
+use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
+use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+use crate::trackers::visual::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
 use anyhow::Result;
-use itertools::Itertools;
+use pyo3::prelude::*;
 use std::default::Default;
 use std::iter::Iterator;
+use std::sync::Arc;
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -41,14 +41,19 @@ pub enum PositionalMetricType {
     Ignore,
 }
 
-#[derive(Clone)]
-pub struct VisualMetric {
+pub struct VisualMetricOptions {
     visual_kind: VisualMetricType,
     positional_kind: PositionalMetricType,
     visual_minimal_track_length: usize,
     visual_minimal_area: f32,
     visual_minimal_quality_use: f32,
     visual_minimal_quality_collect: f32,
+    visual_max_observations: usize,
+}
+
+#[derive(Clone)]
+pub struct VisualMetric {
+    opts: Arc<VisualMetricOptions>,
 }
 
 impl Default for VisualMetric {
@@ -64,6 +69,7 @@ pub struct VisualMetricBuilder {
     visual_minimal_area: f32,
     visual_minimal_quality_use: f32,
     visual_minimal_quality_collect: f32,
+    visual_max_observations: usize,
 }
 
 /// By default the metric object is constructed with: Euclidean visual metric, IoU(0.3) positional metric
@@ -78,6 +84,7 @@ impl Default for VisualMetricBuilder {
             visual_minimal_area: 0.0,
             visual_minimal_quality_use: 0.0,
             visual_minimal_quality_collect: 0.0,
+            visual_max_observations: 5,
         }
     }
 }
@@ -126,6 +133,11 @@ impl VisualMetricBuilder {
         self
     }
 
+    pub fn visual_max_observations(mut self, n: usize) -> Self {
+        self.visual_max_observations = n;
+        self
+    }
+
     pub fn visual_minimal_quality_collect(mut self, q: f32) -> Self {
         assert!(
             q >= 0.0,
@@ -137,22 +149,25 @@ impl VisualMetricBuilder {
 
     pub fn build(self) -> VisualMetric {
         VisualMetric {
-            visual_kind: self.visual_kind,
-            positional_kind: self.positional_kind,
-            visual_minimal_track_length: self.visual_minimal_track_length,
-            visual_minimal_area: self.visual_minimal_area,
-            visual_minimal_quality_use: self.visual_minimal_quality_use,
-            visual_minimal_quality_collect: self.visual_minimal_quality_collect,
+            opts: Arc::new(VisualMetricOptions {
+                visual_kind: self.visual_kind,
+                positional_kind: self.positional_kind,
+                visual_minimal_track_length: self.visual_minimal_track_length,
+                visual_minimal_area: self.visual_minimal_area,
+                visual_minimal_quality_use: self.visual_minimal_quality_use,
+                visual_minimal_quality_collect: self.visual_minimal_quality_collect,
+                visual_max_observations: self.visual_max_observations,
+            }),
         }
     }
 }
 
 impl VisualMetric {
     fn cleanup_observations(
-        attrs: &mut VisualAttributes,
+        &self,
         observations: &mut Vec<ObservationSpec<VisualObservationAttributes>>,
     ) {
-        if observations.len() > attrs.max_observations {
+        if observations.len() > self.opts.visual_max_observations {
             observations.swap_remove(0);
         } else {
             let last = observations.len() - 1;
@@ -162,22 +177,20 @@ impl VisualMetric {
         // remove all old bboxes
         observations.iter_mut().skip(1).for_each(|f| {
             if let Some(e) = &mut f.0 {
-                e.bbox = None;
+                e.drop_bbox();
             }
         });
 
-        // if historic element doesn't hold the feature, remove it from the observations
-        let to_remove_no_feature = observations
-            .iter()
-            .skip(1)
-            .enumerate()
-            .filter(|(_, e)| e.1.is_none())
-            .map(|(i, _)| i)
-            .collect::<Vec<_>>();
-
-        for i in to_remove_no_feature {
-            observations.remove(i);
-        }
+        // if historic elements don't hold the feature, remove them from the observations
+        let mut skip = true;
+        observations.retain(|e| {
+            if skip {
+                skip = false;
+                true
+            } else {
+                e.1.is_some()
+            }
+        });
     }
 
     fn positional_metric(
@@ -189,14 +202,13 @@ impl VisualMetric {
         if let (Some(candidate_observation_bbox), Some(track_observation_bbox)) =
             (candidate_observation_bbox_opt, track_observation_bbox_opt)
         {
-            match self.positional_kind {
+            match self.opts.positional_kind {
                 PositionalMetricType::Mahalanobis => {
-                    let f = KalmanFilter::default();
-                    let state = track_attributes.state.unwrap();
-
                     if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
                         None
                     } else {
+                        let state = track_attributes.get_state().unwrap();
+                        let f = KalmanFilter::default();
                         let dist = f.distance(state, candidate_observation_bbox);
                         Some(KalmanFilter::calculate_cost(dist, true))
                     }
@@ -209,15 +221,7 @@ impl VisualMetric {
                             &candidate_observation_bbox_opt,
                             &track_observation_bbox_opt,
                         );
-                        if let Some(box_m) = &box_m_opt {
-                            if *box_m <= threshold {
-                                None
-                            } else {
-                                box_m_opt
-                            }
-                        } else {
-                            None
-                        }
+                        box_m_opt.filter(|e| *e >= threshold)
                     }
                 }
                 PositionalMetricType::Ignore => None,
@@ -233,8 +237,9 @@ impl VisualMetric {
         track_observation_feature: &Observation,
         track_attributes: &VisualAttributes,
     ) -> Option<f32> {
-        if track_attributes.visual_features_collected_count >= self.visual_minimal_track_length {
-            Some(match self.visual_kind {
+        if track_attributes.visual_features_collected_count >= self.opts.visual_minimal_track_length
+        {
+            Some(match self.opts.visual_kind {
                 VisualMetricType::Euclidean => {
                     euclidean(candidate_observation_feature, track_observation_feature)
                 }
@@ -257,8 +262,8 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
         candidate_observation: &ObservationSpec<VisualObservationAttributes>,
         track_observation: &ObservationSpec<VisualObservationAttributes>,
     ) -> MetricOutput<f32> {
-        let candidate_observation_bbox_opt = &candidate_observation.0.as_ref().unwrap().bbox;
-        let track_observation_bbox_opt = &track_observation.0.as_ref().unwrap().bbox;
+        let candidate_observation_bbox_opt = candidate_observation.0.as_ref().unwrap().bbox_opt();
+        let track_observation_bbox_opt = track_observation.0.as_ref().unwrap().bbox_opt();
 
         let candidate_observation_feature = candidate_observation.1.as_ref().unwrap();
         let track_observation_feature = track_observation.1.as_ref().unwrap();
@@ -287,17 +292,16 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
         _is_merge: bool,
     ) -> Result<()> {
         let mut observation_spec = observations.pop().unwrap();
-        let observation_bbox = observation_spec.0.as_ref().unwrap().bbox.as_ref().unwrap();
-        let feature_quality = observation_spec.0.as_ref().unwrap().visual_quality;
+        let observation_bbox = observation_spec.0.as_ref().unwrap().unchecked_bbox_ref();
+        let feature_quality = observation_spec.0.as_ref().unwrap().visual_quality();
         let observation_feature = observation_spec.1.clone();
 
-        let predicted_bbox = attrs.update_bbox_prediction(observation_bbox);
-
+        let predicted_bbox = attrs.make_prediction(observation_bbox);
         attrs.update_history(observation_bbox, &predicted_bbox, observation_feature);
 
         observation_spec.0 = Some(VisualObservationAttributes::new(
             feature_quality,
-            match self.positional_kind {
+            match self.opts.positional_kind {
                 PositionalMetricType::Mahalanobis | PositionalMetricType::Ignore => predicted_bbox,
                 PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
             },
@@ -305,7 +309,7 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
 
         observations.push(observation_spec);
 
-        VisualMetric::cleanup_observations(attrs, observations);
+        self.cleanup_observations(observations);
 
         attrs.visual_features_collected_count =
             observations.iter().filter(|f| f.1.is_some()).count();
@@ -318,12 +322,14 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
 mod optimize {
     use crate::examples::vec2;
     use crate::track::{ObservationMetric, ObservationSpec};
-    use crate::trackers::visual::{
-        PositionalMetricType, VisualAttributes, VisualMetricBuilder, VisualMetricType,
-        VisualObservationAttributes,
+    use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::visual::metric::{
+        PositionalMetricType, VisualMetricBuilder, VisualMetricType,
     };
-    use crate::utils::bbox::{BoundingBox, Universal2DBox};
-    use std::collections::VecDeque;
+    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual::track_attributes::VisualAttributes;
+    use crate::utils::bbox::BoundingBox;
+    use std::sync::Arc;
 
     #[test]
     fn optimization_steps() {
@@ -332,21 +338,7 @@ mod optimize {
             .visual_metric(VisualMetricType::Euclidean)
             .build();
 
-        let mut attrs = VisualAttributes {
-            predicted_boxes: VecDeque::default(),
-            observed_boxes: VecDeque::default(),
-            observed_features: VecDeque::default(),
-            last_updated_epoch: 0,
-            track_length: 0,
-            visual_features_collected_count: 0,
-            scene_id: 0,
-            custom_object_id: None,
-            state: None,
-            max_observations: 2,
-            max_history_len: 2,
-            max_idle_epochs: 3,
-            current_epochs: None,
-        };
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
 
         let mut obs = vec![ObservationSpec(
             Some(VisualObservationAttributes::new(
@@ -421,14 +413,14 @@ mod optimize {
             .optimize(0, &[], &mut attrs, &mut obs, 0, false)
             .unwrap();
 
-        assert_eq!(attrs.observed_features.len(), 2);
-        assert_eq!(attrs.observed_boxes.len(), 2);
-        assert_eq!(attrs.predicted_boxes.len(), 2);
+        assert_eq!(attrs.observed_features.len(), 3);
+        assert_eq!(attrs.observed_boxes.len(), 3);
+        assert_eq!(attrs.predicted_boxes.len(), 3);
         assert_eq!(attrs.track_length, 3);
         assert_eq!(obs.len(), 2);
         assert!(matches!(
             obs[0].clone(),
-            ObservationSpec(Some(VisualObservationAttributes{ visual_quality: _, bbox: Some(Universal2DBox { .. })}), Some(o)) if o[0].to_array()[..2] == [0.1 , 1.1]
+            ObservationSpec(Some(a), Some(o)) if a.bbox_opt().is_some() && o[0].to_array()[..2] == [0.1 , 1.1]
         ));
     }
 }
@@ -439,30 +431,18 @@ mod metric {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
     use crate::store::TrackStore;
     use crate::track::ObservationMetricOk;
-    use crate::trackers::visual::{
-        PositionalMetricType, VisualAttributes, VisualMetric, VisualMetricBuilder,
-        VisualMetricType, VisualObservationAttributes,
+    use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::visual::metric::{
+        PositionalMetricType, VisualMetric, VisualMetricBuilder, VisualMetricType,
     };
+    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual::track_attributes::VisualAttributes;
     use crate::utils::bbox::BoundingBox;
     use crate::EPS;
-    use std::collections::VecDeque;
+    use std::sync::Arc;
 
     fn default_attrs() -> VisualAttributes {
-        VisualAttributes {
-            predicted_boxes: VecDeque::default(),
-            observed_boxes: VecDeque::default(),
-            observed_features: VecDeque::default(),
-            last_updated_epoch: 0,
-            track_length: 0,
-            visual_features_collected_count: 0,
-            scene_id: 0,
-            custom_object_id: None,
-            state: None,
-            max_observations: 2,
-            max_history_len: 2,
-            max_idle_epochs: 3,
-            current_epochs: None,
-        }
+        VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)))
     }
 
     fn default_store(
@@ -485,7 +465,7 @@ mod metric {
         let store = default_store(metric);
 
         let track1 = store
-            .track_builder(1)
+            .new_track(1)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.1))
@@ -499,7 +479,7 @@ mod metric {
             .unwrap();
 
         let track2 = store
-            .track_builder(2)
+            .new_track(2)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.0))
@@ -534,7 +514,7 @@ mod metric {
         let store = default_store(metric);
 
         let track1 = store
-            .track_builder(1)
+            .new_track(1)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.1))
@@ -548,7 +528,7 @@ mod metric {
             .unwrap();
 
         let track2 = store
-            .track_builder(2)
+            .new_track(2)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.0))
@@ -583,7 +563,7 @@ mod metric {
         let store = default_store(metric);
 
         let track1 = store
-            .track_builder(1)
+            .new_track(1)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(1.0, 0.0))
@@ -597,7 +577,7 @@ mod metric {
             .unwrap();
 
         let track2 = store
-            .track_builder(2)
+            .new_track(2)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(1.0, 0.0))
@@ -633,7 +613,7 @@ mod metric {
         let store = default_store(metric);
 
         let track1 = store
-            .track_builder(1)
+            .new_track(1)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.1))
@@ -647,7 +627,7 @@ mod metric {
             .unwrap();
 
         let track2 = store
-            .track_builder(2)
+            .new_track(2)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.0))
@@ -683,7 +663,7 @@ mod metric {
         let store = default_store(metric);
 
         let track1 = store
-            .track_builder(1)
+            .new_track(1)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.0))
@@ -697,7 +677,7 @@ mod metric {
             .unwrap();
 
         let track2 = store
-            .track_builder(2)
+            .new_track(2)
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.0))

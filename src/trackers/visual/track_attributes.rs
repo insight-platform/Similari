@@ -3,45 +3,13 @@ use crate::track::{
 };
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
+use crate::trackers::sort::SortAttributesOptions;
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanState;
 use anyhow::Result;
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, RwLock};
-
-#[derive(Debug, Default)]
-pub struct VisualAttributesOpts {
-    // how long history (bboxes, observations) can be kept in attributes
-    history_length: usize,
-    // when the track becomes wasted
-    max_idle_epochs: usize,
-    epoch_db: Option<RwLock<HashMap<u64, usize>>>,
-}
-
-impl EpochDb for VisualAttributesOpts {
-    fn epoch_db(&self) -> &Option<RwLock<HashMap<u64, usize>>> {
-        &self.epoch_db
-    }
-
-    fn max_idle_epochs(&self) -> usize {
-        self.max_idle_epochs
-    }
-}
-
-impl VisualAttributesOpts {
-    pub fn new(
-        epoch_db: Option<RwLock<HashMap<u64, usize>>>,
-        max_idle_epochs: usize,
-        history_length: usize,
-    ) -> Self {
-        Self {
-            history_length,
-            max_idle_epochs,
-            epoch_db,
-        }
-    }
-}
+use std::collections::VecDeque;
+use std::sync::Arc;
 
 /// Universal visual attributes for visual trackers
 ///
@@ -65,7 +33,7 @@ pub struct VisualAttributes {
     pub custom_object_id: Option<u64>,
 
     state: Option<KalmanState>,
-    opts: Arc<VisualAttributesOpts>,
+    opts: Arc<SortAttributesOptions>,
 }
 
 impl Default for VisualAttributes {
@@ -80,7 +48,7 @@ impl Default for VisualAttributes {
             scene_id: 0,
             custom_object_id: None,
             state: None,
-            opts: Arc::new(VisualAttributesOpts::default()),
+            opts: Arc::new(SortAttributesOptions::default()),
         }
     }
 }
@@ -89,11 +57,9 @@ impl VisualAttributes {
     /// Creates new attributes with limited history
     ///
     /// # Parameters
-    /// * `history_len` - how long history to hold. 0 means all history.
-    /// * `max_idle_epochs` - how long to wait before exclude the track from store.
-    /// * `current_epoch` - current epoch counter.
+    /// * `opts` - attribute options.
     ///
-    pub fn new(opts: Arc<VisualAttributesOpts>) -> Self {
+    pub fn new(opts: Arc<SortAttributesOptions>) -> Self {
         Self {
             opts,
             ..Default::default()
@@ -179,5 +145,41 @@ impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAt
         _observations: &ObservationsDb<VisualObservationAttributes>,
     ) -> Result<TrackStatus> {
         self.opts.baked(self.scene_id, self.last_updated_epoch)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::visual::track_attributes::VisualAttributes;
+    use crate::utils::bbox::BoundingBox;
+    use std::collections::HashMap;
+    use std::sync::{Arc, RwLock};
+
+    #[test]
+    fn attribute_operations() {
+        let opts = SortAttributesOptions::new(Some(RwLock::new(HashMap::default())), 5, 1);
+        let mut attributes = VisualAttributes::new(Arc::new(opts));
+        attributes.update_history(
+            &BoundingBox::new(0.0, 3.0, 5.0, 7.0).as_xyaah(),
+            &BoundingBox::new(0.1, 3.1, 5.1, 7.1).as_xyaah(),
+            None,
+        );
+
+        assert_eq!(attributes.observed_boxes.len(), 1);
+        assert_eq!(attributes.predicted_boxes.len(), 1);
+        assert_eq!(attributes.observed_features.len(), 1);
+        assert_eq!(attributes.track_length, 1);
+
+        attributes.update_history(
+            &BoundingBox::new(0.0, 3.0, 5.0, 7.0).as_xyaah(),
+            &BoundingBox::new(0.1, 3.1, 5.1, 7.1).as_xyaah(),
+            None,
+        );
+
+        assert_eq!(attributes.observed_boxes.len(), 1);
+        assert_eq!(attributes.predicted_boxes.len(), 1);
+        assert_eq!(attributes.observed_features.len(), 1);
+        assert_eq!(attributes.track_length, 2);
     }
 }

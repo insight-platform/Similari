@@ -33,7 +33,7 @@ pub struct SortAttributesOptions {
     /// The maximum number of epochs without update while the track is alive
     max_idle_epochs: usize,
     /// The maximum length of collected objects for the track
-    history_length: usize,
+    pub history_length: usize,
 }
 
 impl EpochDb for SortAttributesOptions {

@@ -1,4 +1,5 @@
-//pub mod metric;
+/// Track metric implementation
+pub mod metric;
 
 // Implementation of Python-only structs and their implementations
 //
