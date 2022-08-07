@@ -598,9 +598,7 @@ mod tests {
         )?;
 
         let res = store.merge_owned(0, 1, None, false, true);
-        if let Err(_) = res {
-            unreachable!();
-        }
+        assert!(res.is_ok());
 
         let res = store.merge_owned(0, 1, None, true, true);
         if let Ok(Some(t)) = res {
