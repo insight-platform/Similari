@@ -1,5 +1,5 @@
 pub mod builder;
-mod tests;
+mod store_tests;
 pub mod track_distance;
 
 use crate::prelude::TrackBuilder;

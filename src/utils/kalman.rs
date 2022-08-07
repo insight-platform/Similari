@@ -261,7 +261,7 @@ mod tests {
         let f = KalmanFilter::default();
         let bbox = BoundingBox::new(1.0, 2.0, 5.0, 5.0);
 
-        let state = f.initiate(bbox.clone().into());
+        let state = f.initiate(bbox.into());
         let new_bb = state.bbox();
         assert_eq!(new_bb.unwrap(), bbox.clone());
     }
@@ -271,20 +271,20 @@ mod tests {
         let f = KalmanFilter::default();
         let bbox = BoundingBox::new(-10.0, 2.0, 2.0, 5.0);
 
-        let state = f.initiate(bbox.clone().into());
+        let state = f.initiate(bbox.into());
         let state = f.predict(state);
         let p = state.universal_bbox();
 
         let est_p = Universal2DBox::new(-9.0, 4.5, None, 0.4, 5.0);
-        assert_eq!(p.almost_same(&est_p, EPS), true);
+        assert!(p.almost_same(&est_p, EPS));
 
-        let bbox = Universal2DBox::new(8.75, 52.349999999999994, None, 0.15084915084915085, 100.1);
+        let bbox = Universal2DBox::new(8.75, 52.35, None, 0.150_849_15, 100.1);
         let state = f.update(state, bbox);
         let est_p = Universal2DBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
 
         let state = f.predict(state);
         let p = state.universal_bbox();
-        assert_eq!(p.almost_same(&est_p, EPS), true);
+        assert!(p.almost_same(&est_p, EPS));
     }
 
     #[test]
@@ -298,7 +298,7 @@ mod tests {
 
         let new_bbox_2 = BoundingBox::new(-5.0, 1.5, 2.2, 5.0);
 
-        let state = f.initiate(bbox.clone().into());
+        let state = f.initiate(bbox.into());
         let state = f.predict(state);
         let state = f.update(state, upd_bbox.into());
         let state = f.predict(state);
@@ -306,7 +306,7 @@ mod tests {
         let dist = f.distance(state, &new_bbox_1.into());
         let dist = KalmanFilter::calculate_cost(dist, false);
         dbg!(&dist);
-        assert!(dist >= 0.0 && dist < CHI2INV95[4]);
+        assert!((0.0..CHI2INV95[4]).contains(&dist));
 
         let dist = f.distance(state, &new_bbox_2.into());
         let dist = KalmanFilter::calculate_cost(dist, false);

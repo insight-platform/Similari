@@ -230,7 +230,7 @@ mod tests {
         let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
-        let v = t.predict(&vec![bb.into()]);
+        let v = t.predict(&[bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
@@ -242,7 +242,7 @@ mod tests {
         assert_eq!(t.current_epoch(), 1);
 
         let bb = BoundingBox::new(0.1, 0.1, 10.1, 20.0);
-        let v = t.predict(&vec![bb.into()]);
+        let v = t.predict(&[bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
@@ -284,13 +284,13 @@ mod tests {
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.predict_with_scene(1, &vec![bb.into()]);
-        let _v = t.predict_with_scene(1, &vec![bb.into()]);
+        let _v = t.predict_with_scene(1, &[bb.into()]);
+        let _v = t.predict_with_scene(1, &[bb.into()]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.predict_with_scene(2, &vec![bb.into()]);
+        let _v = t.predict_with_scene(2, &[bb.into()]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 1);

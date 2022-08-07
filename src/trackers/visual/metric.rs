@@ -457,7 +457,7 @@ mod optimize {
 }
 
 #[cfg(test)]
-mod metric {
+mod metric_tests {
     use crate::examples::vec2;
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
     use crate::store::TrackStore;
@@ -683,15 +683,22 @@ mod metric {
 
         let dists = track1.distances(&track2, 0).unwrap();
         assert_eq!(dists.len(), 2);
-        for i in 0..1 {
-            assert!(matches!(
-            dists[i],
+        assert!(matches!(
+            dists[0],
             ObservationMetricOk {
                 from: 1,
                 to: 2,
                 attribute_metric: Some(x),
                 feature_distance: Some(y)     // track too short
             } if (x - 1.0).abs() < EPS && y.abs() < EPS));
-        }
+
+        assert!(matches!(
+            dists[1],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: None,
+                feature_distance: Some(y)     // track too short
+            } if y.abs() < EPS));
     }
 }

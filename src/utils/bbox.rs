@@ -362,10 +362,10 @@ mod polygons {
 
     #[test]
     fn corner_case_f32() {
-        let x = Universal2DBox::new(8044.315, 8011.0454, Some(2.67877485), 1.00801, 49.8073);
+        let x = Universal2DBox::new(8044.315, 8011.0454, Some(2.678_774_8), 1.00801, 49.8073);
         let polygon_x = Polygon::from(&x);
 
-        let y = Universal2DBox::new(8044.455, 8011.338, Some(2.67877485), 1.0083783, 49.79979);
+        let y = Universal2DBox::new(8044.455, 8011.338, Some(2.678_774_8), 1.0083783, 49.79979);
         let polygon_y = Polygon::from(&y);
 
         dbg!(&polygon_x, &polygon_y);
@@ -561,23 +561,23 @@ mod tests {
         };
 
         assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap()
+            BoundingBox::calculate_metric_object(&Some(bb1), &Some(bb1)).unwrap()
                 > 0.999
         );
         assert!(
-            BoundingBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap()
+            BoundingBox::calculate_metric_object(&Some(bb2), &Some(bb2)).unwrap()
                 > 0.999
         );
         assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap()
+            BoundingBox::calculate_metric_object(&Some(bb1), &Some(bb2)).unwrap()
                 > 0.8
         );
         assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap()
+            BoundingBox::calculate_metric_object(&Some(bb1), &Some(bb3)).unwrap()
                 < 0.001
         );
         assert!(
-            BoundingBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap()
+            BoundingBox::calculate_metric_object(&Some(bb2), &Some(bb3)).unwrap()
                 < 0.001
         );
     }

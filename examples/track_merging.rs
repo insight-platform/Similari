@@ -54,7 +54,7 @@ struct CamTrackingAttributes {
 impl CamTrackingAttributes {
     // calculate age as average over observations
     pub fn get_age(&self) -> Option<u8> {
-        if self.age.len() == 0 {
+        if self.age.is_empty() {
             return None;
         }
         u8::try_from(self.age.iter().map(|e| *e as u32).sum::<u32>() / self.age.len() as u32).ok()
@@ -69,7 +69,7 @@ impl CamTrackingAttributes {
         let groups = self.gender.clone();
         let mut groups = groups.into_iter().counts().into_iter().collect::<Vec<_>>();
         groups.sort_by(|(_, l), (_, r)| r.partial_cmp(l).unwrap());
-        groups[0].0.clone()
+        groups[0].0
     }
 }
 
@@ -128,7 +128,7 @@ impl TrackAttributesUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdat
                 // update may be without the gender, if observer cannot determine the
                 // gender within the observation
                 if let Some(gender) = gender {
-                    attrs.gender.push(gender.clone());
+                    attrs.gender.push(*gender);
                 }
 
                 // same for age
@@ -427,7 +427,7 @@ fn main() {
         thread::sleep(Duration::from_millis(1));
         let baked = temp_store.find_usable();
         for (id, s) in baked {
-            let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
+            let mut track = temp_store.fetch_tracks(&[id]).pop().unwrap();
             if let Ok(TrackStatus::Ready) = s {
                 let search_track = track.clone();
                 track
@@ -468,7 +468,7 @@ fn main() {
     let baked = merge_store.find_usable();
     for (id, s) in baked {
         if let Ok(TrackStatus::Ready) = s {
-            let track = merge_store.fetch_tracks(&vec![id]).pop().unwrap();
+            let track = merge_store.fetch_tracks(&[id]).pop().unwrap();
             eprintln!(
                 "Composite Track is ready: {}, age: {:?}, gender: {:?}\nCoordinates: {:?}",
                 track.get_track_id(),

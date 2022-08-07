@@ -108,11 +108,11 @@ mod tests {
         assert_eq!(dist, None);
 
         let dist =
-            VisualObservationAttributes::calculate_metric_object(&None, &Some(attrs2.clone()));
+            VisualObservationAttributes::calculate_metric_object(&None, &Some(attrs2));
         assert_eq!(dist, None);
 
         let dist =
-            VisualObservationAttributes::calculate_metric_object(&Some(attrs1.clone()), &None);
+            VisualObservationAttributes::calculate_metric_object(&Some(attrs1), &None);
         assert_eq!(dist, None);
     }
 }

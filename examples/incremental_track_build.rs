@@ -26,7 +26,7 @@ struct BBoxAttributesUpdate {
 
 impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
     fn apply(&self, attrs: &mut BBoxAttributes) -> anyhow::Result<()> {
-        attrs.bboxes.push(self.bbox.clone());
+        attrs.bboxes.push(self.bbox);
         Ok(())
     }
 }
@@ -161,7 +161,7 @@ fn main() {
 
     let tracks = store.find_usable();
     for (t, _) in tracks {
-        let t = store.fetch_tracks(&vec![t]);
+        let t = store.fetch_tracks(&[t]);
         eprintln!("Track id: {}", t[0].get_track_id());
         eprintln!("Boxes: {:#?}", t[0].get_attributes());
     }

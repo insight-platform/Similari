@@ -170,7 +170,7 @@ mod tests {
         let stats = store.shard_stats();
         assert_eq!(stats, vec![1, 1]);
 
-        let tracks = store.fetch_tracks(&vec![0, 1]);
+        let tracks = store.fetch_tracks(&[0, 1]);
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0].track_id, 0);
         assert_eq!(tracks[1].track_id, 1);
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 0);
 
-        let mut v = store.fetch_tracks(&vec![0]);
+        let mut v = store.fetch_tracks(&[0]);
 
         let v = v.pop().unwrap();
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
@@ -259,7 +259,7 @@ mod tests {
 
         // make it incompatible across the attributes
         thread::sleep(Duration::from_millis(10));
-        let mut v = v.clone();
+        let mut v = v;
         v.attributes.end_time = current_time_ms();
 
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
@@ -278,9 +278,9 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let mut v = v.clone();
+        let mut v = v;
         v.attributes.end_time = store.get_store(1).get(&1).unwrap().attributes.start_time - 1;
-        let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
+        let (dists, errs) = store.foreign_track_distances(vec![v], 0, false);
         let dists = dists.all();
         let errs = errs.all();
 
@@ -598,9 +598,7 @@ mod tests {
         )?;
 
         let res = store.merge_owned(0, 1, None, false, true);
-        if let Ok(None) = res {
-            ();
-        } else {
+        if let Err(_) = res {
             unreachable!();
         }
 

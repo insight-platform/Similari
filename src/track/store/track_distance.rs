@@ -342,8 +342,8 @@ mod tests {
         assert_eq!(dists.all().len(), 2 * N);
 
         let (dists, errs) = store.foreign_track_distances(vec![t1.clone(), t2.clone()], 0, false);
-        assert!(errs.into_iter().collect::<Vec<_>>().is_empty());
-        assert_eq!(dists.into_iter().collect::<Vec<_>>().len(), 2 * N);
+        assert!(errs.into_iter().next().is_none());
+        assert_eq!(dists.into_iter().count(), 2 * N);
 
         let (dists, errs) = store.foreign_track_distances(vec![t1, t2], 0, false);
         drop(store);

@@ -67,7 +67,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             .build()
             .unwrap();
 
-        let (dists, errs) = db.foreign_track_distances(vec![t.clone()], DEFAULT_FEATURE, true);
+        let (dists, errs) = db.foreign_track_distances(vec![t], DEFAULT_FEATURE, true);
         assert_eq!(dists.all().len(), count);
         assert!(errs.all().is_empty());
     });

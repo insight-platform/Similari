@@ -106,7 +106,7 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
 }
 
 #[cfg(test)]
-mod voting {
+mod voting_tests {
     use crate::track::ObservationMetricOk;
     use crate::trackers::visual::voting::VisualVoting;
     use crate::voting::Voting;

@@ -753,7 +753,7 @@ mod tests {
             Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
-        let r = t1.merge(&t2, &vec![0], true);
+        let r = t1.merge(&t2, &[0], true);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 2);
         Ok(())
@@ -776,7 +776,7 @@ mod tests {
             Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
-        let r = t1.merge(&t2, &vec![1], true);
+        let r = t1.merge(&t2, &[1], true);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 1);
         assert_eq!(t1.observations.get(&1).unwrap().len(), 1);
@@ -924,14 +924,14 @@ mod tests {
         #[derive(Error, Debug)]
         enum TestError {
             #[error("Update Error")]
-            UpdateError,
-            #[error("MergeError")]
-            MergeError,
-            #[error("OptimizeError")]
-            OptimizeError,
+            Update,
+            #[error("Unable to Merge")]
+            Merge,
+            #[error("Unable to Optimize")]
+            Optimize,
         }
 
-        #[derive(Default, Clone, PartialEq, Debug)]
+        #[derive(Default, Clone, PartialEq, Eq, Debug)]
         pub struct LocalAttrs {
             pub count: u32,
         }
@@ -946,7 +946,7 @@ mod tests {
                 if !self.ignore {
                     attrs.count += 1;
                     if attrs.count > 1 {
-                        Err(TestError::UpdateError.into())
+                        Err(TestError::Update.into())
                     } else {
                         Ok(())
                     }
@@ -965,7 +965,7 @@ mod tests {
             }
 
             fn merge(&mut self, _other: &LocalAttrs) -> Result<()> {
-                Err(TestError::MergeError.into())
+                Err(TestError::Merge.into())
             }
 
             fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
@@ -997,7 +997,7 @@ mod tests {
                 _is_merge: bool,
             ) -> Result<()> {
                 if prev_length == 1 {
-                    Err(TestError::OptimizeError.into())
+                    Err(TestError::Optimize.into())
                 } else {
                     Ok(())
                 }
@@ -1024,10 +1024,10 @@ mod tests {
         assert!(res.is_err());
         if let Err(e) = res {
             match e.root_cause().downcast_ref::<TestError>().unwrap() {
-                TestError::UpdateError | TestError::MergeError => {
+                TestError::Update | TestError::Merge => {
                     unreachable!();
                 }
-                TestError::OptimizeError => {}
+                TestError::Optimize => {}
             }
         } else {
             unreachable!();
@@ -1046,13 +1046,13 @@ mod tests {
         assert!(res.is_ok());
         assert_eq!(t2.attributes, LocalAttrs { count: 1 });
 
-        let res = t1.merge(&t2, &vec![0], true);
+        let res = t1.merge(&t2, &[0], true);
         if let Err(e) = res {
             match e.root_cause().downcast_ref::<TestError>().unwrap() {
-                TestError::UpdateError | TestError::OptimizeError => {
+                TestError::Update | TestError::Optimize => {
                     unreachable!();
                 }
-                TestError::MergeError => {}
+                TestError::Merge => {}
             }
         } else {
             unreachable!();
@@ -1080,10 +1080,10 @@ mod tests {
         )?;
 
         let mut track_with_merge_history = t1.clone();
-        let _r = track_with_merge_history.merge(&t2, &vec![0], true);
+        let _r = track_with_merge_history.merge(&t2, &[0], true);
         assert_eq!(track_with_merge_history.merge_history, vec![0, 1]);
 
-        let _r = t1.merge(&t2, &vec![0], false);
+        let _r = t1.merge(&t2, &[0], false);
         assert_eq!(t1.merge_history, vec![0]);
 
         Ok(())
@@ -1230,6 +1230,6 @@ mod tests {
             .notifier(NoopNotifier)
             .build()
             .unwrap();
-        assert_eq!(t.lookup(&Lookup), true);
+        assert!(t.lookup(&Lookup));
     }
 }
