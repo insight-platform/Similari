@@ -7,7 +7,7 @@ if __name__ == '__main__':
     box = BoundingBox(10., 5., 7., 7.).as_xyaah()
     tracks = sort.predict([box])
     for t in tracks:
-        print(t.get_id())
+        print(t.id)
     sort.skip_epochs(10)
     wasted = sort.wasted()
     #print(wasted[0])
