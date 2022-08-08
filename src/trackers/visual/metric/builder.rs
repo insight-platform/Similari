@@ -3,6 +3,7 @@ use crate::trackers::visual::metric::{
 };
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct VisualMetricBuilder {
     visual_kind: VisualMetricType,
     positional_kind: PositionalMetricType,
