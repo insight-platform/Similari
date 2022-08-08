@@ -194,8 +194,9 @@ mod voting_tests {
             ObservationMetricOk::new(1, 2, None, Some(0.65)),
             ObservationMetricOk::new(1, 3, Some(0.7), Some(0.7)),
             ObservationMetricOk::new(1, 3, None, Some(0.64)),
-            ObservationMetricOk::new(11, 2, Some(0.8), Some(0.7)),
-            ObservationMetricOk::new(11, 3, None, Some(0.64)),
+            ObservationMetricOk::new(11, 2, Some(0.8), Some(0.7)), // will be excluded by visual voting (1>2)
+            ObservationMetricOk::new(11, 3, None, Some(0.64)),     // no pos metric, as visual votes
+                                                                   // less 2 will go to pos voting, but no pos metric.
         ]);
         let res = w.get(&1).unwrap();
         assert_eq!(res.len(), 1);

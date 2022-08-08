@@ -22,7 +22,7 @@ jobs:
         rust-toolchain: stable
         target: ${{ matrix.target }}
         manylinux: auto
-        args: --release --out dist --no-sdist
+        args: --release --out dist
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
