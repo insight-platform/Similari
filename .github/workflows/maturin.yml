@@ -19,7 +19,7 @@ jobs:
     - name: Build wheels
       uses: messense/maturin-action@v1
       with:
-        rust-toolchain: stable
+        rust-toolchain: nightly
         target: ${{ matrix.target }}
         manylinux: auto
         args: --release --out dist
