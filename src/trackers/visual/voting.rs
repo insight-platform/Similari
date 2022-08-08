@@ -1,5 +1,6 @@
 use crate::track::ObservationMetricOk;
 use crate::trackers::sort::voting::SortVoting;
+use crate::trackers::sort::VotingType;
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::topn::TopNVoting;
@@ -24,13 +25,6 @@ impl VisualVoting {
             min_winner_feature_votes,
         }
     }
-}
-
-#[derive(Default, Debug, Clone)]
-pub enum VotingType {
-    #[default]
-    Visual,
-    Positional,
 }
 
 impl From<ObservationMetricOk<VisualObservationAttributes>>

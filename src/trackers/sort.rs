@@ -281,6 +281,9 @@ pub struct SortTrack {
     ///
     #[pyo3(get)]
     pub length: usize,
+
+    #[pyo3(get)]
+    pub voting_type: VotingType,
 }
 
 /// Online track structure that contains tracking information for the last tracker epoch
@@ -339,6 +342,28 @@ impl SortTrack {
 
 #[pymethods]
 impl PyWastedSortTrack {
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:#?}", self)
+    }
+}
+
+#[pyclass]
+#[derive(Default, Debug, Clone)]
+pub enum VotingType {
+    #[default]
+    Visual,
+    Positional,
+}
+
+#[pymethods]
+impl VotingType {
     #[classattr]
     const __hash__: Option<Py<PyAny>> = None;
 
