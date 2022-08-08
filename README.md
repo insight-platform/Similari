@@ -3,6 +3,7 @@
 [![Rust](https://img.shields.io/crates/d/similari.svg)](https://crates.io/crates/similari)
 [![Rust](https://img.shields.io/crates/v/similari.svg)](https://img.shields.io/crates/v/similari.svg)
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
+[![Rust](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
 Similari is a Rust framework with Python bindings that helps build sophisticated tracking systems. With Similari one 
