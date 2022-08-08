@@ -115,5 +115,6 @@ mod voting_tests {
     fn test_visual() {
         let v = VisualVoting::new(0.3, 0.7, 2);
         let _winners = v.winners(vec![ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7))]);
+        dbg!(_winners);
     }
 }
