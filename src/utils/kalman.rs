@@ -123,8 +123,8 @@ impl KalmanFilter {
     ///
     pub fn initiate(&self, bbox: Universal2DBox) -> KalmanState<DIM_X2> {
         let mean: SVector<f32, DIM_X2> = SVector::from_iterator([
-            bbox.x(),
-            bbox.y(),
+            bbox.xc(),
+            bbox.yc(),
             bbox.angle().unwrap_or(0.0),
             bbox.aspect(),
             bbox.height(),
@@ -199,8 +199,8 @@ impl KalmanFilter {
         let kalman_gain = projected_cov.solve_lower_triangular(&b).unwrap();
 
         let innovation = SVector::from_iterator([
-            measurement.x(),
-            measurement.y(),
+            measurement.xc(),
+            measurement.yc(),
             measurement.angle().unwrap_or(0.0),
             measurement.aspect(),
             measurement.height(),
@@ -220,8 +220,8 @@ impl KalmanFilter {
 
         let measurements = {
             let mut r: SVector<f32, DIM> = SVector::from_vec(vec![
-                measurement.x(),
-                measurement.y(),
+                measurement.xc(),
+                measurement.yc(),
                 measurement.angle().unwrap_or(0.0),
                 measurement.aspect(),
                 measurement.height(),

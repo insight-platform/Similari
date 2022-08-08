@@ -12,13 +12,13 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
-/// Bounding box in the format (x,y, width, height)
+/// Bounding box in the format (left, top, width, height)
 ///
 #[derive(Clone, Default, Debug, Copy)]
 #[pyclass]
 pub struct BoundingBox {
-    _x: f32,
-    _y: f32,
+    _left: f32,
+    _top: f32,
     _width: f32,
     _height: f32,
 }
@@ -36,11 +36,11 @@ impl BoundingBox {
         self.__repr__()
     }
 
-    pub fn x(&self) -> f32 {
-        self._x
+    pub fn left(&self) -> f32 {
+        self._left
     }
-    pub fn y(&self) -> f32 {
-        self._y
+    pub fn top(&self) -> f32 {
+        self._top
     }
 
     pub fn width(&self) -> f32 {
@@ -58,10 +58,10 @@ impl BoundingBox {
     /// Constructor
     ///
     #[new]
-    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+    pub fn new(left: f32, top: f32, width: f32, height: f32) -> Self {
         Self {
-            _x: x,
-            _y: y,
+            _left: left,
+            _top: top,
             _width: width,
             _height: height,
         }
@@ -72,8 +72,8 @@ impl EstimateClose for BoundingBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self._x - other._x).abs() < eps
-            && (self._y - other._y).abs() < eps
+        (self._left - other._left).abs() < eps
+            && (self._top - other._top).abs() < eps
             && (self._width - other._width) < eps
             && (self._height - other._height) < eps
     }
@@ -83,8 +83,8 @@ impl EstimateClose for BoundingBox {
 #[derive(Default, Debug)]
 #[pyclass]
 pub struct Universal2DBox {
-    _x: f32,
-    _y: f32,
+    _xc: f32,
+    _yc: f32,
     _angle: Option<f32>,
     _aspect: f32,
     _height: f32,
@@ -93,7 +93,7 @@ pub struct Universal2DBox {
 
 impl Clone for Universal2DBox {
     fn clone(&self) -> Self {
-        Universal2DBox::new(self._x, self._y, self._angle, self._aspect, self._height)
+        Universal2DBox::new(self._xc, self._yc, self._angle, self._aspect, self._height)
     }
 }
 
@@ -110,11 +110,11 @@ impl Universal2DBox {
         self.__repr__()
     }
 
-    pub fn x(&self) -> f32 {
-        self._x
+    pub fn xc(&self) -> f32 {
+        self._xc
     }
-    pub fn y(&self) -> f32 {
-        self._y
+    pub fn yc(&self) -> f32 {
+        self._yc
     }
 
     pub fn aspect(&self) -> f32 {
@@ -163,10 +163,10 @@ impl Universal2DBox {
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
     ///
     #[new]
-    pub fn new(x: f32, y: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
+    pub fn new(xc: f32, yc: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
-            _x: x,
-            _y: y,
+            _xc: xc,
+            _yc: yc,
             _angle: angle,
             _aspect: aspect,
             _height: height,
@@ -177,8 +177,8 @@ impl Universal2DBox {
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
     ///
     #[staticmethod]
-    pub fn xywh(x: f32, y: f32, width: f32, height: f32) -> Self {
-        Self::from(BoundingBox::new(x, y, width, height))
+    pub fn xywh(left: f32, top: f32, width: f32, height: f32) -> Self {
+        Self::from(BoundingBox::new(left, top, width, height))
     }
 
     pub fn area(&self) -> f32 {
@@ -203,8 +203,8 @@ impl Universal2DBox {
     ///
     pub fn rotate(self, angle: f32) -> Self {
         Self {
-            _x: self._x,
-            _y: self._y,
+            _xc: self._xc,
+            _yc: self._yc,
             _angle: Some(angle),
             _aspect: self._aspect,
             _height: self._height,
@@ -217,8 +217,8 @@ impl EstimateClose for Universal2DBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self._x - other._x).abs() < eps
-            && (self._y - other._y).abs() < eps
+        (self._xc - other._xc).abs() < eps
+            && (self._yc - other._yc).abs() < eps
             && (self._angle.unwrap_or(0.0) - other._angle.unwrap_or(0.0)) < eps
             && (self._aspect - other._aspect) < eps
             && (self._height - other._height) < eps
@@ -228,8 +228,8 @@ impl EstimateClose for Universal2DBox {
 impl From<BoundingBox> for Universal2DBox {
     fn from(f: BoundingBox) -> Self {
         Universal2DBox {
-            _x: f._x + f._width / 2.0,
-            _y: f._y + f._height / 2.0,
+            _xc: f._left + f._width / 2.0,
+            _yc: f._top + f._height / 2.0,
             _angle: None,
             _aspect: f._width / f._height,
             _height: f._height,
@@ -241,8 +241,8 @@ impl From<BoundingBox> for Universal2DBox {
 impl From<&BoundingBox> for Universal2DBox {
     fn from(f: &BoundingBox) -> Self {
         Universal2DBox {
-            _x: f._x + f._width / 2.0,
-            _y: f._y + f._height / 2.0,
+            _xc: f._left + f._width / 2.0,
+            _yc: f._top + f._height / 2.0,
             _angle: None,
             _aspect: f._width / f._height,
             _height: f._height,
@@ -267,8 +267,8 @@ impl From<&Universal2DBox> for Result<BoundingBox> {
         } else {
             let width = f._height * f._aspect;
             Ok(BoundingBox {
-                _x: f._x - width / 2.0,
-                _y: f._y - f._height / 2.0,
+                _left: f._xc - width / 2.0,
+                _top: f._yc - f._height / 2.0,
                 _width: width,
                 _height: f._height,
             })
@@ -294,8 +294,8 @@ impl From<&Universal2DBox> for Polygon<f64> {
         let r2x = half_width * c - half_height * s;
         let r2y = half_width * s + half_height * c;
 
-        let x = b._x as f64;
-        let y = b._y as f64;
+        let x = b._xc as f64;
+        let y = b._yc as f64;
 
         Polygon::new(
             LineString(vec![
@@ -377,8 +377,8 @@ impl From<&Universal2DBox> for BoundingBox {
     fn from(f: &Universal2DBox) -> Self {
         let width = f._height * f._aspect;
         BoundingBox {
-            _x: f._x - width / 2.0,
-            _y: f._y - f._height / 2.0,
+            _left: f._xc - width / 2.0,
+            _top: f._yc - f._height / 2.0,
             _width: width,
             _height: f._height,
         }
@@ -392,8 +392,8 @@ impl BoundingBox {
         assert!(r._width > 0.0);
         assert!(r._height > 0.0);
 
-        let (ax0, ay0, ax1, ay1) = (l._x, l._y, l._x + l._width, l._y + l._height);
-        let (bx0, by0, bx1, by1) = (r._x, r._y, r._x + r._width, r._y + r._height);
+        let (ax0, ay0, ax1, ay1) = (l._left, l._top, l._left + l._width, l._top + l._height);
+        let (bx0, by0, bx1, by1) = (r._left, r._top, r._left + r._width, r._top + r._height);
 
         let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
         let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
@@ -467,8 +467,8 @@ impl Universal2DBox {
         assert!(r._height > 0.0);
 
         let max_distance = l.get_radius() + r.get_radius();
-        let x = l._x - r._x;
-        let y = l._y - r._y;
+        let x = l._xc - r._xc;
+        let y = l._yc - r._yc;
         x * x + y * y > max_distance * max_distance
     }
 
@@ -541,21 +541,21 @@ mod tests {
     #[test]
     fn test_iou() {
         let bb1 = BoundingBox {
-            _x: -1.0,
-            _y: -1.0,
+            _left: -1.0,
+            _top: -1.0,
             _width: 2.0,
             _height: 2.0,
         };
 
         let bb2 = BoundingBox {
-            _x: -0.9,
-            _y: -0.9,
+            _left: -0.9,
+            _top: -0.9,
             _width: 2.0,
             _height: 2.0,
         };
         let bb3 = BoundingBox {
-            _x: 1.0,
-            _y: 1.0,
+            _left: 1.0,
+            _top: 1.0,
             _width: 3.0,
             _height: 3.0,
         };
