@@ -48,9 +48,9 @@ pub struct VisualMetricOptions {
     visual_kind: VisualMetricType,
     positional_kind: PositionalMetricType,
     visual_minimal_track_length: usize,
-    // visual_minimal_area: f32,
-    // visual_minimal_quality_use: f32,
-    // visual_minimal_quality_collect: f32,
+    visual_minimal_area: f32,
+    visual_minimal_quality_use: f32,
+    visual_minimal_quality_collect: f32,
     visual_max_observations: usize,
 }
 
@@ -105,21 +105,17 @@ impl VisualMetric {
         if let (Some(candidate_observation_bbox), Some(track_observation_bbox)) =
             (candidate_observation_bbox_opt, track_observation_bbox_opt)
         {
-            match self.opts.positional_kind {
-                PositionalMetricType::Mahalanobis => {
-                    if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
-                        None
-                    } else {
+            if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
+                None
+            } else {
+                match self.opts.positional_kind {
+                    PositionalMetricType::Mahalanobis => {
                         let state = track_attributes.get_state().unwrap();
                         let f = KalmanFilter::default();
                         let dist = f.distance(state, candidate_observation_bbox);
                         Some(KalmanFilter::calculate_cost(dist, true))
                     }
-                }
-                PositionalMetricType::IoU(threshold) => {
-                    if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
-                        None
-                    } else {
+                    PositionalMetricType::IoU(threshold) => {
                         let box_m_opt = Universal2DBox::calculate_metric_object(
                             &candidate_observation_bbox_opt.as_ref(),
                             &track_observation_bbox_opt.as_ref(),
@@ -153,6 +149,23 @@ impl VisualMetric {
             None
         }
     }
+
+    fn feature_can_be_used(
+        &self,
+        bbox_opt: &Option<&Universal2DBox>,
+        q: f32,
+        threshold: f32,
+    ) -> bool {
+        let quality_is_ok = q >= threshold;
+        let bbox_is_ok = if let Some(bbox) = bbox_opt {
+            let area = bbox.area();
+            area >= self.opts.visual_minimal_area
+        } else {
+            false
+        };
+
+        bbox_is_ok && quality_is_ok
+    }
 }
 
 impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for VisualMetric {
@@ -167,6 +180,13 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
             .expect("Observation attributes must always present.")
             .bbox_opt();
 
+        let candidate_feature_q = mq
+            .candidate_observation
+            .attr()
+            .as_ref()
+            .expect("Observation atributes must always present.")
+            .visual_quality();
+
         let track_bbox_opt = mq
             .track_observation
             .attr()
@@ -179,9 +199,17 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
 
         Some((
             self.positional_metric(candidate_bbox_opt, track_bbox_opt, mq.track_attrs),
-            match (candidate_feature_opt, track_feature_opt) {
-                (Some(c), Some(t)) => self.visual_metric(c, t, mq.track_attrs),
-                _ => None,
+            if self.feature_can_be_used(
+                &candidate_bbox_opt.as_ref(),
+                candidate_feature_q,
+                self.opts.visual_minimal_quality_use,
+            ) {
+                match (candidate_feature_opt, track_feature_opt) {
+                    (Some(c), Some(t)) => self.visual_metric(c, t, mq.track_attrs),
+                    _ => None,
+                }
+            } else {
+                None
             },
         ))
     }
@@ -218,6 +246,14 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
             observation.feature().clone(),
         );
 
+        if !self.feature_can_be_used(
+            &Some(observation_bbox),
+            feature_quality,
+            self.opts.visual_minimal_quality_collect,
+        ) {
+            *observation.feature_mut() = None;
+        }
+
         *observation.attr_mut() = Some(VisualObservationAttributes::new(
             feature_quality,
             match self.opts.positional_kind {
@@ -252,7 +288,7 @@ mod optimize {
     use std::sync::Arc;
 
     #[test]
-    fn optimization_steps() {
+    fn optimization_regular() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
             .visual_metric(VisualMetricType::Euclidean)
@@ -303,6 +339,7 @@ mod optimize {
         assert_eq!(attrs.observed_boxes.len(), 2);
         assert_eq!(attrs.predicted_boxes.len(), 2);
         assert_eq!(attrs.track_length, 2);
+        assert_eq!(attrs.visual_features_collected_count, 1);
         assert_eq!(obs.len(), 2);
         dbg!(&obs);
         assert!(
@@ -351,11 +388,68 @@ mod optimize {
         assert_eq!(attrs.observed_boxes.len(), 3);
         assert_eq!(attrs.predicted_boxes.len(), 3);
         assert_eq!(attrs.track_length, 3);
+        assert_eq!(attrs.visual_features_collected_count, 2);
         assert_eq!(obs.len(), 2);
         assert!(matches!(
             &obs[0],
             Observation(Some(a), Some(o)) if a.bbox_opt().is_some() && o[0].to_array()[..2] == [0.1 , 1.1]
         ));
+    }
+
+    #[test]
+    fn optimize_low_quality() {
+        let mut metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean)
+            .visual_minimal_quality_collect(0.3)
+            .build();
+
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
+
+        let mut obs = vec![Observation(
+            Some(VisualObservationAttributes::new(
+                0.25,
+                BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
+            )),
+            Some(vec2(0.0, 1.0)),
+        )];
+
+        metric
+            .optimize(0, &[], &mut attrs, &mut obs, 0, false)
+            .unwrap();
+
+        assert!(
+            obs[0].feature().is_none(),
+            "Feature must be removed because the quality is lower than minimal required quality for collected features"
+        );
+    }
+
+    #[test]
+    fn optimize_small_box() {
+        let mut metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean)
+            .visual_minimal_area(1.0)
+            .build();
+
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
+
+        let mut obs = vec![Observation(
+            Some(VisualObservationAttributes::new(
+                0.25,
+                BoundingBox::new(0.0, 0.0, 0.8, 1.0).as_xyaah(),
+            )),
+            Some(vec2(0.0, 1.0)),
+        )];
+
+        metric
+            .optimize(0, &[], &mut attrs, &mut obs, 0, false)
+            .unwrap();
+
+        assert!(
+            obs[0].feature().is_none(),
+            "Feature must be removed because the box area is lower than minimal area required for collected features"
+        );
     }
 }
 
@@ -487,6 +581,55 @@ mod metric_tests {
     }
 
     #[test]
+    fn metric_maha() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::Mahalanobis)
+            .visual_metric(VisualMetricType::Cosine)
+            .visual_minimal_track_length(1)
+            .build();
+        let store = default_store(metric);
+
+        let track1 = store
+            .new_track(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(1.0, 0.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .new_track(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(1.0, 0.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: Some(x),
+                feature_distance: Some(y)
+            } if (x - 100.0).abs() < EPS && (y - 1.0).abs() < EPS));
+    }
+
+    #[test]
     fn visual_track_too_short() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
@@ -602,5 +745,109 @@ mod metric_tests {
                 attribute_metric: None,
                 feature_distance: Some(y)     // track too short
             } if y.abs() < EPS));
+    }
+
+    #[test]
+    fn visual_track_small_bbox() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean)
+            .visual_minimal_track_length(1)
+            .visual_minimal_area(1.0)
+            .build();
+
+        let store = default_store(metric);
+
+        let track1 = store
+            .new_track(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 0.8, 1.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .new_track(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 1);
+        dbg!(&dists);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: None,
+                feature_distance: None // feature box is too small to use feature
+            }
+        ));
+    }
+
+    #[test]
+    fn visual_quality_low() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean)
+            .visual_minimal_quality_use(0.3)
+            .visual_minimal_track_length(1)
+            .build();
+
+        let store = default_store(metric);
+
+        let track1 = store
+            .new_track(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        0.2,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .new_track(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: Some(x),
+                feature_distance: None     // track too short
+            } if (x - 1.0).abs() < EPS));
     }
 }
