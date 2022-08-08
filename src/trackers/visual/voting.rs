@@ -78,7 +78,8 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
         let remaining_distances = distances
             .into_iter()
             .filter(|e: &ObservationMetricOk<VisualObservationAttributes>| {
-                !(feature_winners.contains_key(&e.from) || excluded_tracks.contains(&e.to))
+                (!(feature_winners.contains_key(&e.from) || excluded_tracks.contains(&e.to)))
+                    && e.attribute_metric.is_some()
             })
             .map(|e| {
                 remaining_candidates.insert(e.from);
@@ -100,7 +101,6 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
             .collect::<HashMap<_, _>>();
 
         winners.extend(feature_winners);
-
         winners
     }
 }
@@ -108,13 +108,100 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
 #[cfg(test)]
 mod voting_tests {
     use crate::track::ObservationMetricOk;
-    use crate::trackers::visual::voting::VisualVoting;
+    use crate::trackers::visual::voting::{VisualVoting, VotingType};
     use crate::voting::Voting;
 
     #[test]
-    fn test_visual() {
+    fn test_visual_match() {
+        let v = VisualVoting::new(0.3, 0.7, 1);
+        let w = v.winners(vec![ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7))]);
+        assert!(matches!(w.get(&1).unwrap()[0].1, VotingType::Visual));
+    }
+
+    #[test]
+    fn test_positional_match() {
         let v = VisualVoting::new(0.3, 0.7, 2);
-        let _winners = v.winners(vec![ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7))]);
-        dbg!(_winners);
+        let w = v.winners(vec![ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7))]);
+        assert!(matches!(w.get(&1).unwrap()[0].1, VotingType::Positional));
+    }
+
+    #[test]
+    fn test_visual_competitive_match() {
+        let v = VisualVoting::new(0.3, 0.7, 2);
+        let w = v.winners(vec![
+            ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(1, 2, None, Some(0.68)),
+            ObservationMetricOk::new(1, 2, None, Some(0.65)),
+            ObservationMetricOk::new(1, 3, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(1, 3, None, Some(0.64)),
+        ]);
+        let res = w.get(&1).unwrap();
+        assert_eq!(res.len(), 1);
+        assert!(matches!(res[0].1, VotingType::Visual));
+        assert!(matches!(res[0].0, 2));
+    }
+
+    #[test]
+    fn test_visual_competitive_match_2() {
+        let v = VisualVoting::new(0.3, 0.7, 2);
+        let w = v.winners(vec![
+            ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(1, 2, None, Some(0.68)),
+            ObservationMetricOk::new(1, 2, None, Some(0.65)),
+            ObservationMetricOk::new(4, 3, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(4, 3, None, Some(0.64)),
+        ]);
+        let res = w.get(&1).unwrap();
+        assert_eq!(res.len(), 1);
+        assert!(matches!(res[0].1, VotingType::Visual));
+        assert!(matches!(res[0].0, 2));
+
+        let res = w.get(&4).unwrap();
+        assert_eq!(res.len(), 1);
+        assert!(matches!(res[0].1, VotingType::Visual));
+        assert!(matches!(res[0].0, 3));
+    }
+
+    #[test]
+    fn test_visual_positional_competitive_match_2() {
+        let v = VisualVoting::new(0.3, 0.7, 2);
+        let w = v.winners(vec![
+            ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(1, 2, None, Some(0.68)),
+            ObservationMetricOk::new(1, 2, None, Some(0.65)),
+            ObservationMetricOk::new(1, 3, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(1, 3, None, Some(0.64)),
+            ObservationMetricOk::new(11, 2, Some(0.8), Some(0.7)),
+            ObservationMetricOk::new(11, 3, Some(0.6), Some(0.64)),
+        ]);
+        let res = w.get(&1).unwrap();
+        assert_eq!(res.len(), 1);
+        assert!(matches!(res[0].1, VotingType::Visual));
+        assert!(matches!(res[0].0, 2));
+
+        let res = w.get(&11).unwrap();
+        assert_eq!(res.len(), 1);
+        assert!(matches!(res[0].1, VotingType::Positional));
+        assert!(matches!(res[0].0, 3));
+    }
+
+    #[test]
+    fn test_visual_positional_competitive_match_no_pos_metric() {
+        let v = VisualVoting::new(0.3, 0.7, 2);
+        let w = v.winners(vec![
+            ObservationMetricOk::new(1, 2, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(1, 2, None, Some(0.68)),
+            ObservationMetricOk::new(1, 2, None, Some(0.65)),
+            ObservationMetricOk::new(1, 3, Some(0.7), Some(0.7)),
+            ObservationMetricOk::new(1, 3, None, Some(0.64)),
+            ObservationMetricOk::new(11, 2, Some(0.8), Some(0.7)),
+            ObservationMetricOk::new(11, 3, None, Some(0.64)),
+        ]);
+        let res = w.get(&1).unwrap();
+        assert_eq!(res.len(), 1);
+        assert!(matches!(res[0].1, VotingType::Visual));
+        assert!(matches!(res[0].0, 2));
+
+        assert!(w.get(&11).is_none());
     }
 }
