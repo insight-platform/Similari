@@ -51,7 +51,7 @@ where
 }
 
 /// Internal feature vector representation.
-pub type Observation = Vec<f32x8>;
+pub type Feature = Vec<f32x8>;
 
 /// Number of SIMD lanes used to store observation parts internally
 const FEATURE_LANES_SIZE: usize = 8;
@@ -60,17 +60,38 @@ const FEATURE_LANES_SIZE: usize = 8;
 /// is used to support the estimation for every observation during the collecting. If the model doesn't provide the feature attributes
 /// `()` may be used.
 #[derive(Default, Clone)]
-pub struct ObservationSpec<T>(pub Option<T>, pub Option<Observation>)
+pub struct Observation<T>(pub Option<T>, pub Option<Feature>)
 where
-    T: Default + Send + Sync + Clone + 'static + PartialOrd;
+    T: Send + Sync + Clone + 'static;
+
+impl<T> Observation<T>
+where
+    T: Send + Sync + Clone + 'static,
+{
+    pub fn attr(&self) -> &Option<T> {
+        &self.0
+    }
+
+    pub fn attr_mut(&mut self) -> &mut Option<T> {
+        &mut self.0
+    }
+
+    pub fn feature(&self) -> &Option<Feature> {
+        &self.1
+    }
+
+    pub fn feature_mut(&mut self) -> &mut Option<Feature> {
+        &mut self.1
+    }
+}
 
 /// Table that accumulates observed features across the tracks (or objects)
-pub type ObservationsDb<T> = HashMap<u64, Vec<ObservationSpec<T>>>;
+pub type ObservationsDb<T> = HashMap<u64, Vec<Observation<T>>>;
 
 /// Custom feature attributes object that accompanies the observation itself
-pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 'static {
-    type MetricObject: Debug + Default + Send + Sync + Clone + PartialOrd + 'static;
-    fn calculate_metric_object(l: &Option<Self>, r: &Option<Self>) -> Option<Self::MetricObject>;
+pub trait ObservationAttributes: Send + Sync + Clone + 'static {
+    type MetricObject: Debug + Send + Sync + Clone + 'static;
+    fn calculate_metric_object(l: &Option<&Self>, r: &Option<&Self>) -> Option<Self::MetricObject>;
 }
 
 /// Output result type used by metric when pairwise metric is calculated
@@ -80,28 +101,27 @@ pub trait ObservationAttributes: Default + Send + Sync + Clone + PartialOrd + 's
 ///
 pub type MetricOutput<T> = Option<(Option<T>, Option<f32>)>;
 
+pub struct MetricQuery<'a, TA, OA: ObservationAttributes> {
+    /// * `feature_class` - class of currently used feature
+    pub feature_class: u64,
+    /// * `candidate_attrs` - candidate track attributes
+    pub candidate_attrs: &'a TA,
+    /// * `candidate_observation` - candidate track observation
+    pub candidate_observation: &'a Observation<OA>,
+    /// * `track_attrs` - track attributes
+    pub track_attrs: &'a TA,
+    /// * `track_observation` - track observation
+    pub track_observation: &'a Observation<OA>,
+}
+
 /// The trait that implements the methods for features comparison and filtering
-pub trait ObservationMetric<TA, OA: ObservationAttributes>:
-    Default + Send + Sync + Clone + 'static
-{
+pub trait ObservationMetric<TA, OA: ObservationAttributes>: Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
-    /// The output is `Result<f32>` because the method may return distance calculation error if the distance
-    /// cannot be computed for two features. E.g. when one of them has low confidence.
     ///
     /// # Parameters
-    /// * `feature_class` - class of currently used feature
-    /// * `left_attrs` - left track attributes
-    /// * `right_attrs` - right track attributes
-    /// * `left_observation` - left track observation
-    /// * `right_observation` - right track observation
+    /// * `mq` - query to calculate metric
     ///
-    fn metric(
-        feature_class: u64,
-        self_attrs: &TA,
-        right_attrs: &TA,
-        self_observation: &ObservationSpec<OA>,
-        right_observation: &ObservationSpec<OA>,
-    ) -> MetricOutput<OA::MetricObject>;
+    fn metric(&self, mq: &'_ MetricQuery<'_, TA, OA>) -> MetricOutput<OA::MetricObject>;
 
     /// the method is used every time, when a new observation is added to the feature storage as well as when
     /// two tracks are merged.
@@ -121,10 +141,10 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>:
     ///
     fn optimize(
         &mut self,
-        feature_class: &u64,
+        feature_class: u64,
         merge_history: &[u64],
         attributes: &mut TA,
-        observations: &mut Vec<ObservationSpec<OA>>,
+        observations: &mut Vec<Observation<OA>>,
         prev_length: usize,
         is_merge: bool,
     ) -> Result<()>;
@@ -156,7 +176,7 @@ pub enum TrackStatus {
 
 /// Trait that must be implemented to run searches over the store
 ///
-pub trait LookupRequest<TA, OA>: Default + Send + Sync + Clone + 'static
+pub trait LookupRequest<TA, OA>: Send + Sync + Clone + 'static
 where
     TA: TrackAttributes<TA, OA>,
     OA: ObservationAttributes,
@@ -233,7 +253,7 @@ where
 /// When the user implements track attributes they has to implement this trait to create a valid attributes object.
 ///
 pub trait TrackAttributes<TA: TrackAttributes<TA, OA>, OA: ObservationAttributes>:
-    Default + Send + Sync + Clone + 'static
+    Send + Sync + Clone + 'static
 {
     type Update: TrackAttributesUpdate<TA>;
     type Lookup: LookupRequest<TA, OA>;
@@ -313,30 +333,13 @@ where
     ///
     /// The `metric` and `attributes` are optional, if `None` is specified, then `Default` initializer is used.
     ///
-    pub fn new(
-        track_id: u64,
-        metric: Option<M>,
-        attributes: Option<TA>,
-        notifier: Option<N>,
-    ) -> Self {
+    pub fn new(track_id: u64, metric: M, attributes: TA, notifier: N) -> Self {
         let mut v = Self {
-            notifier: if let Some(notifier) = notifier {
-                notifier
-            } else {
-                N::default()
-            },
-            attributes: if let Some(attributes) = attributes {
-                attributes
-            } else {
-                TA::default()
-            },
+            notifier,
+            attributes,
             track_id,
-            observations: Default::default(),
-            metric: if let Some(m) = metric {
-                m
-            } else {
-                M::default()
-            },
+            metric,
+            observations: ObservationsDb::default(),
             merge_history: vec![track_id],
         };
         v.notifier.send(track_id);
@@ -363,7 +366,7 @@ where
         &self.attributes
     }
 
-    pub fn get_observations(&self, feature_class: u64) -> Option<&Vec<ObservationSpec<OA>>> {
+    pub fn get_observations(&self, feature_class: u64) -> Option<&Vec<Observation<OA>>> {
         self.observations.get(&feature_class)
     }
 
@@ -402,7 +405,7 @@ where
         &mut self,
         feature_class: u64,
         feature_attributes: Option<OA>,
-        feature: Option<Observation>,
+        feature: Option<Feature>,
         track_attributes_update: Option<TA::Update>,
     ) -> Result<()> {
         let last_attributes = self.attributes.clone();
@@ -427,18 +430,18 @@ where
             None => {
                 self.observations.insert(
                     feature_class,
-                    vec![ObservationSpec(feature_attributes, feature)],
+                    vec![Observation(feature_attributes, feature)],
                 );
             }
             Some(observations) => {
-                observations.push(ObservationSpec(feature_attributes, feature));
+                observations.push(Observation(feature_attributes, feature));
             }
         }
         let observations = self.observations.get_mut(&feature_class).unwrap();
         let prev_length = observations.len() - 1;
 
         let res = self.metric.optimize(
-            &feature_class,
+            feature_class,
             &self.merge_history,
             &mut self.attributes,
             observations,
@@ -518,7 +521,7 @@ where
 
             if let Some(prev_length) = prev_length {
                 let res = self.metric.optimize(
-                    cls,
+                    *cls,
                     &merge_history,
                     &mut self.attributes,
                     self.observations.get_mut(cls).unwrap(),
@@ -571,12 +574,21 @@ where
                     .iter()
                     .cartesian_product(right.iter())
                     .flat_map(|(l, r)| {
-                        let (attribute_metric, feature_distance) = M::metric(
+                        let mq = MetricQuery {
                             feature_class,
-                            self.get_attributes(),
-                            other.get_attributes(),
-                            l,
-                            r,
+                            candidate_attrs: self.get_attributes(),
+                            candidate_observation: l,
+                            track_attrs: other.get_attributes(),
+                            track_observation: r,
+                        };
+
+                        // let (attribute_metric, feature_distance) = self.metric.new_metric(&mq)?;
+                        let (attribute_metric, feature_distance) = self.metric.metric(
+                            &mq, // feature_class,
+                                // self.get_attributes(),
+                                // other.get_attributes(),
+                                // l,
+                                // r,
                         )?;
                         Some(ObservationMetricOk {
                             from: self.track_id,
@@ -605,20 +617,20 @@ where
 mod tests {
     use crate::distance::euclidean;
     use crate::examples::current_time_sec;
-    use crate::prelude::TrackBuilder;
+    use crate::prelude::{NoopNotifier, TrackBuilder};
     use crate::track::utils::{feature_attributes_sort_dec, FromVec};
     use crate::track::{
-        LookupRequest, MetricOutput, NoopLookup, Observation, ObservationAttributes,
-        ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
+        Feature, LookupRequest, MetricOutput, MetricQuery, NoopLookup, Observation,
+        ObservationAttributes, ObservationMetric, ObservationsDb, Track, TrackAttributes,
         TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
     use anyhow::Result;
 
-    #[derive(Default, Clone)]
+    #[derive(Clone)]
     pub struct DefaultAttrs;
 
-    #[derive(Default, Clone)]
+    #[derive(Clone)]
     pub struct DefaultAttrUpdates;
 
     impl TrackAttributesUpdate<DefaultAttrs> for DefaultAttrUpdates {
@@ -644,19 +656,14 @@ mod tests {
         }
     }
 
-    #[derive(Default, Clone)]
+    #[derive(Clone)]
     struct DefaultMetric;
     impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
-        fn metric(
-            _feature_class: u64,
-            _attrs1: &DefaultAttrs,
-            _attrs2: &DefaultAttrs,
-            e1: &ObservationSpec<f32>,
-            e2: &ObservationSpec<f32>,
-        ) -> MetricOutput<f32> {
+        fn metric(&self, mq: &MetricQuery<'_, DefaultAttrs, f32>) -> MetricOutput<f32> {
+            let (e1, e2) = (mq.candidate_observation, mq.track_observation);
             Some((
-                f32::calculate_metric_object(&e1.0, &e2.0),
-                match (e1.1.as_ref(), e2.1.as_ref()) {
+                f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                match (e1.feature().as_ref(), e2.feature().as_ref()) {
                     (Some(x), Some(y)) => Some(euclidean(x, y)),
                     _ => None,
                 },
@@ -665,10 +672,10 @@ mod tests {
 
         fn optimize(
             &mut self,
-            _feature_class: &u64,
+            _feature_class: u64,
             _merge_history: &[u64],
             _attributes: &mut DefaultAttrs,
-            features: &mut Vec<ObservationSpec<f32>>,
+            features: &mut Vec<Observation<f32>>,
             _prev_length: usize,
             _is_merge: bool,
         ) -> Result<()> {
@@ -680,25 +687,25 @@ mod tests {
 
     #[test]
     fn init() {
-        let t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::new(3, None, None, None);
+        let t1 = Track::new(3, DefaultMetric, DefaultAttrs, NoopNotifier);
         assert_eq!(t1.get_track_id(), 3);
     }
 
     #[test]
     fn track_distances() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
+        let mut t1 = Track::new(1, DefaultMetric, DefaultAttrs, NoopNotifier);
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
-        let mut t2 = Track::default();
+        let mut t2 = Track::new(2, DefaultMetric, DefaultAttrs, NoopNotifier);
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
 
@@ -715,7 +722,7 @@ mod tests {
         t2.add_observation(
             0,
             Some(0.2),
-            Some(Observation::from_vec(vec![1f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 1.0f32, 0.0])),
             None,
         )?;
 
@@ -731,22 +738,22 @@ mod tests {
 
     #[test]
     fn merge_same() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
+        let mut t1 = Track::new(1, DefaultMetric, DefaultAttrs, NoopNotifier);
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
-        let mut t2 = Track::default();
+        let mut t2 = Track::new(2, DefaultMetric, DefaultAttrs, NoopNotifier);
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
-        let r = t1.merge(&t2, &vec![0], true);
+        let r = t1.merge(&t2, &[0], true);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 2);
         Ok(())
@@ -754,22 +761,22 @@ mod tests {
 
     #[test]
     fn merge_other_feature_class() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
+        let mut t1 = Track::new(1, DefaultMetric, DefaultAttrs, NoopNotifier);
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
-        let mut t2 = Track::default();
+        let mut t2 = Track::new(2, DefaultMetric, DefaultAttrs, NoopNotifier);
         t2.add_observation(
             1,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
-        let r = t1.merge(&t2, &vec![1], true);
+        let r = t1.merge(&t2, &[1], true);
         assert!(r.is_ok());
         assert_eq!(t1.observations.get(&0).unwrap().len(), 1);
         assert_eq!(t1.observations.get(&1).unwrap().len(), 1);
@@ -825,16 +832,11 @@ mod tests {
         #[derive(Default, Clone)]
         struct TimeMetric;
         impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
-            fn metric(
-                _feature_class: u64,
-                _attrs1: &TimeAttrs,
-                _attrs2: &TimeAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
-            ) -> MetricOutput<f32> {
+            fn metric(&self, mq: &MetricQuery<'_, TimeAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
-                    f32::calculate_metric_object(&e1.0, &e2.0),
-                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                    f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                    match (e1.feature().as_ref(), e2.feature().as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
@@ -843,10 +845,10 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut TimeAttrs,
-                features: &mut Vec<ObservationSpec<f32>>,
+                features: &mut Vec<Observation<f32>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
@@ -856,23 +858,21 @@ mod tests {
             }
         }
 
-        let mut t1: Track<TimeAttrs, TimeMetric, f32> = Track::default();
-        t1.track_id = 1;
+        let mut t1 = Track::new(1, TimeMetric::default(), TimeAttrs::default(), NoopNotifier);
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             Some(TimeAttrUpdates { time: 2 }),
         )?;
 
-        let mut t2 = Track::default();
+        let mut t2 = Track::new(2, TimeMetric::default(), TimeAttrs::default(), NoopNotifier);
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             Some(TimeAttrUpdates { time: 3 }),
         )?;
-        t2.track_id = 2;
 
         let dists = t1.distances(&t2, 0);
         let dists = dists.unwrap();
@@ -880,11 +880,11 @@ mod tests {
         assert!((*dists[0].feature_distance.as_ref().unwrap() - 2.0_f32.sqrt()).abs() < EPS);
         assert_eq!(dists[0].to, 2);
 
-        let mut t3 = Track::default();
+        let mut t3 = Track::new(3, TimeMetric::default(), TimeAttrs::default(), NoopNotifier);
         t3.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             Some(TimeAttrUpdates { time: 1 }),
         )?;
 
@@ -895,18 +895,18 @@ mod tests {
 
     #[test]
     fn get_classes() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
+        let mut t1 = Track::new(1, DefaultMetric, DefaultAttrs, NoopNotifier);
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
         t1.add_observation(
             1,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
         let mut classes = t1.get_feature_classes();
@@ -924,29 +924,29 @@ mod tests {
         #[derive(Error, Debug)]
         enum TestError {
             #[error("Update Error")]
-            UpdateError,
-            #[error("MergeError")]
-            MergeError,
-            #[error("OptimizeError")]
-            OptimizeError,
+            Update,
+            #[error("Unable to Merge")]
+            Merge,
+            #[error("Unable to Optimize")]
+            Optimize,
         }
 
-        #[derive(Default, Clone, PartialEq, Debug)]
-        pub struct DefaultAttrs {
+        #[derive(Default, Clone, PartialEq, Eq, Debug)]
+        pub struct LocalAttrs {
             pub count: u32,
         }
 
-        #[derive(Default, Clone)]
-        pub struct DefaultAttrUpdates {
+        #[derive(Clone)]
+        pub struct LocalAttrsUpdates {
             ignore: bool,
         }
 
-        impl TrackAttributesUpdate<DefaultAttrs> for DefaultAttrUpdates {
-            fn apply(&self, attrs: &mut DefaultAttrs) -> Result<()> {
+        impl TrackAttributesUpdate<LocalAttrs> for LocalAttrsUpdates {
+            fn apply(&self, attrs: &mut LocalAttrs) -> Result<()> {
                 if !self.ignore {
                     attrs.count += 1;
                     if attrs.count > 1 {
-                        Err(TestError::UpdateError.into())
+                        Err(TestError::Update.into())
                     } else {
                         Ok(())
                     }
@@ -956,16 +956,16 @@ mod tests {
             }
         }
 
-        impl TrackAttributes<DefaultAttrs, f32> for DefaultAttrs {
-            type Update = DefaultAttrUpdates;
-            type Lookup = NoopLookup<DefaultAttrs, f32>;
+        impl TrackAttributes<LocalAttrs, f32> for LocalAttrs {
+            type Update = LocalAttrsUpdates;
+            type Lookup = NoopLookup<LocalAttrs, f32>;
 
-            fn compatible(&self, _other: &DefaultAttrs) -> bool {
+            fn compatible(&self, _other: &LocalAttrs) -> bool {
                 true
             }
 
-            fn merge(&mut self, _other: &DefaultAttrs) -> Result<()> {
-                Err(TestError::MergeError.into())
+            fn merge(&mut self, _other: &LocalAttrs) -> Result<()> {
+                Err(TestError::Merge.into())
             }
 
             fn baked(&self, _observations: &ObservationsDb<f32>) -> Result<TrackStatus> {
@@ -973,19 +973,14 @@ mod tests {
             }
         }
 
-        #[derive(Default, Clone)]
-        struct DefaultMetric;
-        impl ObservationMetric<DefaultAttrs, f32> for DefaultMetric {
-            fn metric(
-                _feature_class: u64,
-                _attrs1: &DefaultAttrs,
-                _attrs2: &DefaultAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
-            ) -> MetricOutput<f32> {
+        #[derive(Clone)]
+        struct LocalMetric;
+        impl ObservationMetric<LocalAttrs, f32> for LocalMetric {
+            fn metric(&self, mq: &MetricQuery<LocalAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
-                    f32::calculate_metric_object(&e1.0, &e2.0),
-                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                    f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                    match (e1.feature().as_ref(), e2.feature().as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
@@ -994,101 +989,101 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
-                _attributes: &mut DefaultAttrs,
-                _features: &mut Vec<ObservationSpec<f32>>,
+                _attributes: &mut LocalAttrs,
+                _features: &mut Vec<Observation<f32>>,
                 prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
                 if prev_length == 1 {
-                    Err(TestError::OptimizeError.into())
+                    Err(TestError::Optimize.into())
                 } else {
                     Ok(())
                 }
             }
         }
 
-        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
-        assert_eq!(t1.attributes, DefaultAttrs { count: 0 });
+        let mut t1 = Track::new(1, LocalMetric, LocalAttrs::default(), NoopNotifier);
+        assert_eq!(t1.attributes, LocalAttrs { count: 0 });
         let res = t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
-            Some(DefaultAttrUpdates { ignore: false }),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(LocalAttrsUpdates { ignore: false }),
         );
         assert!(res.is_ok());
-        assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
+        assert_eq!(t1.attributes, LocalAttrs { count: 1 });
 
         let res = t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
-            Some(DefaultAttrUpdates { ignore: true }),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(LocalAttrsUpdates { ignore: true }),
         );
         assert!(res.is_err());
         if let Err(e) = res {
             match e.root_cause().downcast_ref::<TestError>().unwrap() {
-                TestError::UpdateError | TestError::MergeError => {
+                TestError::Update | TestError::Merge => {
                     unreachable!();
                 }
-                TestError::OptimizeError => {}
+                TestError::Optimize => {}
             }
         } else {
             unreachable!();
         }
 
-        assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
+        assert_eq!(t1.attributes, LocalAttrs { count: 1 });
 
-        let mut t2: Track<DefaultAttrs, DefaultMetric, f32> = Track::default();
-        assert_eq!(t2.attributes, DefaultAttrs { count: 0 });
+        let mut t2 = Track::new(2, LocalMetric, LocalAttrs::default(), NoopNotifier);
+        assert_eq!(t2.attributes, LocalAttrs { count: 0 });
         let res = t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
-            Some(DefaultAttrUpdates { ignore: false }),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(LocalAttrsUpdates { ignore: false }),
         );
         assert!(res.is_ok());
-        assert_eq!(t2.attributes, DefaultAttrs { count: 1 });
+        assert_eq!(t2.attributes, LocalAttrs { count: 1 });
 
-        let res = t1.merge(&t2, &vec![0], true);
+        let res = t1.merge(&t2, &[0], true);
         if let Err(e) = res {
             match e.root_cause().downcast_ref::<TestError>().unwrap() {
-                TestError::UpdateError | TestError::OptimizeError => {
+                TestError::Update | TestError::Optimize => {
                     unreachable!();
                 }
-                TestError::MergeError => {}
+                TestError::Merge => {}
             }
         } else {
             unreachable!();
         }
-        assert_eq!(t1.attributes, DefaultAttrs { count: 1 });
+        assert_eq!(t1.attributes, LocalAttrs { count: 1 });
     }
 
     #[test]
     fn merge_history() -> Result<()> {
-        let mut t1: Track<DefaultAttrs, DefaultMetric, f32> = Track::new(0, None, None, None);
-        let mut t2 = Track::new(1, None, None, None);
+        let mut t1 = Track::new(0, DefaultMetric, DefaultAttrs, NoopNotifier);
+        let mut t2 = Track::new(1, DefaultMetric, DefaultAttrs, NoopNotifier);
 
         t1.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![1f32, 0.0, 0.0])),
+            Some(Feature::from_vec(vec![1f32, 0.0, 0.0])),
             None,
         )?;
 
         t2.add_observation(
             0,
             Some(0.3),
-            Some(Observation::from_vec(vec![0f32, 1.0f32, 0.0])),
+            Some(Feature::from_vec(vec![0f32, 1.0f32, 0.0])),
             None,
         )?;
 
         let mut track_with_merge_history = t1.clone();
-        let _r = track_with_merge_history.merge(&t2, &vec![0], true);
+        let _r = track_with_merge_history.merge(&t2, &[0], true);
         assert_eq!(track_with_merge_history.merge_history, vec![0, 1]);
 
-        let _r = t1.merge(&t2, &vec![0], false);
+        let _r = t1.merge(&t2, &[0], false);
         assert_eq!(t1.merge_history, vec![0]);
 
         Ok(())
@@ -1096,10 +1091,10 @@ mod tests {
 
     #[test]
     fn unit_track() {
-        #[derive(Default, Clone)]
+        #[derive(Clone)]
         pub struct UnitAttrs;
 
-        #[derive(Default, Clone)]
+        #[derive(Clone)]
         pub struct UnitAttrUpdates;
 
         impl TrackAttributesUpdate<UnitAttrs> for UnitAttrUpdates {
@@ -1125,16 +1120,11 @@ mod tests {
             }
         }
 
-        #[derive(Default, Clone)]
+        #[derive(Clone)]
         struct UnitMetric;
         impl ObservationMetric<UnitAttrs, ()> for UnitMetric {
-            fn metric(
-                _feature_class: u64,
-                _attrs1: &UnitAttrs,
-                _attrs2: &UnitAttrs,
-                e1: &ObservationSpec<()>,
-                e2: &ObservationSpec<()>,
-            ) -> MetricOutput<()> {
+            fn metric(&self, mq: &MetricQuery<UnitAttrs, ()>) -> MetricOutput<()> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
                     None,
                     match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -1146,10 +1136,10 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attributes: &mut UnitAttrs,
-                features: &mut Vec<ObservationSpec<()>>,
+                features: &mut Vec<Observation<()>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
@@ -1159,7 +1149,7 @@ mod tests {
             }
         }
 
-        let _t1: Track<UnitAttrs, UnitMetric, ()> = Track::new(0, None, None, None);
+        let _t1 = Track::new(1, UnitMetric, UnitAttrs, NoopNotifier);
     }
 
     #[test]
@@ -1177,10 +1167,10 @@ mod tests {
             }
         }
 
-        #[derive(Debug, Clone, Default)]
+        #[derive(Clone, Default)]
         struct LookupAttrs;
 
-        #[derive(Default, Clone)]
+        #[derive(Clone)]
         pub struct LookupAttributeUpdate;
 
         impl TrackAttributesUpdate<LookupAttrs> for LookupAttributeUpdate {
@@ -1206,20 +1196,15 @@ mod tests {
             }
         }
 
-        #[derive(Default, Clone)]
+        #[derive(Clone)]
         pub struct LookupMetric;
 
         impl ObservationMetric<LookupAttrs, f32> for LookupMetric {
-            fn metric(
-                _feature_class: u64,
-                _attrs1: &LookupAttrs,
-                _attrs2: &LookupAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
-            ) -> MetricOutput<f32> {
+            fn metric(&self, mq: &MetricQuery<LookupAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
-                    f32::calculate_metric_object(&e1.0, &e2.0),
-                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                    f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                    match (e1.feature().as_ref(), e2.feature().as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
@@ -1228,10 +1213,10 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attrs: &mut LookupAttrs,
-                _features: &mut Vec<ObservationSpec<f32>>,
+                _features: &mut Vec<Observation<f32>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
@@ -1239,7 +1224,12 @@ mod tests {
             }
         }
 
-        let t: Track<LookupAttrs, LookupMetric, f32> = TrackBuilder::default().build().unwrap();
-        assert_eq!(t.lookup(&Lookup), true);
+        let t: Track<LookupAttrs, LookupMetric, f32> = TrackBuilder::default()
+            .metric(LookupMetric)
+            .attributes(LookupAttrs)
+            .notifier(NoopNotifier)
+            .build()
+            .unwrap();
+        assert!(t.lookup(&Lookup));
     }
 }

@@ -7,23 +7,18 @@ use similari::trackers::sort::simple_maha::MahaSort;
 use test::Bencher;
 
 #[bench]
-fn bench_sort_maha_00010(b: &mut Bencher) {
+fn sort_maha_00010(b: &mut Bencher) {
     bench_sort(10, b);
 }
 
 #[bench]
-fn bench_sort_maha_00100(b: &mut Bencher) {
+fn sort_maha_00100(b: &mut Bencher) {
     bench_sort(100, b);
 }
 
 #[bench]
-fn bench_sort_maha_00500(b: &mut Bencher) {
+fn sort_maha_00500(b: &mut Bencher) {
     bench_sort(500, b);
-}
-
-#[bench]
-fn bench_sort_maha_01000(b: &mut Bencher) {
-    bench_sort(1000, b);
 }
 
 fn bench_sort(objects: usize, b: &mut Bencher) {
@@ -51,7 +46,9 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
 
     let mut tracker = MahaSort::new(ncores, 10, 1);
 
+    let mut count = 0;
     b.iter(|| {
+        count += 1;
         let mut observations = Vec::new();
         for i in &mut iterators {
             iteration += 1;
@@ -70,4 +67,7 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
     tracker.skip_epochs(2);
     let wasted = tracker.wasted();
     assert_eq!(wasted.len(), objects);
+    for w in wasted {
+        assert_eq!(w.get_attributes().track_length, count);
+    }
 }

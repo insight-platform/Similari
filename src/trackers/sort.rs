@@ -1,76 +1,141 @@
 use crate::track::{
     NoopLookup, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
+use crate::trackers::epoch_db::EpochDb;
+use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::State;
+use crate::utils::kalman::KalmanState;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
+/// SORT implementation with IoU distance
 pub mod iou;
 /// SORT implementation with Mahalanobis distance
 pub mod maha;
+
 /// SORT implementation with a very tiny interface (IoU)
 pub mod simple_iou;
 /// SORT implementation with a very tiny interface (Mahalanobis)
 pub mod simple_maha;
 
-/// Voting engine
+/// Voting engine with Hungarian algorithm
 pub mod voting;
 
 /// Default IoU threshold that is defined by SORT author in the original repo
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
+pub struct SortAttributesOptions {
+    /// The map that stores current epochs for the scene_id
+    epoch_db: Option<RwLock<HashMap<u64, usize>>>,
+    /// The maximum number of epochs without update while the track is alive
+    max_idle_epochs: usize,
+    /// The maximum length of collected objects for the track
+    pub history_length: usize,
+}
+
+impl EpochDb for SortAttributesOptions {
+    fn epoch_db(&self) -> &Option<RwLock<HashMap<u64, usize>>> {
+        &self.epoch_db
+    }
+
+    fn max_idle_epochs(&self) -> usize {
+        self.max_idle_epochs
+    }
+}
+
+impl SortAttributesOptions {
+    pub fn new(
+        epoch_db: Option<RwLock<HashMap<u64, usize>>>,
+        max_idle_epochs: usize,
+        history_length: usize,
+    ) -> Self {
+        Self {
+            epoch_db,
+            max_idle_epochs,
+            history_length,
+        }
+    }
+}
+
+/// Attributes associated with SORT track
+///
+#[derive(Debug, Clone)]
 pub struct SortAttributes {
-    pub history_len: usize,
+    /// The lastly predicted boxes
     pub predicted_boxes: VecDeque<Universal2DBox>,
+    /// The lastly observed boxes
     pub observed_boxes: VecDeque<Universal2DBox>,
-    pub last_observation: Universal2DBox,
-    pub last_prediction: Universal2DBox,
-    pub state: Option<State>,
-    pub epoch: usize,
-    pub current_epoch: Option<Arc<RwLock<HashMap<u64, usize>>>>,
-    pub max_idle_epochs: usize,
-    pub length: usize,
+    /// The epoch when the track was lastly updated
+    pub last_updated_epoch: usize,
+    /// The length of the track
+    pub track_length: usize,
+    /// Customer-specific scene identifier that splits the objects by classes, realms, etc.
     pub scene_id: u64,
+
+    /// Kalman filter predicted state
+    state: Option<KalmanState>,
+    opts: Arc<SortAttributesOptions>,
+}
+
+impl TrackAttributesKalmanPrediction for SortAttributes {
+    fn get_state(&self) -> Option<KalmanState> {
+        self.state
+    }
+
+    fn set_state(&mut self, state: KalmanState) {
+        self.state = Some(state);
+    }
+}
+
+impl Default for SortAttributes {
+    fn default() -> Self {
+        Self {
+            predicted_boxes: VecDeque::default(),
+            observed_boxes: VecDeque::default(),
+            last_updated_epoch: 0,
+            track_length: 0,
+            scene_id: 0,
+            state: None,
+            opts: Arc::new(SortAttributesOptions::default()),
+        }
+    }
 }
 
 impl SortAttributes {
     /// Creates new attributes with limited history
     ///
     /// # Parameters
-    /// * `history_len` - how long history to hold. 0 means all history.
-    /// * `max_idle_epochs` - how long to wait before exclude the track from store.
-    /// * `current_epoch` - current epoch counter.
+    /// * `opts` - options
     ///
-    pub fn new_with_epochs(
-        history_len: usize,
-        max_idle_epochs: usize,
-        current_epoch: Arc<RwLock<HashMap<u64, usize>>>,
-    ) -> Self {
+    pub fn new(opts: Arc<SortAttributesOptions>) -> Self {
         Self {
-            history_len,
-            max_idle_epochs,
-            current_epoch: Some(current_epoch),
+            opts,
             ..Default::default()
         }
     }
 
-    /// Creates new attributes with limited history
-    ///
-    /// # Parameters
-    /// * `history_len` - how long history to hold. 0 means all history.
-    ///
-    pub fn new(history_len: usize) -> Self {
-        Self {
-            history_len,
-            ..Default::default()
+    fn update_history(
+        &mut self,
+        observation_bbox: &Universal2DBox,
+        predicted_bbox: &Universal2DBox,
+    ) {
+        self.track_length += 1;
+
+        self.observed_boxes.push_back(observation_bbox.clone());
+        self.predicted_boxes.push_back(predicted_bbox.clone());
+
+        if self.opts.history_length > 0 && self.observed_boxes.len() > self.opts.history_length {
+            self.observed_boxes.pop_front();
+            self.predicted_boxes.pop_front();
         }
     }
 }
 
+/// Update object for SortAttributes
+///
 #[derive(Clone, Debug, Default)]
 pub struct SortAttributesUpdate {
     epoch: usize,
@@ -78,9 +143,19 @@ pub struct SortAttributesUpdate {
 }
 
 impl SortAttributesUpdate {
+    /// update epoch with scene_id == 0
+    ///
+    /// # Parameters
+    /// * `epoch` - epoch update
+    ///
     pub fn new(epoch: usize) -> Self {
         Self { epoch, scene_id: 0 }
     }
+    /// update epoch for a specific scene_id
+    ///
+    /// # Parameters
+    /// * `epoch` - epoch
+    /// * `scene_id` - scene_id
     pub fn new_with_scene(epoch: usize, scene_id: u64) -> Self {
         Self { epoch, scene_id }
     }
@@ -88,7 +163,7 @@ impl SortAttributesUpdate {
 
 impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
     fn apply(&self, attrs: &mut SortAttributes) -> Result<()> {
-        attrs.epoch = self.epoch;
+        attrs.last_updated_epoch = self.epoch;
         attrs.scene_id = self.scene_id;
         Ok(())
     }
@@ -103,25 +178,12 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
     }
 
     fn merge(&mut self, other: &SortAttributes) -> Result<()> {
-        self.epoch = other.epoch;
+        self.last_updated_epoch = other.last_updated_epoch;
         Ok(())
     }
 
     fn baked(&self, _observations: &ObservationsDb<Universal2DBox>) -> Result<TrackStatus> {
-        let scene_id = self.scene_id;
-        if let Some(current_epoch) = &self.current_epoch {
-            let current_epoch = current_epoch.read().unwrap();
-            if self.epoch + self.max_idle_epochs < *current_epoch.get(&scene_id).unwrap_or(&0) {
-                Ok(TrackStatus::Wasted)
-            } else {
-                Ok(TrackStatus::Pending)
-            }
-        } else {
-            // If epoch expiration is not set the tracks are always ready.
-            // If set, then only when certain amount of epochs pass they are Wasted.
-            //
-            Ok(TrackStatus::Ready)
-        }
+        self.opts.baked(self.scene_id, self.last_updated_epoch)
     }
 }
 
@@ -196,16 +258,28 @@ mod track_tests {
 #[pyclass]
 pub struct SortTrack {
     /// id of the track
+    ///
+    #[pyo3(get)]
     pub id: u64,
     /// when the track was lastly updated
+    ///
+    #[pyo3(get)]
     pub epoch: usize,
     /// the bbox predicted by KF
+    ///
+    #[pyo3(get)]
     pub predicted_bbox: Universal2DBox,
     /// the bbox passed by detector
+    ///
+    #[pyo3(get)]
     pub observed_bbox: Universal2DBox,
     /// user-defined scene id that splits tracking space on isolated realms
+    ///
+    #[pyo3(get)]
     pub scene_id: u64,
     /// current track length
+    ///
+    #[pyo3(get)]
     pub length: usize,
 }
 
@@ -216,20 +290,36 @@ pub struct SortTrack {
 #[pyo3(name = "WastedSortTrack")]
 pub struct PyWastedSortTrack {
     /// id of the track
+    ///
+    #[pyo3(get)]
     pub id: u64,
     /// when the track was lastly updated
+    ///
+    #[pyo3(get)]
     pub epoch: usize,
     /// the bbox predicted by KF
+    ///
+    #[pyo3(get)]
     pub predicted_bbox: Universal2DBox,
     /// the bbox passed by detector
+    ///
+    #[pyo3(get)]
     pub observed_bbox: Universal2DBox,
     /// user-defined scene id that splits tracking space on isolated realms
+    ///
+    #[pyo3(get)]
     pub scene_id: u64,
     /// current track length
+    ///
+    #[pyo3(get)]
     pub length: usize,
     /// history of predicted boxes
+    ///
+    #[pyo3(get)]
     pub predicted_boxes: Vec<Universal2DBox>,
     /// history of observed boxes
+    ///
+    #[pyo3(get)]
     pub observed_boxes: Vec<Universal2DBox>,
 }
 

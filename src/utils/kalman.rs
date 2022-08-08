@@ -39,12 +39,12 @@ macro_rules! pretty_print {
 /// Kalman filter current state
 ///
 #[derive(Copy, Clone, Debug)]
-pub struct State<const X: usize = DIM_X2> {
+pub struct KalmanState<const X: usize = DIM_X2> {
     mean: SVector<f32, X>,
     covariance: SMatrix<f32, X, X>,
 }
 
-impl<const X: usize> State<X> {
+impl<const X: usize> KalmanState<X> {
     /// Fetch predicted bbox in (x,y,w,h) format from the state
     ///
     pub fn bbox(&self) -> Result<BoundingBox> {
@@ -121,7 +121,7 @@ impl KalmanFilter {
 
     /// Initialize the filter with the first observation
     ///
-    pub fn initiate(&self, bbox: Universal2DBox) -> State<DIM_X2> {
+    pub fn initiate(&self, bbox: Universal2DBox) -> KalmanState<DIM_X2> {
         let mean: SVector<f32, DIM_X2> = SVector::from_iterator([
             bbox.x(),
             bbox.y(),
@@ -144,12 +144,12 @@ impl KalmanFilter {
         std = std.component_mul(&std);
 
         let covariance: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::from_diagonal(&std);
-        State { mean, covariance }
+        KalmanState { mean, covariance }
     }
 
     /// Predicts the state from the last state
     ///
-    pub fn predict(&self, state: State<DIM_X2>) -> State<DIM_X2> {
+    pub fn predict(&self, state: KalmanState<DIM_X2>) -> KalmanState<DIM_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let std_pos = self.std_position(1.0, 1e-2, mean[4]);
         let std_vel = self.std_velocity(1.0, 1e-5, mean[4]);
@@ -164,14 +164,14 @@ impl KalmanFilter {
         let mean = self.motion_matrix * mean;
         let covariance =
             self.motion_matrix * covariance * self.motion_matrix.transpose() + motion_cov;
-        State { mean, covariance }
+        KalmanState { mean, covariance }
     }
 
     fn project(
         &self,
         mean: SVector<f32, DIM_X2>,
         covariance: SMatrix<f32, DIM_X2, DIM_X2>,
-    ) -> State<DIM> {
+    ) -> KalmanState<DIM> {
         let mut std: SVector<f32, DIM> =
             SVector::from_iterator(self.std_position(1.0, 1e-1, mean[4]));
 
@@ -182,12 +182,16 @@ impl KalmanFilter {
         let mean = self.update_matrix * mean;
         let covariance =
             self.update_matrix * covariance * self.update_matrix.transpose() + innovation_cov;
-        State { mean, covariance }
+        KalmanState { mean, covariance }
     }
 
     /// Updates the state with the current observation
     ///
-    pub fn update(&self, state: State<DIM_X2>, measurement: Universal2DBox) -> State<DIM_X2> {
+    pub fn update(
+        &self,
+        state: KalmanState<DIM_X2>,
+        measurement: Universal2DBox,
+    ) -> KalmanState<DIM_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (projected_mean, projected_cov) = (projected_state.mean, projected_state.covariance);
@@ -206,10 +210,10 @@ impl KalmanFilter {
 
         let mean = mean + (innovation * kalman_gain).transpose();
         let covariance = covariance - kalman_gain.transpose() * projected_cov * kalman_gain;
-        State { mean, covariance }
+        KalmanState { mean, covariance }
     }
 
-    pub fn distance(&self, state: State<DIM_X2>, measurement: &Universal2DBox) -> f32 {
+    pub fn distance(&self, state: KalmanState<DIM_X2>, measurement: &Universal2DBox) -> f32 {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
@@ -257,7 +261,7 @@ mod tests {
         let f = KalmanFilter::default();
         let bbox = BoundingBox::new(1.0, 2.0, 5.0, 5.0);
 
-        let state = f.initiate(bbox.clone().into());
+        let state = f.initiate(bbox.into());
         let new_bb = state.bbox();
         assert_eq!(new_bb.unwrap(), bbox.clone());
     }
@@ -267,20 +271,20 @@ mod tests {
         let f = KalmanFilter::default();
         let bbox = BoundingBox::new(-10.0, 2.0, 2.0, 5.0);
 
-        let state = f.initiate(bbox.clone().into());
+        let state = f.initiate(bbox.into());
         let state = f.predict(state);
         let p = state.universal_bbox();
 
         let est_p = Universal2DBox::new(-9.0, 4.5, None, 0.4, 5.0);
-        assert_eq!(p.almost_same(&est_p, EPS), true);
+        assert!(p.almost_same(&est_p, EPS));
 
-        let bbox = Universal2DBox::new(8.75, 52.349999999999994, None, 0.15084915084915085, 100.1);
+        let bbox = Universal2DBox::new(8.75, 52.35, None, 0.150_849_15, 100.1);
         let state = f.update(state, bbox);
         let est_p = Universal2DBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
 
         let state = f.predict(state);
         let p = state.universal_bbox();
-        assert_eq!(p.almost_same(&est_p, EPS), true);
+        assert!(p.almost_same(&est_p, EPS));
     }
 
     #[test]
@@ -294,7 +298,7 @@ mod tests {
 
         let new_bbox_2 = BoundingBox::new(-5.0, 1.5, 2.2, 5.0);
 
-        let state = f.initiate(bbox.clone().into());
+        let state = f.initiate(bbox.into());
         let state = f.predict(state);
         let state = f.update(state, upd_bbox.into());
         let state = f.predict(state);
@@ -302,7 +306,7 @@ mod tests {
         let dist = f.distance(state, &new_bbox_1.into());
         let dist = KalmanFilter::calculate_cost(dist, false);
         dbg!(&dist);
-        assert!(dist >= 0.0 && dist < CHI2INV95[4]);
+        assert!((0.0..CHI2INV95[4]).contains(&dist));
 
         let dist = f.distance(state, &new_bbox_2.into());
         let dist = KalmanFilter::calculate_cost(dist, false);

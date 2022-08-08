@@ -8,7 +8,7 @@ use similari::examples::FeatGen2;
 use similari::store::TrackStore;
 use similari::track::notify::NoopNotifier;
 use similari::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
+    MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
     ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
@@ -54,7 +54,7 @@ struct CamTrackingAttributes {
 impl CamTrackingAttributes {
     // calculate age as average over observations
     pub fn get_age(&self) -> Option<u8> {
-        if self.age.len() == 0 {
+        if self.age.is_empty() {
             return None;
         }
         u8::try_from(self.age.iter().map(|e| *e as u32).sum::<u32>() / self.age.len() as u32).ok()
@@ -69,7 +69,7 @@ impl CamTrackingAttributes {
         let groups = self.gender.clone();
         let mut groups = groups.into_iter().counts().into_iter().collect::<Vec<_>>();
         groups.sort_by(|(_, l), (_, r)| r.partial_cmp(l).unwrap());
-        groups[0].0.clone()
+        groups[0].0
     }
 }
 
@@ -128,7 +128,7 @@ impl TrackAttributesUpdate<CamTrackingAttributes> for CamTrackingAttributesUpdat
                 // update may be without the gender, if observer cannot determine the
                 // gender within the observation
                 if let Some(gender) = gender {
-                    attrs.gender.push(gender.clone());
+                    attrs.gender.push(*gender);
                 }
 
                 // same for age
@@ -210,8 +210,8 @@ fn feat_gen() {
 
     let drift = 0.01;
     let mut gen = FeatGen2::new(0.0, 0.0, drift);
-    let v1 = gen.next().unwrap().1[0];
-    let v2 = gen.next().unwrap().1[0];
+    let v1 = gen.next().unwrap().1.as_ref().unwrap()[0];
+    let v2 = gen.next().unwrap().1.as_ref().unwrap()[0];
     assert!(v1.sub(v2).abs().reduce_add() <= 2.0 * f32x8::splat(drift).reduce_add());
 }
 
@@ -265,16 +265,11 @@ impl Default for CamTrackingAttributesMetric {
 }
 
 impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetric {
-    fn metric(
-        _feature_class: u64,
-        _attrs1: &CamTrackingAttributes,
-        _attrs2: &CamTrackingAttributes,
-        e1: &ObservationSpec<f32>,
-        e2: &ObservationSpec<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<CamTrackingAttributes, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
-            f32::calculate_metric_object(&e1.0, &e2.0),
-            match (e1.1.as_ref(), e2.1.as_ref()) {
+            f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+            match (e1.feature().as_ref(), e2.feature().as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
@@ -283,10 +278,10 @@ impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetr
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         merge_history: &[u64],
         _attrs: &mut CamTrackingAttributes,
-        features: &mut Vec<ObservationSpec<f32>>,
+        features: &mut Vec<Observation<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
@@ -302,24 +297,24 @@ impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetr
     }
 }
 
-struct Observation {
+struct TrackObservation {
     pub track_id: u64,
     pub age: Option<u8>,
     pub gender: Option<Gender>,
     pub camera_id: u64,
     pub screen_pos: (u16, u16),
     pub class: u64,
-    pub feature: ObservationSpec<f32>,
+    pub feature: Observation<f32>,
 }
 
-impl Observation {
+impl TrackObservation {
     pub fn new(
         track_id: u64,
         age: Option<u8>,
         gender: Option<Gender>,
         camera_id: u64,
         screen_pos: (u16, u16),
-        feature: ObservationSpec<f32>,
+        feature: Observation<f32>,
     ) -> Self {
         Self {
             track_id,
@@ -342,45 +337,45 @@ fn main() {
     let f = Some(Female);
     let observations = vec![
         // track 1 (person 1)
-        Observation::new(1, Some(13), f, 1, (30, 30), p1.next().unwrap()),
-        Observation::new(1, Some(17), m, 1, (35, 30), p1.next().unwrap()),
-        Observation::new(1, Some(23), m, 1, (35, 35), p1.next().unwrap()),
-        Observation::new(1, None, None, 1, (40, 35), p1.next().unwrap()),
-        Observation::new(1, Some(18), m, 1, (40, 40), p1.next().unwrap()),
+        TrackObservation::new(1, Some(13), f, 1, (30, 30), p1.next().unwrap()),
+        TrackObservation::new(1, Some(17), m, 1, (35, 30), p1.next().unwrap()),
+        TrackObservation::new(1, Some(23), m, 1, (35, 35), p1.next().unwrap()),
+        TrackObservation::new(1, None, None, 1, (40, 35), p1.next().unwrap()),
+        TrackObservation::new(1, Some(18), m, 1, (40, 40), p1.next().unwrap()),
         // track 2 (person 2)
-        Observation::new(2, Some(46), f, 1, (100, 100), p2.next().unwrap()),
-        Observation::new(2, Some(30), f, 1, (135, 130), p2.next().unwrap()),
-        Observation::new(2, Some(40), f, 1, (135, 135), p2.next().unwrap()),
-        Observation::new(2, None, None, 1, (140, 135), p2.next().unwrap()),
-        Observation::new(2, Some(54), m, 1, (140, 140), p2.next().unwrap()),
+        TrackObservation::new(2, Some(46), f, 1, (100, 100), p2.next().unwrap()),
+        TrackObservation::new(2, Some(30), f, 1, (135, 130), p2.next().unwrap()),
+        TrackObservation::new(2, Some(40), f, 1, (135, 135), p2.next().unwrap()),
+        TrackObservation::new(2, None, None, 1, (140, 135), p2.next().unwrap()),
+        TrackObservation::new(2, Some(54), m, 1, (140, 140), p2.next().unwrap()),
         // track 3 (person 1)
-        Observation::new(3, Some(18), f, 1, (50, 40), p1.next().unwrap()),
-        Observation::new(3, Some(17), m, 1, (55, 50), p1.next().unwrap()),
-        Observation::new(3, Some(20), m, 1, (65, 55), p1.next().unwrap()),
-        Observation::new(3, Some(17), None, 1, (70, 50), p1.next().unwrap()),
-        Observation::new(3, None, m, 1, (75, 55), p1.next().unwrap()),
+        TrackObservation::new(3, Some(18), f, 1, (50, 40), p1.next().unwrap()),
+        TrackObservation::new(3, Some(17), m, 1, (55, 50), p1.next().unwrap()),
+        TrackObservation::new(3, Some(20), m, 1, (65, 55), p1.next().unwrap()),
+        TrackObservation::new(3, Some(17), None, 1, (70, 50), p1.next().unwrap()),
+        TrackObservation::new(3, None, m, 1, (75, 55), p1.next().unwrap()),
         // track 4 (person 2)
-        Observation::new(4, Some(48), f, 1, (150, 140), p2.next().unwrap()),
-        Observation::new(4, Some(47), f, 1, (155, 150), p2.next().unwrap()),
-        Observation::new(4, Some(30), m, 1, (165, 155), p2.next().unwrap()),
-        Observation::new(4, Some(57), None, 1, (170, 150), p2.next().unwrap()),
-        Observation::new(4, None, f, 1, (175, 155), p2.next().unwrap()),
+        TrackObservation::new(4, Some(48), f, 1, (150, 140), p2.next().unwrap()),
+        TrackObservation::new(4, Some(47), f, 1, (155, 150), p2.next().unwrap()),
+        TrackObservation::new(4, Some(30), m, 1, (165, 155), p2.next().unwrap()),
+        TrackObservation::new(4, Some(57), None, 1, (170, 150), p2.next().unwrap()),
+        TrackObservation::new(4, None, f, 1, (175, 155), p2.next().unwrap()),
         // track 5 (person 1)
-        Observation::new(5, None, None, 1, (80, 55), p1.next().unwrap()),
-        Observation::new(5, None, None, 1, (85, 60), p1.next().unwrap()),
-        Observation::new(5, None, None, 1, (90, 65), p1.next().unwrap()),
-        Observation::new(5, None, None, 1, (90, 50), p1.next().unwrap()),
-        Observation::new(5, None, m, 1, (90, 50), p1.next().unwrap()),
+        TrackObservation::new(5, None, None, 1, (80, 55), p1.next().unwrap()),
+        TrackObservation::new(5, None, None, 1, (85, 60), p1.next().unwrap()),
+        TrackObservation::new(5, None, None, 1, (90, 65), p1.next().unwrap()),
+        TrackObservation::new(5, None, None, 1, (90, 50), p1.next().unwrap()),
+        TrackObservation::new(5, None, m, 1, (90, 50), p1.next().unwrap()),
     ];
 
     // collect tracks here until they are initially ready
     let mut temp_store = TrackStore::new(
-        Some(CamTrackingAttributesMetric::default()),
-        Some(CamTrackingAttributes {
+        CamTrackingAttributesMetric::default(),
+        CamTrackingAttributes {
             baked_period_ms: 20,
             ..Default::default()
-        }),
-        Some(NoopNotifier),
+        },
+        NoopNotifier,
         1,
     );
 
@@ -388,19 +383,19 @@ fn main() {
     let merge_store_baked_period_ms = 60;
     let mut merge_store: TrackStore<CamTrackingAttributes, CamTrackingAttributesMetric, f32> =
         TrackStore::new(
-            Some(CamTrackingAttributesMetric::default()),
-            Some(CamTrackingAttributes {
+            CamTrackingAttributesMetric::default(),
+            CamTrackingAttributes {
                 baked_period_ms: merge_store_baked_period_ms,
                 ..Default::default()
-            }),
-            Some(NoopNotifier),
+            },
+            NoopNotifier,
             1,
         );
     let voting_machine: TopNVoting<f32> = TopNVoting::new(1, 0.1, 3);
 
     let mut idx = 0;
     loop {
-        if let Some(Observation {
+        if let Some(TrackObservation {
             track_id,
             age,
             gender,
@@ -432,7 +427,7 @@ fn main() {
         thread::sleep(Duration::from_millis(1));
         let baked = temp_store.find_usable();
         for (id, s) in baked {
-            let mut track = temp_store.fetch_tracks(&vec![id]).pop().unwrap();
+            let mut track = temp_store.fetch_tracks(&[id]).pop().unwrap();
             if let Ok(TrackStatus::Ready) = s {
                 let search_track = track.clone();
                 track
@@ -473,7 +468,7 @@ fn main() {
     let baked = merge_store.find_usable();
     for (id, s) in baked {
         if let Ok(TrackStatus::Ready) = s {
-            let track = merge_store.fetch_tracks(&vec![id]).pop().unwrap();
+            let track = merge_store.fetch_tracks(&[id]).pop().unwrap();
             eprintln!(
                 "Composite Track is ready: {}, age: {:?}, gender: {:?}\nCoordinates: {:?}",
                 track.get_track_id(),

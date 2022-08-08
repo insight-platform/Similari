@@ -9,7 +9,6 @@ use geo::{Area, Coordinate, LineString, Polygon};
 use itertools::Itertools;
 use pyo3::exceptions::PyAttributeError;
 use pyo3::prelude::*;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
@@ -345,8 +344,8 @@ mod polygons {
         let union = polygon1.union(&polygon2).unsigned_area();
         assert!((union - 3.0).abs() < EPS as f64);
 
-        let res = Universal2DBox::calculate_metric_object(&Some(bbox1.clone()), &Some(bbox2))
-            .unwrap() as f64;
+        let res =
+            Universal2DBox::calculate_metric_object(&Some(&bbox1), &Some(&bbox2)).unwrap() as f64;
         assert!((res - int / union).abs() < EPS as f64);
 
         let bbox3 = Universal2DBox::new(10.0, 0.0, Some(2.0 + PI / 2.0), 0.5, 2.0);
@@ -358,15 +357,15 @@ mod polygons {
         let union = polygon1.union(&polygon3).unsigned_area();
         assert!((union - 4.0).abs() < EPS as f64);
 
-        assert!(Universal2DBox::calculate_metric_object(&Some(bbox1), &Some(bbox3)).is_none());
+        assert!(Universal2DBox::calculate_metric_object(&Some(&bbox1), &Some(&bbox3)).is_none());
     }
 
     #[test]
     fn corner_case_f32() {
-        let x = Universal2DBox::new(8044.315, 8011.0454, Some(2.67877485), 1.00801, 49.8073);
+        let x = Universal2DBox::new(8044.315, 8011.0454, Some(2.678_774_8), 1.00801, 49.8073);
         let polygon_x = Polygon::from(&x);
 
-        let y = Universal2DBox::new(8044.455, 8011.338, Some(2.67877485), 1.0083783, 49.79979);
+        let y = Universal2DBox::new(8044.455, 8011.338, Some(2.678_774_8), 1.0083783, 49.79979);
         let polygon_y = Polygon::from(&y);
 
         dbg!(&polygon_x, &polygon_y);
@@ -414,8 +413,8 @@ impl ObservationAttributes for BoundingBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
-        left: &Option<Self>,
-        right: &Option<Self>,
+        left: &Option<&Self>,
+        right: &Option<&Self>,
     ) -> Option<Self::MetricObject> {
         match (left, right) {
             (Some(l), Some(r)) => {
@@ -426,12 +425,6 @@ impl ObservationAttributes for BoundingBox {
             }
             _ => None,
         }
-    }
-}
-
-impl PartialOrd for BoundingBox {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unreachable!()
     }
 }
 
@@ -505,7 +498,6 @@ impl Universal2DBox {
             let p2 = r.get_vertices().as_ref().unwrap();
 
             sutherland_hodgman_clip(p1, p2).unsigned_area()
-            //p1.intersection(p2).unsigned_area()
         }
     }
 }
@@ -514,8 +506,8 @@ impl ObservationAttributes for Universal2DBox {
     type MetricObject = f32;
 
     fn calculate_metric_object(
-        left: &Option<Self>,
-        right: &Option<Self>,
+        left: &Option<&Self>,
+        right: &Option<&Self>,
     ) -> Option<Self::MetricObject> {
         match (left, right) {
             (Some(l), Some(r)) => {
@@ -526,19 +518,12 @@ impl ObservationAttributes for Universal2DBox {
                     let union = (l._height * l._height * l._aspect
                         + r._height * r._height * r._aspect) as f64
                         - intersection;
-                    //let union = p1.union(p2).unsigned_area();
                     let res = intersection / union;
                     Some(res as f32)
                 }
             }
             _ => None,
         }
-    }
-}
-
-impl PartialOrd for Universal2DBox {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unreachable!()
     }
 }
 
@@ -575,26 +560,11 @@ mod tests {
             _height: 3.0,
         };
 
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb1.clone())).unwrap()
-                > 0.999
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb2.clone())).unwrap()
-                > 0.999
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb2.clone())).unwrap()
-                > 0.8
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb1.clone()), &Some(bb3.clone())).unwrap()
-                < 0.001
-        );
-        assert!(
-            BoundingBox::calculate_metric_object(&Some(bb2.clone()), &Some(bb3.clone())).unwrap()
-                < 0.001
-        );
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb1)).unwrap() > 0.999);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb2), &Some(&bb2)).unwrap() > 0.999);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb2)).unwrap() > 0.8);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb3)).unwrap() < 0.001);
+        assert!(BoundingBox::calculate_metric_object(&Some(&bb2), &Some(&bb3)).unwrap() < 0.001);
     }
 }
 /// Voting engine for IoU metric

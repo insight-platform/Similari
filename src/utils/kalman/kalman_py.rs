@@ -1,5 +1,5 @@
 use crate::utils::bbox::{BoundingBox, Universal2DBox};
-use crate::utils::kalman::{KalmanFilter, State};
+use crate::utils::kalman::{KalmanFilter, KalmanState};
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -12,7 +12,7 @@ pub struct PyKalmanFilter {
 #[pyclass]
 #[pyo3(name = "KalmanFilterState")]
 pub struct PyKalmanFilterState {
-    state: State,
+    state: KalmanState,
 }
 
 #[pymethods]

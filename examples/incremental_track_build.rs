@@ -2,8 +2,8 @@ use similari::distance::euclidean;
 use similari::examples::{BoxGen2, FeatGen2};
 use similari::prelude::*;
 use similari::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationMetricOk,
-    ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
+    ObservationMetricOk, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::utils::bbox::BoundingBox;
 use similari::voting::topn::TopNVoting;
@@ -26,7 +26,7 @@ struct BBoxAttributesUpdate {
 
 impl TrackAttributesUpdate<BBoxAttributes> for BBoxAttributesUpdate {
     fn apply(&self, attrs: &mut BBoxAttributes) -> anyhow::Result<()> {
-        attrs.bboxes.push(self.bbox.clone());
+        attrs.bboxes.push(self.bbox);
         Ok(())
     }
 }
@@ -53,16 +53,11 @@ impl TrackAttributes<BBoxAttributes, f32> for BBoxAttributes {
 pub struct TrackMetric;
 
 impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
-    fn metric(
-        _feature_class: u64,
-        _attrs1: &BBoxAttributes,
-        _attrs2: &BBoxAttributes,
-        e1: &ObservationSpec<f32>,
-        e2: &ObservationSpec<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<BBoxAttributes, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
-            f32::calculate_metric_object(&e1.0, &e2.0),
-            match (e1.1.as_ref(), e2.1.as_ref()) {
+            f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+            match (e1.feature().as_ref(), e2.feature().as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
@@ -71,10 +66,10 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut BBoxAttributes,
-        observations: &mut Vec<ObservationSpec<f32>>,
+        observations: &mut Vec<Observation<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> anyhow::Result<()> {
@@ -96,7 +91,12 @@ impl ObservationMetric<BBoxAttributes, f32> for TrackMetric {
 }
 
 fn main() {
-    let mut store = TrackStoreBuilder::<BBoxAttributes, TrackMetric, f32>::default().build();
+    let mut store = TrackStoreBuilder::default()
+        .default_attributes(BBoxAttributes::default())
+        .metric(TrackMetric::default())
+        .notifier(NoopNotifier)
+        .build();
+
     let voting: TopNVoting<f32> = TopNVoting::new(1, MAX_DIST, 1);
     let feature_drift = 0.01;
     let pos_drift = 5.0;
@@ -111,7 +111,8 @@ fn main() {
     for _ in 0..10 {
         let (obj1f, obj1b) = (p1.next().unwrap(), b1.next().unwrap());
 
-        let obj1t = TrackBuilder::default()
+        let obj1t = store
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj1f.0.unwrap())
@@ -124,7 +125,8 @@ fn main() {
 
         let (obj2f, obj2b) = (p2.next().unwrap(), b2.next().unwrap());
 
-        let obj2t = TrackBuilder::default()
+        let obj2t = store
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(FEAT0)
                     .observation_attributes(obj2f.0.unwrap())
@@ -159,7 +161,7 @@ fn main() {
 
     let tracks = store.find_usable();
     for (t, _) in tracks {
-        let t = store.fetch_tracks(&vec![t]);
+        let t = store.fetch_tracks(&[t]);
         eprintln!("Track id: {}", t[0].get_track_id());
         eprintln!("Boxes: {:#?}", t[0].get_attributes());
     }

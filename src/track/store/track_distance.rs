@@ -231,10 +231,11 @@ where
 mod tests {
     use crate::distance::euclidean;
     use crate::examples::vec2;
-    use crate::prelude::{ObservationBuilder, TrackBuilder, TrackStoreBuilder};
+    use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
     use crate::track::{
-        MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
-        ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+        MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes,
+        ObservationMetric, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate,
+        TrackStatus,
     };
     use anyhow::Result;
 
@@ -271,16 +272,11 @@ mod tests {
     pub struct MockMetric;
 
     impl ObservationMetric<MockAttrs, f32> for MockMetric {
-        fn metric(
-            _feature_class: u64,
-            _attrs1: &MockAttrs,
-            _attrs2: &MockAttrs,
-            e1: &ObservationSpec<f32>,
-            e2: &ObservationSpec<f32>,
-        ) -> MetricOutput<f32> {
+        fn metric(&self, mq: &MetricQuery<MockAttrs, f32>) -> MetricOutput<f32> {
+            let (e1, e2) = (mq.candidate_observation, mq.track_observation);
             Some((
-                f32::calculate_metric_object(&e1.0, &e2.0),
-                match (e1.1.as_ref(), e2.1.as_ref()) {
+                f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                match (e1.feature().as_ref(), e2.feature().as_ref()) {
                     (Some(x), Some(y)) => Some(euclidean(x, y)),
                     _ => None,
                 },
@@ -289,10 +285,10 @@ mod tests {
 
         fn optimize(
             &mut self,
-            _feature_class: &u64,
+            _feature_class: u64,
             _merge_history: &[u64],
             _attrs: &mut MockAttrs,
-            _features: &mut Vec<ObservationSpec<f32>>,
+            _features: &mut Vec<Observation<f32>>,
             _prev_length: usize,
             _is_merge: bool,
         ) -> Result<()> {
@@ -302,10 +298,15 @@ mod tests {
 
     #[test]
     fn result_iterators() {
-        let mut store = TrackStoreBuilder::default().build();
+        let mut store = TrackStoreBuilder::default()
+            .default_attributes(MockAttrs)
+            .metric(MockMetric)
+            .notifier(NoopNotifier)
+            .build();
         const N: usize = 10000;
         for _ in 0..N {
-            let t: Track<MockAttrs, MockMetric, f32> = TrackBuilder::default()
+            let t = store
+                .new_track_random_id()
                 .observation(
                     ObservationBuilder::new(0)
                         .observation(vec2(1.0, 0.0))
@@ -316,7 +317,8 @@ mod tests {
             store.add_track(t).unwrap();
         }
 
-        let t1: Track<MockAttrs, MockMetric, f32> = TrackBuilder::default()
+        let t1: Track<MockAttrs, MockMetric, f32> = store
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.0, 0.0))
@@ -325,7 +327,8 @@ mod tests {
             .build()
             .unwrap();
 
-        let t2: Track<MockAttrs, MockMetric, f32> = TrackBuilder::default()
+        let t2: Track<MockAttrs, MockMetric, f32> = store
+            .new_track_random_id()
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(-1.0, 0.0))
@@ -339,8 +342,8 @@ mod tests {
         assert_eq!(dists.all().len(), 2 * N);
 
         let (dists, errs) = store.foreign_track_distances(vec![t1.clone(), t2.clone()], 0, false);
-        assert!(errs.into_iter().collect::<Vec<_>>().is_empty());
-        assert_eq!(dists.into_iter().collect::<Vec<_>>().len(), 2 * N);
+        assert!(errs.into_iter().next().is_none());
+        assert_eq!(dists.into_iter().count(), 2 * N);
 
         let (dists, errs) = store.foreign_track_distances(vec![t1, t2], 0, false);
         drop(store);

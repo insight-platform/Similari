@@ -1,25 +1,29 @@
 pub mod simple_iou_py;
 
-use crate::prelude::{ObservationBuilder, TrackStoreBuilder};
+use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
+use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::iou::IOUSortMetric;
 use crate::trackers::sort::voting::SortVoting;
-use crate::trackers::sort::{PyWastedSortTrack, SortAttributes, SortAttributesUpdate, SortTrack};
+use crate::trackers::sort::{
+    PyWastedSortTrack, SortAttributes, SortAttributesOptions, SortAttributesUpdate, SortTrack,
+};
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
 use pyo3::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+
 /// Easy to use SORT tracker implementation
 ///
 
 #[pyclass(text_signature = "(shards, bbox_history, max_idle_epochs, threshold)")]
 pub struct IoUSort {
     store: TrackStore<SortAttributes, IOUSortMetric, Universal2DBox>,
-    epoch: Arc<RwLock<HashMap<u64, usize>>>,
     threshold: f32,
+    opts: Arc<SortAttributesOptions>,
 }
 
 impl IoUSort {
@@ -33,20 +37,22 @@ impl IoUSort {
     ///
     pub fn new(shards: usize, bbox_history: usize, max_idle_epochs: usize, threshold: f32) -> Self {
         assert!(bbox_history > 0);
-        let epoch = Arc::new(RwLock::new(HashMap::default()));
+        let epoch_db = RwLock::new(HashMap::default());
+        let opts = Arc::new(SortAttributesOptions::new(
+            Some(epoch_db),
+            max_idle_epochs,
+            bbox_history,
+        ));
         let store = TrackStoreBuilder::new(shards)
-            .default_attributes(SortAttributes::new_with_epochs(
-                bbox_history,
-                max_idle_epochs,
-                epoch.clone(),
-            ))
+            .default_attributes(SortAttributes::new(opts.clone()))
             .metric(IOUSortMetric::new(threshold))
+            .notifier(NoopNotifier)
             .build();
 
         Self {
-            epoch,
             store,
             threshold,
+            opts,
         }
     }
 
@@ -66,12 +72,7 @@ impl IoUSort {
     /// * `scene_id` - scene to skip epochs
     ///
     pub fn skip_epochs_for_scene(&mut self, scene_id: u64, n: usize) {
-        let mut epoch_store = self.epoch.write().unwrap();
-        if let Some(epoch) = epoch_store.get_mut(&scene_id) {
-            *epoch += n;
-        } else {
-            epoch_store.insert(scene_id, n);
-        }
+        self.opts.skip_epochs_for_scene(scene_id, n)
     }
 
     /// Get the amount of stored tracks per shard
@@ -92,13 +93,7 @@ impl IoUSort {
     /// * `scene_id` - scene id
     ///
     pub fn current_epoch_with_scene(&self, scene_id: u64) -> usize {
-        let mut epoch_map = self.epoch.write().unwrap();
-        let epoch = epoch_map.get_mut(&scene_id);
-        if let Some(epoch) = epoch {
-            *epoch
-        } else {
-            0
-        }
+        self.opts.current_epoch_with_scene(scene_id).unwrap()
     }
 
     /// Receive tracking information for observed bboxes of `scene_id` == 0
@@ -122,23 +117,13 @@ impl IoUSort {
         bboxes: &[Universal2DBox],
     ) -> Vec<SortTrack> {
         let mut rng = rand::thread_rng();
-        let epoch = {
-            let mut epoch_map = self.epoch.write().unwrap();
-            let epoch = epoch_map.get_mut(&scene_id);
-            if let Some(epoch) = epoch {
-                *epoch += 1;
-                *epoch
-            } else {
-                epoch_map.insert(scene_id, 1);
-                1
-            }
-        };
+        let epoch = self.opts.next_epoch(scene_id).unwrap();
 
         let tracks = bboxes
             .iter()
             .map(|bb| {
                 self.store
-                    .track_builder(rng.gen())
+                    .new_track(rng.gen())
                     .observation(
                         ObservationBuilder::new(0)
                             .observation_attributes(bb.clone())
@@ -208,11 +193,11 @@ impl From<Track<SortAttributes, IOUSortMetric, Universal2DBox>> for SortTrack {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),
-            epoch: attrs.epoch,
-            observed_bbox: attrs.last_observation.clone(),
+            epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,
-            predicted_bbox: attrs.last_prediction.clone(),
-            length: attrs.length,
+            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
+            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
+            length: attrs.track_length,
         }
     }
 }
@@ -222,11 +207,11 @@ impl From<Track<SortAttributes, IOUSortMetric, Universal2DBox>> for PyWastedSort
         let attrs = track.get_attributes();
         PyWastedSortTrack {
             id: track.get_track_id(),
-            epoch: attrs.epoch,
-            observed_bbox: attrs.last_observation.clone(),
+            epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,
-            predicted_bbox: attrs.last_prediction.clone(),
-            length: attrs.length,
+            length: attrs.track_length,
+            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
+            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
             predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
             observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),
         }
@@ -245,7 +230,7 @@ mod tests {
         let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
-        let v = t.predict(&vec![bb.into()]);
+        let v = t.predict(&[bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
@@ -257,7 +242,7 @@ mod tests {
         assert_eq!(t.current_epoch(), 1);
 
         let bb = BoundingBox::new(0.1, 0.1, 10.1, 20.0);
-        let v = t.predict(&vec![bb.into()]);
+        let v = t.predict(&[bb.into()]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
@@ -299,13 +284,13 @@ mod tests {
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.predict_with_scene(1, &vec![bb.into()]);
-        let _v = t.predict_with_scene(1, &vec![bb.into()]);
+        let _v = t.predict_with_scene(1, &[bb.into()]);
+        let _v = t.predict_with_scene(1, &[bb.into()]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.predict_with_scene(2, &vec![bb.into()]);
+        let _v = t.predict_with_scene(2, &[bb.into()]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 1);

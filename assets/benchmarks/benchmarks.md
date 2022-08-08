@@ -2,7 +2,7 @@
 
 All benchmarks numbers received on Run on 4 cores of Intel(R) Core(TM) i5-7440HQ CPU @ 2.80GHz.
 
-Version: v0.20.3
+Version: v0.21.0
 
 **Non-Maximum Suppression (non-oriented boxes)**. Benchmark for filtering out of bounding boxes without orientation. 
 
@@ -17,26 +17,16 @@ The benchmark is located at [benches/nms.rs](benches/nms.rs).
 
 **Non-Maximum Suppression (oriented boxes)**. Benchmark for filtering out of bounding boxes with angular orientation. 
 
-| Objects | Time (ns/iter) | FPS    |
-|---------|----------------|--------|
-| 10      | 2,169          | 460000 |
-| 100     | 2,680,360      | 370    |
-| 300     | 32,205,820     | 30     |
-| 500     | 62,479,704     | 16     |
+| Objects | Time (ns/iter)  | FPS    |
+|---------|-----------------|--------|
+| 10      | 2,169           | 461000 |
+| 100     | 139,204         | 7100   |
+| 300     | 1,752,410       | 570    |
+| 500     | 4,571,784       | 218    |
+| 1000    | 18,155,136      | 54     |
+
 
 The benchmark is located at [benches/nms_oriented.rs](benches/nms_oriented.rs).
-
-**IoU tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that 
-separate the observed objects based on object distances.
-
-The benchmark is located at [benches/iou_tracker.rs](benches/iou_tracker.rs).
-
-| Objects | Time (ns/iter) | FPS  |
-|---------|----------------|------|
-| 10      | 261,184        | 3800 |
-| 100     | 1,440,733      | 694  |
-| 500     | 17,705,508     | 57   |
-| 1000    | 58,834,824     | 17   |
 
 **SORT tracking (IoU)**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that 
 separate the observed objects based on object distances.
@@ -60,8 +50,8 @@ The benchmark is located at [benches/simple_sort_iou_tracker_oriented.rs](benche
 |---------|----------------|------|
 | 10      | 150,702        | 6600 |
 | 100     | 2,532,766      | 390  |
-| 500     | 32,263,450     | 30   |
-| 1000    | 96,222,891     | 10   |
+| 500     | 26,976,983     | 37   |
+| 1000    | 87,453,176     | 11   |
 
 **SORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics 
 that separate the observed objects based on object distances.
@@ -87,15 +77,14 @@ The benchmark is located at [benches/simple_sort_maha_tracker_oriented.rs](bench
 | 500     | 30,443,250     | 32   |
 | 1000    | 82,211,441     | 12   |
 
-**Feature (256 @ f32) tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that separate the observed objects 
-based on object distances.
+**Feature (256 @ f32, hist=3) tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use 
+heuristics that separate the observed objects based on object distances. The 3 last observations are used to select 
+winning track.
 
 The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs).
-
 
 | Objects | Time (ns/iter) | FPS  |
 |---------|----------------|------|
 | 10      | 101,465        | 9900 |
 | 100     | 4,020,673      | 250  |
 | 500     | 61,716,729     | 16   |
-| 1000    | 235,187,877    | 4    |

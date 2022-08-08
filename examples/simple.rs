@@ -8,9 +8,9 @@ use similari::voting::Voting;
 fn main() {
     const DEFAULT_FEATURE: u64 = 0;
     let mut db = store::TrackStore::new(
-        Some(SimpleMetric::default()),
-        Some(SimpleAttrs::default()),
-        None,
+        SimpleMetric::default(),
+        SimpleAttrs::default(),
+        NoopNotifier,
         num_cpus::get(),
     );
     let res = db.add(
@@ -53,9 +53,9 @@ fn main() {
 
     let mut ext_track = Track::new(
         2,
-        Some(SimpleMetric::default()),
-        Some(SimpleAttrs::default()),
-        Some(NoopNotifier::default()),
+        SimpleMetric::default(),
+        SimpleAttrs::default(),
+        NoopNotifier,
     );
 
     let res = ext_track.add_observation(

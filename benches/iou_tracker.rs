@@ -4,9 +4,8 @@ extern crate test;
 
 use similari::examples::iou::{BBoxAttributes, BBoxAttributesUpdate, IOUMetric};
 use similari::examples::BoxGen2;
-use similari::store::TrackStore;
-use similari::track::Track;
-use similari::utils::bbox::{BoundingBox, IOUTopNVoting};
+use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
+use similari::utils::bbox::IOUTopNVoting;
 use similari::voting::Voting;
 use std::time::Instant;
 use test::Bencher;
@@ -14,22 +13,22 @@ use test::Bencher;
 const FEAT0: u64 = 0;
 
 #[bench]
-fn bench_iou_00010_4cores(b: &mut Bencher) {
+fn iou_00010x3(b: &mut Bencher) {
     bench_iou(10, b);
 }
 
 #[bench]
-fn bench_iou_00100_4cores(b: &mut Bencher) {
+fn iou_00100x3(b: &mut Bencher) {
     bench_iou(100, b);
 }
 
 #[bench]
-fn bench_iou_00500_4cores(b: &mut Bencher) {
+fn iou_00500x3(b: &mut Bencher) {
     bench_iou(500, b);
 }
 
 #[bench]
-fn bench_iou_01000_4cores(b: &mut Bencher) {
+fn iou_01000x3(b: &mut Bencher) {
     bench_iou(1000, b);
 }
 
@@ -40,8 +39,11 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut store: TrackStore<BBoxAttributes, IOUMetric, BoundingBox> =
-        TrackStore::new(None, None, None, ncores);
+    let mut store = TrackStoreBuilder::new(ncores)
+        .metric(IOUMetric::default())
+        .default_attributes(BBoxAttributes::default())
+        .notifier(NoopNotifier)
+        .build();
 
     let voting = IOUTopNVoting {
         topn: 1,
@@ -70,11 +72,16 @@ fn bench_iou(objects: usize, b: &mut Bencher) {
         let tm = Instant::now();
         for i in &mut iterators {
             iteration += 1;
-            let b = i.next();
-            let mut t: Track<BBoxAttributes, IOUMetric, BoundingBox> =
-                Track::new(iteration, None, None, None);
-
-            t.add_observation(FEAT0, b, None, Some(BBoxAttributesUpdate))
+            let b = i.next().unwrap();
+            let t = store
+                .new_track(iteration)
+                .observation(
+                    ObservationBuilder::new(FEAT0)
+                        .observation_attributes(b)
+                        .track_attributes_update(BBoxAttributesUpdate)
+                        .build(),
+                )
+                .build()
                 .unwrap();
             tracks.push(t);
         }

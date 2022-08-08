@@ -3,8 +3,8 @@ pub mod iou;
 use crate::distance::euclidean;
 use crate::track::utils::FromVec;
 use crate::track::{
-    MetricOutput, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
-    ObservationSpec, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    Feature, MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes,
+    ObservationMetric, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::utils::bbox::BoundingBox;
 use anyhow::Result;
@@ -69,16 +69,11 @@ impl TrackAttributes<SimpleAttrs, f32> for SimpleAttrs {
 pub struct SimpleMetric;
 
 impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
-    fn metric(
-        _feature_class: u64,
-        _attrs1: &SimpleAttrs,
-        _attrs2: &SimpleAttrs,
-        e1: &ObservationSpec<f32>,
-        e2: &ObservationSpec<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<'_, SimpleAttrs, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
-            f32::calculate_metric_object(&e1.0, &e2.0),
-            match (e1.1.as_ref(), e2.1.as_ref()) {
+            f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+            match (e1.feature().as_ref(), e2.feature().as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
@@ -87,10 +82,10 @@ impl ObservationMetric<SimpleAttrs, f32> for SimpleMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut SimpleAttrs,
-        _features: &mut Vec<ObservationSpec<f32>>,
+        _features: &mut Vec<Observation<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
@@ -131,15 +126,10 @@ impl TrackAttributes<UnboundAttrs, f32> for UnboundAttrs {
 pub struct UnboundMetric;
 
 impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
-    fn metric(
-        _feature_class: u64,
-        _attrs1: &UnboundAttrs,
-        _attrs2: &UnboundAttrs,
-        e1: &ObservationSpec<f32>,
-        e2: &ObservationSpec<f32>,
-    ) -> MetricOutput<f32> {
+    fn metric(&self, mq: &MetricQuery<'_, UnboundAttrs, f32>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
-            f32::calculate_metric_object(&e1.0, &e2.0),
+            f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
             match (e1.1.as_ref(), e2.1.as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
@@ -149,10 +139,10 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut UnboundAttrs,
-        _features: &mut Vec<ObservationSpec<f32>>,
+        _features: &mut Vec<Observation<f32>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> Result<()> {
@@ -160,8 +150,8 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
     }
 }
 
-pub fn vec2(x: f32, y: f32) -> Observation {
-    Observation::from_vec(vec![x, y])
+pub fn vec2(x: f32, y: f32) -> Feature {
+    Feature::from_vec(vec![x, y])
 }
 
 pub struct FeatGen2 {
@@ -183,12 +173,12 @@ impl FeatGen2 {
 }
 
 impl Iterator for FeatGen2 {
-    type Item = ObservationSpec<f32>;
+    type Item = Observation<f32>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist);
         self.y += self.gen.sample(&self.dist);
-        Some(ObservationSpec(
+        Some(Observation(
             Some(self.gen.sample(&self.dist) + 0.7),
             Some(vec2(self.x, self.y)),
         ))
@@ -292,13 +282,13 @@ impl FeatGen {
 }
 
 impl Iterator for FeatGen {
-    type Item = ObservationSpec<()>;
+    type Item = Observation<()>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let v = (0..self.len)
             .into_iter()
             .map(|_| self.x + self.gen.sample(&self.dist))
             .collect::<Vec<_>>();
-        Some(ObservationSpec::<()>(None, Some(Observation::from_vec(v))))
+        Some(Observation::<()>(None, Some(Feature::from_vec(v))))
     }
 }

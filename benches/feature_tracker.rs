@@ -4,10 +4,10 @@ extern crate test;
 
 use similari::distance::euclidean;
 use similari::examples::FeatGen;
-use similari::store::TrackStore;
+use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use similari::track::{
-    MetricOutput, NoopLookup, ObservationMetric, ObservationMetricOk, ObservationSpec,
-    ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    MetricOutput, MetricQuery, NoopLookup, Observation, ObservationMetric, ObservationMetricOk,
+    ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use similari::voting::topn::TopNVoting;
 use similari::voting::Voting;
@@ -49,13 +49,8 @@ impl TrackAttributes<NoopAttributes, ()> for NoopAttributes {
 pub struct TrackMetric;
 
 impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
-    fn metric(
-        _feature_class: u64,
-        _attrs1: &NoopAttributes,
-        _attrs2: &NoopAttributes,
-        e1: &ObservationSpec<()>,
-        e2: &ObservationSpec<()>,
-    ) -> MetricOutput<()> {
+    fn metric(&self, mq: &MetricQuery<NoopAttributes, ()>) -> MetricOutput<()> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
             None,
             match (e1.1.as_ref(), e2.1.as_ref()) {
@@ -67,10 +62,10 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         _attrs: &mut NoopAttributes,
-        observations: &mut Vec<ObservationSpec<()>>,
+        observations: &mut Vec<Observation<()>>,
         _prev_length: usize,
         _is_merge: bool,
     ) -> anyhow::Result<()> {
@@ -104,8 +99,11 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut store: TrackStore<NoopAttributes, TrackMetric, ()> =
-        TrackStore::new(None, None, None, ncores);
+    let mut store = TrackStoreBuilder::new(ncores)
+        .metric(TrackMetric::default())
+        .default_attributes(NoopAttributes::default())
+        .notifier(NoopNotifier)
+        .build();
 
     let voting: TopNVoting<()> = TopNVoting::new(1, 100.0, 1);
 
@@ -123,10 +121,14 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         for i in &mut iterators {
             iteration += 1;
             let b = i.next().unwrap().1;
-            let mut t: Track<NoopAttributes, TrackMetric, ()> =
-                Track::new(iteration, None, None, None);
-
-            t.add_observation(FEAT0, None, b, Some(NoopAttributesUpdate))
+            let t = store
+                .new_track(iteration)
+                .observation(
+                    ObservationBuilder::new(FEAT0)
+                        .observation(b.unwrap())
+                        .build(),
+                )
+                .build()
                 .unwrap();
             tracks.push(t);
         }
@@ -164,21 +166,16 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_ft_0010_256(b: &mut Bencher) {
+fn ft_0010_256x3(b: &mut Bencher) {
     benchmark(10, 256, b);
 }
 
 #[bench]
-fn bench_ft_0100_256(b: &mut Bencher) {
+fn ft_0100_256x3(b: &mut Bencher) {
     benchmark(100, 256, b);
 }
 
 #[bench]
-fn bench_ft_0500_256(b: &mut Bencher) {
+fn ft_0500_256x3(b: &mut Bencher) {
     benchmark(500, 256, b);
-}
-
-#[bench]
-fn bench_ft_1000_256(b: &mut Bencher) {
-    benchmark(1000, 256, b);
 }

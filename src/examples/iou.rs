@@ -1,5 +1,5 @@
 use crate::track::{
-    MetricOutput, NoopLookup, ObservationAttributes, ObservationMetric, ObservationSpec,
+    MetricOutput, MetricQuery, NoopLookup, Observation, ObservationAttributes, ObservationMetric,
     ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::utils::bbox::BoundingBox;
@@ -49,14 +49,10 @@ impl Default for IOUMetric {
 }
 
 impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
-    fn metric(
-        _feature_class: u64,
-        _attrs1: &BBoxAttributes,
-        _attrs2: &BBoxAttributes,
-        e1: &ObservationSpec<BoundingBox>,
-        e2: &ObservationSpec<BoundingBox>,
-    ) -> MetricOutput<f32> {
-        let box_m_opt = BoundingBox::calculate_metric_object(&e1.0, &e2.0);
+    fn metric(&self, mq: &MetricQuery<'_, BBoxAttributes, BoundingBox>) -> MetricOutput<f32> {
+        let (e1, e2) = (mq.candidate_observation, mq.track_observation);
+        let box_m_opt =
+            BoundingBox::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref());
         if let Some(box_m) = &box_m_opt {
             if *box_m < 0.01 {
                 None
@@ -70,10 +66,10 @@ impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
 
     fn optimize(
         &mut self,
-        _feature_class: &u64,
+        _feature_class: u64,
         _merge_history: &[u64],
         attrs: &mut BBoxAttributes,
-        features: &mut Vec<ObservationSpec<BoundingBox>>,
+        features: &mut Vec<Observation<BoundingBox>>,
         prev_length: usize,
         is_merge: bool,
     ) -> Result<()> {

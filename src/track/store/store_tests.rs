@@ -2,12 +2,12 @@
 mod tests {
     use crate::distance::euclidean;
     use crate::examples::{current_time_ms, vec2};
-    use crate::prelude::{TrackBuilder, TrackStoreBuilder};
+    use crate::prelude::TrackStoreBuilder;
     use crate::track::store::TrackStore;
     use crate::track::utils::feature_attributes_sort_dec;
     use crate::track::{
-        LookupRequest, MetricOutput, NoopLookup, NoopNotifier, ObservationAttributes,
-        ObservationMetric, ObservationSpec, ObservationsDb, Track, TrackAttributes,
+        LookupRequest, MetricOutput, MetricQuery, NoopLookup, NoopNotifier, Observation,
+        ObservationAttributes, ObservationMetric, ObservationsDb, Track, TrackAttributes,
         TrackAttributesUpdate, TrackStatus,
     };
     use crate::EPS;
@@ -66,16 +66,11 @@ mod tests {
     }
 
     impl ObservationMetric<TimeAttrs, f32> for TimeMetric {
-        fn metric(
-            _feature_class: u64,
-            _attrs1: &TimeAttrs,
-            _attrs2: &TimeAttrs,
-            e1: &ObservationSpec<f32>,
-            e2: &ObservationSpec<f32>,
-        ) -> MetricOutput<f32> {
+        fn metric(&self, mq: &MetricQuery<TimeAttrs, f32>) -> MetricOutput<f32> {
+            let (e1, e2) = (mq.candidate_observation, mq.track_observation);
             Some((
-                f32::calculate_metric_object(&e1.0, &e2.0),
-                match (e1.1.as_ref(), e2.1.as_ref()) {
+                f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                match (e1.feature().as_ref(), e2.feature().as_ref()) {
                     (Some(x), Some(y)) => Some(euclidean(x, y)),
                     _ => None,
                 },
@@ -84,10 +79,10 @@ mod tests {
 
         fn optimize(
             &mut self,
-            _feature_class: &u64,
+            _feature_class: u64,
             _merge_history: &[u64],
             _attrs: &mut TimeAttrs,
-            features: &mut Vec<ObservationSpec<f32>>,
+            features: &mut Vec<Observation<f32>>,
             _prev_length: usize,
             _is_merge: bool,
         ) -> Result<()> {
@@ -99,7 +94,11 @@ mod tests {
 
     #[test]
     fn new_default_store() -> Result<()> {
-        let default_store: TrackStore<TimeAttrs, TimeMetric, f32> = TrackStore::default();
+        let default_store: TrackStore<TimeAttrs, TimeMetric, f32> = TrackStoreBuilder::default()
+            .default_attributes(TimeAttrs::default())
+            .metric(TimeMetric::default())
+            .notifier(NoopNotifier)
+            .build();
         drop(default_store);
         Ok(())
     }
@@ -107,12 +106,12 @@ mod tests {
     #[test]
     fn new_store_10_shards() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             10,
         );
         store.add(
@@ -137,12 +136,12 @@ mod tests {
     #[test]
     fn sharding_n_fetch() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             2,
         );
 
@@ -171,7 +170,7 @@ mod tests {
         let stats = store.shard_stats();
         assert_eq!(stats, vec![1, 1]);
 
-        let tracks = store.fetch_tracks(&vec![0, 1]);
+        let tracks = store.fetch_tracks(&[0, 1]);
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0].track_id, 0);
         assert_eq!(tracks[1].track_id, 1);
@@ -182,12 +181,12 @@ mod tests {
     #[test]
     fn general_ops() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             1,
         );
         store.add(
@@ -245,7 +244,7 @@ mod tests {
         assert_eq!(dists.len(), 0);
         assert_eq!(errs.len(), 0);
 
-        let mut v = store.fetch_tracks(&vec![0]);
+        let mut v = store.fetch_tracks(&[0]);
 
         let v = v.pop().unwrap();
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
@@ -260,7 +259,7 @@ mod tests {
 
         // make it incompatible across the attributes
         thread::sleep(Duration::from_millis(10));
-        let mut v = v.clone();
+        let mut v = v;
         v.attributes.end_time = current_time_ms();
 
         let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
@@ -279,9 +278,9 @@ mod tests {
             time_attrs_current_ts(),
         )?;
 
-        let mut v = v.clone();
+        let mut v = v;
         v.attributes.end_time = store.get_store(1).get(&1).unwrap().attributes.start_time - 1;
-        let (dists, errs) = store.foreign_track_distances(vec![v.clone()], 0, false);
+        let (dists, errs) = store.foreign_track_distances(vec![v], 0, false);
         let dists = dists.all();
         let errs = errs.all();
 
@@ -298,12 +297,12 @@ mod tests {
     #[test]
     fn baked_similarity() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             2,
         );
         thread::sleep(Duration::from_millis(1));
@@ -317,12 +316,12 @@ mod tests {
 
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
         );
 
         //thread::sleep(Duration::from_millis(10));
@@ -365,12 +364,12 @@ mod tests {
     fn all_similarity() -> Result<()> {
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -382,12 +381,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             2,
         );
         thread::sleep(Duration::from_millis(1));
@@ -429,12 +428,12 @@ mod tests {
     fn add_track_ok() -> Result<()> {
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -446,12 +445,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -471,12 +470,12 @@ mod tests {
     fn add_track_dup_id() -> Result<()> {
         let mut ext_track = Track::new(
             0, // duplicate track id
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -488,12 +487,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -514,12 +513,12 @@ mod tests {
     fn merge_ext_tracks() -> Result<()> {
         let mut ext_track = Track::new(
             2,
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
         );
 
         thread::sleep(Duration::from_millis(1));
@@ -538,12 +537,12 @@ mod tests {
         )?;
 
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            None,
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -572,12 +571,12 @@ mod tests {
     #[test]
     fn merge_own_tracks() -> Result<()> {
         let mut store = TrackStore::new(
-            Some(TimeMetric { max_length: 20 }),
-            Some(TimeAttrs {
+            TimeMetric { max_length: 20 },
+            TimeAttrs {
                 baked_period: 10,
                 ..Default::default()
-            }),
-            Some(NoopNotifier::default()),
+            },
+            NoopNotifier,
             1,
         );
         thread::sleep(Duration::from_millis(1));
@@ -599,11 +598,7 @@ mod tests {
         )?;
 
         let res = store.merge_owned(0, 1, None, false, true);
-        if let Ok(None) = res {
-            ();
-        } else {
-            unreachable!();
-        }
+        assert!(res.is_ok());
 
         let res = store.merge_owned(0, 1, None, true, true);
         if let Ok(Some(t)) = res {
@@ -663,16 +658,11 @@ mod tests {
         pub struct LookupMetric;
 
         impl ObservationMetric<LookupAttrs, f32> for LookupMetric {
-            fn metric(
-                _feature_class: u64,
-                _attrs1: &LookupAttrs,
-                _attrs2: &LookupAttrs,
-                e1: &ObservationSpec<f32>,
-                e2: &ObservationSpec<f32>,
-            ) -> MetricOutput<f32> {
+            fn metric(&self, mq: &MetricQuery<LookupAttrs, f32>) -> MetricOutput<f32> {
+                let (e1, e2) = (mq.candidate_observation, mq.track_observation);
                 Some((
-                    f32::calculate_metric_object(&e1.0, &e2.0),
-                    match (e1.1.as_ref(), e2.1.as_ref()) {
+                    f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
+                    match (e1.feature().as_ref(), e2.feature().as_ref()) {
                         (Some(x), Some(y)) => Some(euclidean(x, y)),
                         _ => None,
                     },
@@ -681,10 +671,10 @@ mod tests {
 
             fn optimize(
                 &mut self,
-                _feature_class: &u64,
+                _feature_class: u64,
                 _merge_history: &[u64],
                 _attrs: &mut LookupAttrs,
-                _features: &mut Vec<ObservationSpec<f32>>,
+                _features: &mut Vec<Observation<f32>>,
                 _prev_length: usize,
                 _is_merge: bool,
             ) -> Result<()> {
@@ -692,10 +682,14 @@ mod tests {
             }
         }
 
-        let mut store = TrackStoreBuilder::default().build();
+        let mut store = TrackStoreBuilder::default()
+            .metric(LookupMetric::default())
+            .default_attributes(LookupAttrs::default())
+            .notifier(NoopNotifier)
+            .build();
         const N: usize = 10;
         for _ in 0..N {
-            let t: Track<LookupAttrs, LookupMetric, f32> = TrackBuilder::default().build().unwrap();
+            let t = store.new_track_random_id().build().unwrap();
             store.add_track(t).unwrap();
         }
         let res = store.lookup(Lookup);

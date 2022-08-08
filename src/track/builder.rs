@@ -1,9 +1,9 @@
 use crate::track::notify::{ChangeNotifier, NoopNotifier};
-use crate::track::{Observation, ObservationAttributes, ObservationMetric, Track, TrackAttributes};
+use crate::track::{Feature, ObservationAttributes, ObservationMetric, Track, TrackAttributes};
 use anyhow::Result;
 use rand::Rng;
 
-type TrackBuilderObservationRepr<OA, TAU> = (u64, Option<OA>, Option<Observation>, Option<TAU>);
+type TrackBuilderObservationRepr<OA, TAU> = (u64, Option<OA>, Option<Feature>, Option<TAU>);
 
 /// Builder is used to build an observation
 ///
@@ -13,7 +13,7 @@ where
 {
     feature_class: u64,
     observation_attributes: Option<OA>,
-    observation: Option<Observation>,
+    observation: Option<Feature>,
     track_attributes_update: Option<TAU>,
 }
 
@@ -46,7 +46,7 @@ where
 
     /// Sets a unified feature vector for observation
     ///
-    pub fn observation(mut self, observation: Observation) -> Self {
+    pub fn observation(mut self, observation: Feature) -> Self {
         self.observation = Some(observation);
         self
     }
@@ -166,7 +166,12 @@ where
     }
 
     pub fn build(self) -> Result<Track<TA, M, OA, N>> {
-        let mut track = Track::new(self.id, self.metric, self.track_attrs, self.notifier);
+        let mut track = Track::new(
+            self.id,
+            self.metric.unwrap(),
+            self.track_attrs.unwrap(),
+            self.notifier.unwrap(),
+        );
         for (cls, oa, feat, upd) in self.observations {
             track.add_observation(cls, oa, feat, upd)?;
         }
@@ -180,7 +185,7 @@ mod tests {
     use crate::track::builder::{ObservationBuilder, TrackBuilder};
     use crate::track::notify::NoopNotifier;
     use crate::track::utils::FromVec;
-    use crate::track::Observation;
+    use crate::track::Feature;
     use anyhow::Result;
 
     #[test]
@@ -191,7 +196,7 @@ mod tests {
             .attributes(UnboundAttrs)
             .observation(
                 ObservationBuilder::new(0)
-                    .observation(Observation::from_vec(vec![0.0, 1.0]))
+                    .observation(Feature::from_vec(vec![0.0, 1.0]))
                     .observation_attributes(0.1)
                     .track_attributes_update(UnboundAttributeUpdate)
                     .build(),
@@ -209,7 +214,7 @@ mod tests {
             .attributes(UnboundAttrs)
             .observation(
                 ObservationBuilder::new(0)
-                    .observation(Observation::from_vec(vec![0.0, 1.0]))
+                    .observation(Feature::from_vec(vec![0.0, 1.0]))
                     .observation_attributes(0.1)
                     .track_attributes_update(UnboundAttributeUpdate)
                     .build(),

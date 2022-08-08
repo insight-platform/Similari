@@ -71,7 +71,7 @@ where
     ///
     pub fn notifier(mut self, notifier: N) -> Self {
         assert!(
-            self.metric.is_none(),
+            self.notifier.is_none(),
             "The method `notifier` must be called once."
         );
         self.notifier = Some(notifier);
@@ -82,7 +82,7 @@ where
     ///
     pub fn default_attributes(mut self, attrs: TA) -> Self {
         assert!(
-            self.metric.is_none(),
+            self.default_attributes.is_none(),
             "The method `default_attributes` must be called once."
         );
         self.default_attributes = Some(attrs);
@@ -93,9 +93,9 @@ where
     ///
     pub fn build(self) -> TrackStore<TA, M, OA, N> {
         TrackStore::new(
-            self.metric,
-            self.default_attributes,
-            self.notifier,
+            self.metric.unwrap(),
+            self.default_attributes.unwrap(),
+            self.notifier.unwrap(),
             self.shards,
         )
     }
