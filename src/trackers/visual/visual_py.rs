@@ -3,7 +3,8 @@ use pyo3::prelude::*;
 
 #[pyclass]
 #[pyo3(name = "PositionalMetricType")]
-pub struct PyPositionalMetricType(PositionalMetricType);
+#[derive(Clone, Debug)]
+pub struct PyPositionalMetricType(pub PositionalMetricType);
 
 #[pymethods]
 impl PyPositionalMetricType {

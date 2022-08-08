@@ -14,3 +14,4 @@ pub mod track_attributes;
 
 /// Observation attributes for visual tracker
 pub mod observation_attributes;
+pub mod simple_visual;

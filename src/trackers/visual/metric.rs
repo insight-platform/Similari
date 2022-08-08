@@ -17,7 +17,7 @@ use std::iter::Iterator;
 use std::sync::Arc;
 
 #[pyclass]
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Copy, Debug)]
 pub enum VisualMetricType {
     #[default]
     Euclidean,
@@ -37,7 +37,7 @@ impl VisualMetricType {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Copy, Debug)]
 pub enum PositionalMetricType {
     #[default]
     Mahalanobis,
@@ -45,18 +45,18 @@ pub enum PositionalMetricType {
 }
 
 pub struct VisualMetricOptions {
-    visual_kind: VisualMetricType,
-    positional_kind: PositionalMetricType,
-    visual_minimal_track_length: usize,
-    visual_minimal_area: f32,
-    visual_minimal_quality_use: f32,
-    visual_minimal_quality_collect: f32,
-    visual_max_observations: usize,
+    pub visual_kind: VisualMetricType,
+    pub positional_kind: PositionalMetricType,
+    pub visual_minimal_track_length: usize,
+    pub visual_minimal_area: f32,
+    pub visual_minimal_quality_use: f32,
+    pub visual_minimal_quality_collect: f32,
+    pub visual_max_observations: usize,
 }
 
 #[derive(Clone)]
 pub struct VisualMetric {
-    opts: Arc<VisualMetricOptions>,
+    pub opts: Arc<VisualMetricOptions>,
 }
 
 impl Default for VisualMetric {
