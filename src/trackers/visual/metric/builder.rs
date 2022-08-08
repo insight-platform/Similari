@@ -32,6 +32,58 @@ impl Default for VisualMetricBuilder {
 }
 
 impl VisualMetricBuilder {
+    pub(crate) fn visual_metric_py(&mut self, metric: VisualMetricType) {
+        self.visual_kind = metric;
+    }
+
+    pub(crate) fn positional_metric_py(&mut self, metric: PositionalMetricType) {
+        if let PositionalMetricType::IoU(t) = metric {
+            assert!(
+                t > 0.0 && t < 1.0,
+                "Threshold must lay between (0.0 and 1.0)"
+            );
+        }
+        self.positional_kind = metric;
+    }
+
+    pub(crate) fn visual_minimal_track_length_py(&mut self, length: usize) {
+        assert!(
+            length > 0,
+            "The minimum amount of visual features collected before visual metric is applied should be greater than 0."
+        );
+        self.visual_minimal_track_length = length;
+    }
+
+    pub(crate) fn visual_minimal_area_py(&mut self, area: f32) {
+        assert!(
+            area >= 0.0,
+            "The minimum area of bbox for visual feature distance calculated and feature collected should be greater than 0."
+        );
+        self.visual_minimal_area = area;
+    }
+
+    pub(crate) fn visual_minimal_quality_use_py(&mut self, q: f32) {
+        assert!(
+            q >= 0.0,
+            "The minimum quality of visual feature should be greater than or equal to 0.0."
+        );
+        self.visual_minimal_quality_use = q;
+    }
+
+    pub(crate) fn visual_max_observations_py(&mut self, n: usize) {
+        self.visual_max_observations = n;
+    }
+
+    pub(crate) fn visual_minimal_quality_collect_py(&mut self, q: f32) {
+        assert!(
+            q >= 0.0,
+            "The minimum quality of visual feature should be greater than or equal to 0.0."
+        );
+        self.visual_minimal_quality_collect = q;
+    }
+}
+
+impl VisualMetricBuilder {
     pub fn visual_metric(mut self, metric: VisualMetricType) -> Self {
         self.visual_kind = metric;
         self
