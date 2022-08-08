@@ -123,11 +123,11 @@ impl KalmanFilter {
     ///
     pub fn initiate(&self, bbox: Universal2DBox) -> KalmanState<DIM_X2> {
         let mean: SVector<f32, DIM_X2> = SVector::from_iterator([
-            bbox.xc(),
-            bbox.yc(),
-            bbox.angle().unwrap_or(0.0),
-            bbox.aspect(),
-            bbox.height(),
+            bbox.xc,
+            bbox.yc,
+            bbox.angle.unwrap_or(0.0),
+            bbox.aspect,
+            bbox.height,
             0.0,
             0.0,
             0.0,
@@ -136,9 +136,9 @@ impl KalmanFilter {
         ]);
 
         let mut std: SVector<f32, DIM_X2> = SVector::from_iterator(
-            self.std_position(2.0, 1e-2, bbox.height())
+            self.std_position(2.0, 1e-2, bbox.height)
                 .into_iter()
-                .chain(self.std_velocity(10.0, 1e-5, bbox.height()).into_iter()),
+                .chain(self.std_velocity(10.0, 1e-5, bbox.height).into_iter()),
         );
 
         std = std.component_mul(&std);
@@ -199,11 +199,11 @@ impl KalmanFilter {
         let kalman_gain = projected_cov.solve_lower_triangular(&b).unwrap();
 
         let innovation = SVector::from_iterator([
-            measurement.xc(),
-            measurement.yc(),
-            measurement.angle().unwrap_or(0.0),
-            measurement.aspect(),
-            measurement.height(),
+            measurement.xc,
+            measurement.yc,
+            measurement.angle.unwrap_or(0.0),
+            measurement.aspect,
+            measurement.height,
         ]) - projected_mean;
 
         let innovation: SMatrix<f32, 1, DIM> = innovation.transpose();
@@ -220,11 +220,11 @@ impl KalmanFilter {
 
         let measurements = {
             let mut r: SVector<f32, DIM> = SVector::from_vec(vec![
-                measurement.xc(),
-                measurement.yc(),
-                measurement.angle().unwrap_or(0.0),
-                measurement.aspect(),
-                measurement.height(),
+                measurement.xc,
+                measurement.yc,
+                measurement.angle.unwrap_or(0.0),
+                measurement.aspect,
+                measurement.height,
             ]);
             r.sub_assign(&mean);
             r

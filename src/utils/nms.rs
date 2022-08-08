@@ -15,7 +15,7 @@ impl<'a> Candidate<'a> {
     pub fn new(bbox: &'a Universal2DBox, rank: &Option<f32>, index: usize) -> Self {
         Self {
             bbox,
-            rank: rank.unwrap_or(bbox.height()),
+            rank: rank.unwrap_or(bbox.height),
             index,
         }
     }
@@ -37,7 +37,7 @@ pub fn nms(
     let nms_boxes = detections
         .iter()
         .filter(|(e, score)| {
-            score.unwrap_or(f32::MAX) > score_threshold && e.height() > 0.0 && e.aspect() > 0.0
+            score.unwrap_or(f32::MAX) > score_threshold && e.height > 0.0 && e.aspect > 0.0
         })
         .enumerate()
         .map(|(index, (b, score))| Candidate::new(b, score, index))

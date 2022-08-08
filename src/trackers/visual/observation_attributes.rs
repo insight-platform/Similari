@@ -50,8 +50,7 @@ impl ObservationAttributes for VisualObservationAttributes {
                 if intersection == 0.0 {
                     None
                 } else {
-                    let union = (l.height() * l.height() * l.aspect()
-                        + r.height() * r.height() * r.aspect())
+                    let union = (l.height * l.height * l.aspect + r.height * r.height * r.aspect)
                         as f64
                         - intersection;
                     let res = intersection / union;

@@ -38,11 +38,11 @@ pub fn sutherland_hodgman_clip_py(subject: Universal2DBox, clipping: Universal2D
     let mut subject = subject;
     let mut clipping = clipping;
 
-    if subject.angle().is_none() {
+    if subject.angle.is_none() {
         subject.rotate_py(0.0);
     }
 
-    if clipping.angle().is_none() {
+    if clipping.angle.is_none() {
         clipping.rotate_py(0.0);
     }
 

@@ -17,10 +17,14 @@ use std::f32::consts::PI;
 #[derive(Clone, Default, Debug, Copy)]
 #[pyclass]
 pub struct BoundingBox {
-    _left: f32,
-    _top: f32,
-    _width: f32,
-    _height: f32,
+    #[pyo3(get, set)]
+    left: f32,
+    #[pyo3(get, set)]
+    top: f32,
+    #[pyo3(get, set)]
+    width: f32,
+    #[pyo3(get, set)]
+    height: f32,
 }
 
 #[pymethods]
@@ -36,21 +40,6 @@ impl BoundingBox {
         self.__repr__()
     }
 
-    pub fn left(&self) -> f32 {
-        self._left
-    }
-    pub fn top(&self) -> f32 {
-        self._top
-    }
-
-    pub fn width(&self) -> f32 {
-        self._width
-    }
-
-    pub fn height(&self) -> f32 {
-        self._height
-    }
-
     pub fn as_xyaah(&self) -> Universal2DBox {
         Universal2DBox::from(self)
     }
@@ -60,10 +49,10 @@ impl BoundingBox {
     #[new]
     pub fn new(left: f32, top: f32, width: f32, height: f32) -> Self {
         Self {
-            _left: left,
-            _top: top,
-            _width: width,
-            _height: height,
+            left: left,
+            top: top,
+            width: width,
+            height: height,
         }
     }
 }
@@ -72,10 +61,10 @@ impl EstimateClose for BoundingBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self._left - other._left).abs() < eps
-            && (self._top - other._top).abs() < eps
-            && (self._width - other._width) < eps
-            && (self._height - other._height) < eps
+        (self.left - other.left).abs() < eps
+            && (self.top - other.top).abs() < eps
+            && (self.width - other.width) < eps
+            && (self.height - other.height) < eps
     }
 }
 
@@ -83,17 +72,22 @@ impl EstimateClose for BoundingBox {
 #[derive(Default, Debug)]
 #[pyclass]
 pub struct Universal2DBox {
-    _xc: f32,
-    _yc: f32,
-    _angle: Option<f32>,
-    _aspect: f32,
-    _height: f32,
+    #[pyo3(get, set)]
+    pub xc: f32,
+    #[pyo3(get, set)]
+    pub yc: f32,
+    #[pyo3(get, set)]
+    pub angle: Option<f32>,
+    #[pyo3(get, set)]
+    pub aspect: f32,
+    #[pyo3(get, set)]
+    pub height: f32,
     _vertex_cache: Option<Polygon<f64>>,
 }
 
 impl Clone for Universal2DBox {
     fn clone(&self) -> Self {
-        Universal2DBox::new(self._xc, self._yc, self._angle, self._aspect, self._height)
+        Universal2DBox::new(self.xc, self.yc, self.angle, self.aspect, self.height)
     }
 }
 
@@ -110,28 +104,9 @@ impl Universal2DBox {
         self.__repr__()
     }
 
-    pub fn xc(&self) -> f32 {
-        self._xc
-    }
-    pub fn yc(&self) -> f32 {
-        self._yc
-    }
-
-    pub fn aspect(&self) -> f32 {
-        self._aspect
-    }
-
-    pub fn height(&self) -> f32 {
-        self._height
-    }
-
-    pub fn angle(&self) -> Option<f32> {
-        self._angle
-    }
-
     pub fn get_radius(&self) -> f32 {
-        let hw = self._aspect * self._height / 2.0_f32;
-        let hh = self._height / 2.0_f32;
+        let hw = self.aspect * self.height / 2.0_f32;
+        let hh = self.height / 2.0_f32;
         (hw * hw + hh * hh).sqrt()
     }
 
@@ -148,7 +123,7 @@ impl Universal2DBox {
     #[pyo3(name = "gen_vertices")]
     pub fn gen_vertices_py(&mut self) {
         let copy = self.clone();
-        if self._angle.is_some() {
+        if self.angle.is_some() {
             self._vertex_cache = Some(Polygon::from(&copy));
         }
     }
@@ -157,7 +132,7 @@ impl Universal2DBox {
     ///
     #[pyo3(name = "rotate")]
     pub fn rotate_py(&mut self, angle: f32) {
-        self._angle = Some(angle)
+        self.angle = Some(angle)
     }
 
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
@@ -165,11 +140,11 @@ impl Universal2DBox {
     #[new]
     pub fn new(xc: f32, yc: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
-            _xc: xc,
-            _yc: yc,
-            _angle: angle,
-            _aspect: aspect,
-            _height: height,
+            xc: xc,
+            yc: yc,
+            angle: angle,
+            aspect: aspect,
+            height: height,
             _vertex_cache: None,
         }
     }
@@ -182,8 +157,8 @@ impl Universal2DBox {
     }
 
     pub fn area(&self) -> f32 {
-        let w = self._height * self._aspect;
-        w * self._height
+        let w = self.height * self.aspect;
+        w * self.height
     }
 }
 
@@ -193,7 +168,7 @@ impl Universal2DBox {
     }
 
     pub fn gen_vertices(mut self) -> Self {
-        if self._angle.is_some() {
+        if self.angle.is_some() {
             self._vertex_cache = Some(Polygon::from(&self));
         }
         self
@@ -203,11 +178,11 @@ impl Universal2DBox {
     ///
     pub fn rotate(self, angle: f32) -> Self {
         Self {
-            _xc: self._xc,
-            _yc: self._yc,
-            _angle: Some(angle),
-            _aspect: self._aspect,
-            _height: self._height,
+            xc: self.xc,
+            yc: self.yc,
+            angle: Some(angle),
+            aspect: self.aspect,
+            height: self.height,
             _vertex_cache: None,
         }
     }
@@ -217,22 +192,22 @@ impl EstimateClose for Universal2DBox {
     /// Allows comparing bboxes
     ///
     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self._xc - other._xc).abs() < eps
-            && (self._yc - other._yc).abs() < eps
-            && (self._angle.unwrap_or(0.0) - other._angle.unwrap_or(0.0)) < eps
-            && (self._aspect - other._aspect) < eps
-            && (self._height - other._height) < eps
+        (self.xc - other.xc).abs() < eps
+            && (self.yc - other.yc).abs() < eps
+            && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < eps
+            && (self.aspect - other.aspect) < eps
+            && (self.height - other.height) < eps
     }
 }
 
 impl From<BoundingBox> for Universal2DBox {
     fn from(f: BoundingBox) -> Self {
         Universal2DBox {
-            _xc: f._left + f._width / 2.0,
-            _yc: f._top + f._height / 2.0,
-            _angle: None,
-            _aspect: f._width / f._height,
-            _height: f._height,
+            xc: f.left + f.width / 2.0,
+            yc: f.top + f.height / 2.0,
+            angle: None,
+            aspect: f.width / f.height,
+            height: f.height,
             _vertex_cache: None,
         }
     }
@@ -241,11 +216,11 @@ impl From<BoundingBox> for Universal2DBox {
 impl From<&BoundingBox> for Universal2DBox {
     fn from(f: &BoundingBox) -> Self {
         Universal2DBox {
-            _xc: f._left + f._width / 2.0,
-            _yc: f._top + f._height / 2.0,
-            _angle: None,
-            _aspect: f._width / f._height,
-            _height: f._height,
+            xc: f.left + f.width / 2.0,
+            yc: f.top + f.height / 2.0,
+            angle: None,
+            aspect: f.width / f.height,
+            height: f.height,
             _vertex_cache: None,
         }
     }
@@ -262,15 +237,15 @@ impl From<Universal2DBox> for Result<BoundingBox> {
 impl From<&Universal2DBox> for Result<BoundingBox> {
     /// This is a lossy translation. It is valid only when the angle is 0
     fn from(f: &Universal2DBox) -> Self {
-        if f._angle.is_some() {
+        if f.angle.is_some() {
             Err(GenericBBoxConversionError.into())
         } else {
-            let width = f._height * f._aspect;
+            let width = f.height * f.aspect;
             Ok(BoundingBox {
-                _left: f._xc - width / 2.0,
-                _top: f._yc - f._height / 2.0,
-                _width: width,
-                _height: f._height,
+                left: f.xc - width / 2.0,
+                top: f.yc - f.height / 2.0,
+                width: width,
+                height: f.height,
             })
         }
     }
@@ -278,9 +253,9 @@ impl From<&Universal2DBox> for Result<BoundingBox> {
 
 impl From<&Universal2DBox> for Polygon<f64> {
     fn from(b: &Universal2DBox) -> Self {
-        let angle = b._angle.unwrap_or(0.0) as f64;
-        let height = b._height as f64;
-        let aspect = b._aspect as f64;
+        let angle = b.angle.unwrap_or(0.0) as f64;
+        let height = b.height as f64;
+        let aspect = b.aspect as f64;
 
         let c = angle.cos();
         let s = angle.sin();
@@ -294,8 +269,8 @@ impl From<&Universal2DBox> for Polygon<f64> {
         let r2x = half_width * c - half_height * s;
         let r2y = half_width * s + half_height * c;
 
-        let x = b._xc as f64;
-        let y = b._yc as f64;
+        let x = b.xc as f64;
+        let y = b.yc as f64;
 
         Polygon::new(
             LineString(vec![
@@ -375,25 +350,25 @@ mod polygons {
 impl From<&Universal2DBox> for BoundingBox {
     /// This is a lossy translation. It is valid only when the angle is 0
     fn from(f: &Universal2DBox) -> Self {
-        let width = f._height * f._aspect;
+        let width = f.height * f.aspect;
         BoundingBox {
-            _left: f._xc - width / 2.0,
-            _top: f._yc - f._height / 2.0,
-            _width: width,
-            _height: f._height,
+            left: f.xc - width / 2.0,
+            top: f.yc - f.height / 2.0,
+            width: width,
+            height: f.height,
         }
     }
 }
 
 impl BoundingBox {
     pub fn intersection(l: &BoundingBox, r: &BoundingBox) -> f64 {
-        assert!(l._width > 0.0);
-        assert!(l._height > 0.0);
-        assert!(r._width > 0.0);
-        assert!(r._height > 0.0);
+        assert!(l.width > 0.0);
+        assert!(l.height > 0.0);
+        assert!(r.width > 0.0);
+        assert!(r.height > 0.0);
 
-        let (ax0, ay0, ax1, ay1) = (l._left, l._top, l._left + l._width, l._top + l._height);
-        let (bx0, by0, bx1, by1) = (r._left, r._top, r._left + r._width, r._top + r._height);
+        let (ax0, ay0, ax1, ay1) = (l.left, l.top, l.left + l.width, l.top + l.height);
+        let (bx0, by0, bx1, by1) = (r.left, r.top, r.left + r.width, r.top + r.height);
 
         let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
         let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
@@ -419,7 +394,7 @@ impl ObservationAttributes for BoundingBox {
         match (left, right) {
             (Some(l), Some(r)) => {
                 let intersection = BoundingBox::intersection(l, r);
-                let union = (l._height * l._width + r._height * r._width) as f64 - intersection;
+                let union = (l.height * l.width + r.height * r.width) as f64 - intersection;
                 let res = intersection / union;
                 Some(res as f32)
             }
@@ -461,20 +436,19 @@ mod tests_normalize_angle {
 
 impl Universal2DBox {
     pub fn too_far(l: &Universal2DBox, r: &Universal2DBox) -> bool {
-        assert!(l._aspect > 0.0);
-        assert!(l._height > 0.0);
-        assert!(r._aspect > 0.0);
-        assert!(r._height > 0.0);
+        assert!(l.aspect > 0.0);
+        assert!(l.height > 0.0);
+        assert!(r.aspect > 0.0);
+        assert!(r.height > 0.0);
 
         let max_distance = l.get_radius() + r.get_radius();
-        let x = l._xc - r._xc;
-        let y = l._yc - r._yc;
+        let x = l.xc - r.xc;
+        let y = l.yc - r.yc;
         x * x + y * y > max_distance * max_distance
     }
 
     pub fn intersection(l: &Universal2DBox, r: &Universal2DBox) -> f64 {
-        if (normalize_angle(l._angle.unwrap_or(0.0)) - normalize_angle(r._angle.unwrap_or(0.0)))
-            .abs()
+        if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
             < EPS
         {
             BoundingBox::intersection(&l.into(), &r.into())
@@ -485,12 +459,12 @@ impl Universal2DBox {
             let mut r = r.clone();
 
             if l.get_vertices().is_none() {
-                let angle = l._angle.unwrap_or(0.0);
+                let angle = l.angle.unwrap_or(0.0);
                 l = l.rotate(angle).gen_vertices();
             }
 
             if r.get_vertices().is_none() {
-                let angle = r._angle.unwrap_or(0.0);
+                let angle = r.angle.unwrap_or(0.0);
                 r = r.rotate(angle).gen_vertices();
             }
 
@@ -515,8 +489,8 @@ impl ObservationAttributes for Universal2DBox {
                 if intersection == 0.0 {
                     None
                 } else {
-                    let union = (l._height * l._height * l._aspect
-                        + r._height * r._height * r._aspect) as f64
+                    let union = (l.height * l.height * l.aspect + r.height * r.height * r.aspect)
+                        as f64
                         - intersection;
                     let res = intersection / union;
                     Some(res as f32)
@@ -541,23 +515,23 @@ mod tests {
     #[test]
     fn test_iou() {
         let bb1 = BoundingBox {
-            _left: -1.0,
-            _top: -1.0,
-            _width: 2.0,
-            _height: 2.0,
+            left: -1.0,
+            top: -1.0,
+            width: 2.0,
+            height: 2.0,
         };
 
         let bb2 = BoundingBox {
-            _left: -0.9,
-            _top: -0.9,
-            _width: 2.0,
-            _height: 2.0,
+            left: -0.9,
+            top: -0.9,
+            width: 2.0,
+            height: 2.0,
         };
         let bb3 = BoundingBox {
-            _left: 1.0,
-            _top: 1.0,
-            _width: 3.0,
-            _height: 3.0,
+            left: 1.0,
+            top: 1.0,
+            width: 3.0,
+            height: 3.0,
         };
 
         assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb1)).unwrap() > 0.999);
