@@ -18,7 +18,6 @@ COPY . .
 
 ENV RUSTFLAGS=" -C target-cpu=native -C opt-level=3"
 
-RUN cargo test
 RUN maturin build --release --out dist
 RUN pip3 install dist/*.whl
 
