@@ -42,11 +42,16 @@ impl IoUSort {
     ///
     #[pyo3(name = "shard_stats", text_signature = "($self)")]
     pub fn shard_stats_py(&self) -> Vec<i64> {
-        self.store
-            .shard_stats()
-            .into_iter()
-            .map(|e| i64::try_from(e).unwrap())
-            .collect()
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.store
+                .shard_stats()
+                .into_iter()
+                .map(|e| i64::try_from(e).unwrap())
+                .collect()
+        })
     }
 
     /// Get the current epoch for `scene_id` == 0
@@ -79,7 +84,7 @@ impl IoUSort {
     ///
     #[pyo3(name = "predict", text_signature = "($self, bboxes)")]
     pub fn predict_py(&mut self, bboxes: Vec<Universal2DBox>) -> Vec<SortTrack> {
-        self.predict(&bboxes)
+        self.predict_with_scene_py(0, bboxes)
     }
 
     /// Receive tracking information for observed bboxes of `scene_id`
@@ -97,17 +102,25 @@ impl IoUSort {
         scene_id: i64,
         bboxes: Vec<Universal2DBox>,
     ) -> Vec<SortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
         assert!(scene_id >= 0);
-        self.predict_with_scene(scene_id.try_into().unwrap(), &bboxes)
+        py.allow_threads(|| self.predict_with_scene(scene_id.try_into().unwrap(), &bboxes))
     }
 
     /// Remove all the tracks with expired life
     ///
     #[pyo3(name = "wasted", text_signature = "($self)")]
     pub fn wasted_py(&mut self) -> Vec<PyWastedSortTrack> {
-        self.wasted()
-            .into_iter()
-            .map(PyWastedSortTrack::from)
-            .collect()
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.wasted()
+                .into_iter()
+                .map(PyWastedSortTrack::from)
+                .collect()
+        })
     }
 }

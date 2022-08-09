@@ -12,10 +12,15 @@ pub fn nms_py(
     nms_threshold: f32,
     score_threshold: Option<f32>,
 ) -> Vec<Universal2DBox> {
-    nms(&detections, nms_threshold, score_threshold)
-        .into_iter()
-        .cloned()
-        .collect()
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    py.allow_threads(|| {
+        nms(&detections, nms_threshold, score_threshold)
+            .into_iter()
+            .cloned()
+            .collect()
+    })
 }
 
 //
