@@ -1,8 +1,7 @@
 use crate::prelude::{IoUSort, MahaSort, SortTrack};
-use crate::trackers::visual::metric::VisualMetricType;
+use crate::trackers::visual::metric::{PyPositionalMetricType, VisualMetricType};
 use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 use crate::trackers::visual::simple_visual::VisualSort;
-use crate::trackers::visual::visual_py::PyPositionalMetricType;
 use crate::trackers::visual::VisualObservation;
 use crate::utils::bbox::{BoundingBox, Universal2DBox};
 use crate::utils::clipping::clipping_py::{

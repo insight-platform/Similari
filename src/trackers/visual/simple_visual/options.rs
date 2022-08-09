@@ -1,7 +1,8 @@
 use crate::trackers::sort::SortAttributesOptions;
 use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-use crate::trackers::visual::metric::{PositionalMetricType, VisualMetric, VisualMetricType};
-use crate::trackers::visual::visual_py::PyPositionalMetricType;
+use crate::trackers::visual::metric::{
+    PositionalMetricType, PyPositionalMetricType, VisualMetric, VisualMetricType,
+};
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::RwLock;
