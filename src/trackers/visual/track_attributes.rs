@@ -3,7 +3,7 @@ use crate::track::{
 };
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
-use crate::trackers::sort::SortAttributesOptions;
+use crate::trackers::sort::{SortAttributesOptions, VotingType};
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanState;
@@ -30,7 +30,9 @@ pub struct VisualAttributes {
     /// Custom scene id provided by the user
     pub scene_id: u64,
     /// Custom object id provided for the bbox and observation
-    pub custom_object_id: Option<u64>,
+    pub custom_object_id: Option<i64>,
+    /// Last voting type
+    pub voting_type: Option<VotingType>,
 
     state: Option<KalmanState>,
     opts: Arc<SortAttributesOptions>,
@@ -39,6 +41,7 @@ pub struct VisualAttributes {
 impl Default for VisualAttributes {
     fn default() -> Self {
         Self {
+            voting_type: None,
             predicted_boxes: VecDeque::default(),
             observed_boxes: VecDeque::default(),
             observed_features: VecDeque::default(),
@@ -96,32 +99,50 @@ impl TrackAttributesKalmanPrediction for VisualAttributes {
     }
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct VisualAttributesUpdate {
-    epoch: usize,
-    scene_id: u64,
-    custom_object_id: Option<u64>,
+#[derive(Clone, Debug)]
+pub enum VisualAttributesUpdate {
+    Init {
+        epoch: usize,
+        scene_id: u64,
+        custom_object_id: Option<i64>,
+    },
+    VotingType(VotingType),
 }
 
 impl VisualAttributesUpdate {
-    pub fn new(epoch: usize, custom_object_id: Option<u64>) -> Self {
-        Self::new_with_scene(epoch, 0, custom_object_id)
+    pub fn new_init(epoch: usize, custom_object_id: Option<i64>) -> Self {
+        Self::new_init_with_scene(epoch, 0, custom_object_id)
     }
 
-    pub fn new_with_scene(epoch: usize, scene_id: u64, custom_object_id: Option<u64>) -> Self {
-        Self {
+    pub fn new_init_with_scene(epoch: usize, scene_id: u64, custom_object_id: Option<i64>) -> Self {
+        Self::Init {
             epoch,
             scene_id,
             custom_object_id,
         }
     }
+
+    pub fn new_voting_type(vt: VotingType) -> Self {
+        Self::VotingType(vt)
+    }
 }
 
 impl TrackAttributesUpdate<VisualAttributes> for VisualAttributesUpdate {
     fn apply(&self, attrs: &mut VisualAttributes) -> Result<()> {
-        attrs.last_updated_epoch = self.epoch;
-        attrs.scene_id = self.scene_id;
-        attrs.custom_object_id = self.custom_object_id;
+        match self {
+            Self::Init {
+                epoch,
+                scene_id,
+                custom_object_id,
+            } => {
+                attrs.last_updated_epoch = *epoch;
+                attrs.scene_id = *scene_id;
+                attrs.custom_object_id = *custom_object_id;
+            }
+            VisualAttributesUpdate::VotingType(vt) => {
+                attrs.voting_type = Some(*vt);
+            }
+        }
         Ok(())
     }
 }
@@ -137,6 +158,7 @@ impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAt
     fn merge(&mut self, other: &VisualAttributes) -> Result<()> {
         self.last_updated_epoch = other.last_updated_epoch;
         self.custom_object_id = other.custom_object_id;
+        self.voting_type = other.voting_type;
         Ok(())
     }
 

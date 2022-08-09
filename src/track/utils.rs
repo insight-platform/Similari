@@ -32,10 +32,18 @@ impl FromVec<&Feature, Vec<f32>> for Vec<f32> {
     }
 }
 
-/// Observation from Vec<f32>
+/// Feature from &Vec<f32>
 ///
 impl FromVec<Vec<f32>, Feature> for Feature {
     fn from_vec(vec: Vec<f32>) -> Feature {
+        Feature::from_vec(&vec)
+    }
+}
+
+/// Feature from &Vec<f32>
+///
+impl FromVec<&Vec<f32>, Feature> for Feature {
+    fn from_vec(vec: &Vec<f32>) -> Feature {
         let mut feature = {
             let one_more = if vec.len() % FEATURE_LANES_SIZE > 0 {
                 1
@@ -47,12 +55,12 @@ impl FromVec<Vec<f32>, Feature> for Feature {
 
         let mut acc: [f32; FEATURE_LANES_SIZE] = [0.0; FEATURE_LANES_SIZE];
         let mut part = 0;
-        for (counter, i) in vec.into_iter().enumerate() {
+        for (counter, i) in vec.iter().enumerate() {
             part = counter % FEATURE_LANES_SIZE;
             if part == 0 {
                 acc = [0.0; FEATURE_LANES_SIZE];
             }
-            acc[part] = i;
+            acc[part] = *i;
             if part == FEATURE_LANES_SIZE - 1 {
                 feature.push(f32x8::new(acc));
                 part = FEATURE_LANES_SIZE;

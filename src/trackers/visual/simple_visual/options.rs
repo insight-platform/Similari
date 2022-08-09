@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 #[pyclass]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VisualSortOptions {
     max_idle_epochs: usize,
     history_length: usize,
@@ -38,6 +38,16 @@ impl VisualSortOptions {
 
     pub fn visual_metric(mut self, metric: VisualMetricType) -> Self {
         self.metric_builder = self.metric_builder.visual_metric(metric);
+        self
+    }
+
+    pub fn visual_max_distance(mut self, d: f32) -> Self {
+        self.metric_builder = self.metric_builder.visual_max_distance(d);
+        self
+    }
+
+    pub fn visual_min_votes(mut self, n: usize) -> Self {
+        self.metric_builder = self.metric_builder.visual_min_votes(n);
         self
     }
 
@@ -99,9 +109,19 @@ impl VisualSortOptions {
         self.history_length = n.try_into().expect("Parameter must be a positive number");
     }
 
+    #[pyo3(name = "visual_min_votes", text_signature = "($self, n)")]
+    fn visual_min_votes_py(&mut self, n: i64) {
+        self.metric_builder.visual_min_votes_py(n);
+    }
+
     #[pyo3(name = "visual_metric", text_signature = "($self, metric)")]
     fn visual_metric_py(&mut self, metric: VisualMetricType) {
         self.metric_builder.visual_metric_py(metric);
+    }
+
+    #[pyo3(name = "visual_max_distance", text_signature = "($self, d)")]
+    fn visual_max_distance_py(&mut self, d: f32) {
+        self.metric_builder.visual_max_distance_py(d);
     }
 
     #[pyo3(name = "positional_metric", text_signature = "($self, metric)")]

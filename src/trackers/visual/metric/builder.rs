@@ -3,7 +3,7 @@ use crate::trackers::visual::metric::{
 };
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VisualMetricBuilder {
     visual_kind: VisualMetricType,
     positional_kind: PositionalMetricType,
@@ -12,6 +12,8 @@ pub struct VisualMetricBuilder {
     visual_minimal_quality_use: f32,
     visual_minimal_quality_collect: f32,
     visual_max_observations: usize,
+    visual_max_distance: f32,
+    pub visual_min_votes: usize,
 }
 
 /// By default the metric object is constructed with: Euclidean visual metric, IoU(0.3) positional metric
@@ -27,6 +29,8 @@ impl Default for VisualMetricBuilder {
             visual_minimal_quality_use: 0.0,
             visual_minimal_quality_collect: 0.0,
             visual_max_observations: 5,
+            visual_max_distance: f32::MAX,
+            visual_min_votes: 1,
         }
     }
 }
@@ -34,6 +38,20 @@ impl Default for VisualMetricBuilder {
 impl VisualMetricBuilder {
     pub(crate) fn visual_metric_py(&mut self, metric: VisualMetricType) {
         self.visual_kind = metric;
+    }
+
+    pub(crate) fn visual_max_distance_py(&mut self, d: f32) {
+        assert!(
+            d >= 0.0,
+            "The maximum allowed feature distance must be a positive."
+        );
+
+        self.visual_max_distance = d;
+    }
+
+    pub(crate) fn visual_min_votes_py(&mut self, n: i64) {
+        self.visual_min_votes =
+            usize::try_from(n).expect("The number of required votes must be a positive number.");
     }
 
     pub(crate) fn positional_metric_py(&mut self, metric: PositionalMetricType) {
@@ -84,6 +102,20 @@ impl VisualMetricBuilder {
 }
 
 impl VisualMetricBuilder {
+    pub(crate) fn visual_min_votes(mut self, n: usize) -> Self {
+        self.visual_min_votes = n;
+        self
+    }
+
+    pub fn visual_max_distance(mut self, d: f32) -> Self {
+        assert!(
+            d >= 0.0,
+            "The maximum allowed feature distance must be a positive."
+        );
+        self.visual_max_distance = d;
+        self
+    }
+
     pub fn visual_metric(mut self, metric: VisualMetricType) -> Self {
         self.visual_kind = metric;
         self
@@ -151,6 +183,8 @@ impl VisualMetricBuilder {
                 visual_minimal_quality_use: self.visual_minimal_quality_use,
                 visual_minimal_quality_collect: self.visual_minimal_quality_collect,
                 visual_max_observations: self.visual_max_observations,
+                visual_max_distance: self.visual_max_distance,
+                visual_min_votes: self.visual_min_votes,
             }),
         }
     }

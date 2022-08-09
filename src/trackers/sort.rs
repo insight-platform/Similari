@@ -355,7 +355,7 @@ impl PyWastedSortTrack {
 }
 
 #[pyclass]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub enum VotingType {
     #[default]
     Visual,

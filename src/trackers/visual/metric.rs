@@ -52,6 +52,8 @@ pub struct VisualMetricOptions {
     pub visual_minimal_quality_use: f32,
     pub visual_minimal_quality_collect: f32,
     pub visual_max_observations: usize,
+    pub visual_max_distance: f32,
+    pub visual_min_votes: usize,
 }
 
 #[derive(Clone)]
