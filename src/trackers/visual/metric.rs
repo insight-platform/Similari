@@ -64,8 +64,20 @@ impl PyPositionalMetricType {
         );
         PyPositionalMetricType(PositionalMetricType::IoU(threshold))
     }
+
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:#?}", self)
+    }
 }
 
+#[derive(Debug)]
 pub struct VisualMetricOptions {
     pub visual_kind: VisualMetricType,
     pub positional_kind: PositionalMetricType,
@@ -78,7 +90,7 @@ pub struct VisualMetricOptions {
     pub visual_min_votes: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VisualMetric {
     pub opts: Arc<VisualMetricOptions>,
 }

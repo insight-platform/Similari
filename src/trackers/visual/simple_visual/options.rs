@@ -177,15 +177,42 @@ impl VisualSortOptions {
 
 #[cfg(test)]
 mod tests {
+    use crate::trackers::visual::metric::{
+        PositionalMetricType, PyPositionalMetricType, VisualMetricType,
+    };
     use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 
     #[test]
     fn visual_sort_options_builder() {
-        let (opts, metric) = VisualSortOptions::new()
+        let (opts, metric) = dbg!(VisualSortOptions::new()
+            .max_idle_epochs(3)
             .history_length(10)
+            .visual_metric(VisualMetricType::Euclidean)
+            .positional_metric(PositionalMetricType::Mahalanobis)
+            .visual_minimal_track_length(3)
+            .visual_minimal_area(5.0)
+            .visual_minimal_quality_use(0.45)
+            .visual_minimal_quality_collect(0.5)
             .visual_max_observations(25)
-            .build();
-        assert_eq!(opts.history_length, 10);
-        assert_eq!(metric.opts.visual_max_observations, 25);
+            .visual_max_distance(1.0)
+            .visual_min_votes(5)
+            .build());
+
+        let mut opts_builder = VisualSortOptions::new();
+        opts_builder.max_idle_epochs_py(3);
+        opts_builder.history_length_py(10);
+        opts_builder.visual_metric_py(VisualMetricType::euclidean());
+        opts_builder.positional_metric_py(PyPositionalMetricType::maha());
+        opts_builder.visual_minimal_track_length_py(3);
+        opts_builder.visual_minimal_area_py(5.0);
+        opts_builder.visual_minimal_quality_use_py(0.45);
+        opts_builder.visual_minimal_quality_collect_py(0.5);
+        opts_builder.visual_max_observations_py(25);
+        opts_builder.visual_max_distance_py(1.0);
+        opts_builder.visual_min_votes_py(5);
+        let (opts_py, metric_py) = dbg!(opts_builder.build());
+
+        assert_eq!(format!("{:?}", opts), format!("{:?}", opts_py));
+        assert_eq!(format!("{:?}", metric), format!("{:?}", metric_py));
     }
 }
