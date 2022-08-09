@@ -49,10 +49,10 @@ impl BoundingBox {
     #[new]
     pub fn new(left: f32, top: f32, width: f32, height: f32) -> Self {
         Self {
-            left: left,
-            top: top,
-            width: width,
-            height: height,
+            left,
+            top,
+            width,
+            height,
         }
     }
 }
@@ -140,11 +140,11 @@ impl Universal2DBox {
     #[new]
     pub fn new(xc: f32, yc: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
-            xc: xc,
-            yc: yc,
-            angle: angle,
-            aspect: aspect,
-            height: height,
+            xc,
+            yc,
+            angle,
+            aspect,
+            height,
             _vertex_cache: None,
         }
     }
@@ -244,7 +244,7 @@ impl From<&Universal2DBox> for Result<BoundingBox> {
             Ok(BoundingBox {
                 left: f.xc - width / 2.0,
                 top: f.yc - f.height / 2.0,
-                width: width,
+                width,
                 height: f.height,
             })
         }
@@ -354,7 +354,7 @@ impl From<&Universal2DBox> for BoundingBox {
         BoundingBox {
             left: f.xc - width / 2.0,
             top: f.yc - f.height / 2.0,
-            width: width,
+            width,
             height: f.height,
         }
     }
