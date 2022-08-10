@@ -2,10 +2,11 @@
 pub mod builder;
 
 use crate::distance::{cosine, euclidean};
-use crate::track::{Feature, MetricQuery, ObservationAttributes};
+use crate::track::{Feature, MetricQuery, ObservationAttributes, ObservationMetricOk};
 use crate::track::{MetricOutput, Observation, ObservationMetric};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::visual::metric::builder::VisualMetricBuilder;
+use crate::trackers::visual::metric::VisualMetricType::{Cosine, Euclidean};
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::trackers::visual::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
@@ -16,24 +17,72 @@ use std::default::Default;
 use std::iter::Iterator;
 use std::sync::Arc;
 
-#[pyclass]
-#[derive(Clone, Default, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum VisualMetricType {
-    #[default]
-    Euclidean,
-    Cosine,
+    Euclidean(f32),
+    Cosine(f32),
 }
 
-#[pymethods]
+impl Default for VisualMetricType {
+    fn default() -> Self {
+        Euclidean(f32::MAX)
+    }
+}
+
 impl VisualMetricType {
+    pub fn euclidean(threshold: f32) -> Self {
+        assert!(threshold > 0.0, "Threshold must be a positive number");
+        VisualMetricType::Euclidean(threshold)
+    }
+
+    pub fn cosine(threshold: f32) -> Self {
+        assert!(
+            threshold >= -1.0 && threshold <= 1.0,
+            "Threshold must lay within [-1.0:1:0]"
+        );
+        VisualMetricType::Cosine(threshold)
+    }
+
+    pub fn threshold(&self) -> f32 {
+        match self {
+            Euclidean(t) | Cosine(t) => *t,
+        }
+    }
+
+    pub fn is_ok(&self, dist: f32) -> bool {
+        match self {
+            Euclidean(t) => dist <= *t,
+            Cosine(t) => dist >= *t,
+        }
+    }
+}
+
+#[pyclass]
+#[pyo3(name = "VisualMetricType")]
+#[derive(Clone, Debug)]
+pub struct PyVisualMetricType(pub VisualMetricType);
+
+#[pymethods]
+impl PyVisualMetricType {
     #[staticmethod]
-    pub fn euclidean() -> Self {
-        VisualMetricType::Euclidean
+    pub fn euclidean(threshold: f32) -> Self {
+        PyVisualMetricType(VisualMetricType::euclidean(threshold))
     }
 
     #[staticmethod]
-    pub fn cosine() -> Self {
-        VisualMetricType::Cosine
+    pub fn cosine(threshold: f32) -> Self {
+        PyVisualMetricType(VisualMetricType::cosine(threshold))
+    }
+
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:#?}", self)
     }
 }
 
@@ -173,14 +222,20 @@ impl VisualMetric {
     ) -> Option<f32> {
         if track_attributes.visual_features_collected_count >= self.opts.visual_minimal_track_length
         {
-            Some(match self.opts.visual_kind {
-                VisualMetricType::Euclidean => {
+            let d = match self.opts.visual_kind {
+                VisualMetricType::Euclidean(_) => {
                     euclidean(candidate_observation_feature, track_observation_feature)
                 }
-                VisualMetricType::Cosine => {
+                VisualMetricType::Cosine(_) => {
                     cosine(candidate_observation_feature, track_observation_feature)
                 }
-            })
+            };
+
+            if self.opts.visual_kind.is_ok(d) {
+                Some(d)
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -311,6 +366,16 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
 
         Ok(())
     }
+
+    fn postprocess_distances(
+        &self,
+        unfiltered: Vec<ObservationMetricOk<VisualObservationAttributes>>,
+    ) -> Vec<ObservationMetricOk<VisualObservationAttributes>> {
+        unfiltered
+            .into_iter()
+            .filter(|res| res.feature_distance.is_some() || res.attribute_metric.is_some())
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -329,7 +394,7 @@ mod optimize {
     fn optimization_regular() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .build();
 
         let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
@@ -438,7 +503,7 @@ mod optimize {
     fn optimize_low_quality() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .visual_minimal_quality_collect(0.3)
             .build();
 
@@ -466,7 +531,7 @@ mod optimize {
     fn optimize_small_box() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .visual_minimal_area(1.0)
             .build();
 
@@ -573,7 +638,7 @@ mod metric_tests {
     fn metric_iou() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Cosine)
+            .visual_metric(VisualMetricType::cosine(1.0))
             .visual_minimal_track_length(1)
             .build();
         let store = default_store(metric);
@@ -622,7 +687,7 @@ mod metric_tests {
     fn metric_maha() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::Mahalanobis)
-            .visual_metric(VisualMetricType::Cosine)
+            .visual_metric(VisualMetricType::Cosine(1.0))
             .visual_minimal_track_length(1)
             .build();
         let store = default_store(metric);
@@ -671,7 +736,7 @@ mod metric_tests {
     fn visual_track_too_short() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .visual_minimal_track_length(3)
             .build();
 
@@ -721,7 +786,7 @@ mod metric_tests {
     fn visual_track_long_enough() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .visual_minimal_track_length(2)
             .build();
 
@@ -789,7 +854,7 @@ mod metric_tests {
     fn visual_track_small_bbox() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .visual_minimal_track_length(1)
             .visual_minimal_area(1.0)
             .build();
@@ -842,7 +907,7 @@ mod metric_tests {
     fn visual_quality_low() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .visual_minimal_quality_use(0.3)
             .visual_minimal_track_length(1)
             .build();

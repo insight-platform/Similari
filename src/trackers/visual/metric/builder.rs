@@ -1,5 +1,5 @@
 use crate::trackers::visual::metric::{
-    PositionalMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
+    PositionalMetricType, PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
 };
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ pub struct VisualMetricBuilder {
 impl Default for VisualMetricBuilder {
     fn default() -> Self {
         VisualMetricBuilder {
-            visual_kind: VisualMetricType::Euclidean,
+            visual_kind: VisualMetricType::Euclidean(f32::MAX),
             positional_kind: PositionalMetricType::IoU(0.3),
             visual_minimal_track_length: 3,
             visual_minimal_area: 0.0,
@@ -36,8 +36,8 @@ impl Default for VisualMetricBuilder {
 }
 
 impl VisualMetricBuilder {
-    pub(crate) fn visual_metric_py(&mut self, metric: VisualMetricType) {
-        self.visual_kind = metric;
+    pub(crate) fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
+        self.visual_kind = metric.0;
     }
 
     pub(crate) fn visual_max_distance_py(&mut self, d: f32) {

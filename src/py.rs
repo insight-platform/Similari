@@ -1,5 +1,5 @@
 use crate::prelude::{IoUSort, MahaSort, SortTrack};
-use crate::trackers::visual::metric::{PyPositionalMetricType, VisualMetricType};
+use crate::trackers::visual::metric::{PyPositionalMetricType, PyVisualMetricType};
 use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 use crate::trackers::visual::simple_visual::simple_visual_py::{
     PyVisualObservation, PyVisualObservationSet,
@@ -25,7 +25,7 @@ fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyKalmanFilterState>()?;
     m.add_class::<PyKalmanFilter>()?;
     m.add_class::<PyPositionalMetricType>()?;
-    m.add_class::<VisualMetricType>()?;
+    m.add_class::<PyVisualMetricType>()?;
     m.add_class::<VisualSortOptions>()?;
     m.add_class::<PyVisualObservation>()?;
     m.add_class::<PyVisualObservationSet>()?;

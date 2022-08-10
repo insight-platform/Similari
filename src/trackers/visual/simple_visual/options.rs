@@ -1,7 +1,8 @@
 use crate::trackers::sort::SortAttributesOptions;
 use crate::trackers::visual::metric::builder::VisualMetricBuilder;
 use crate::trackers::visual::metric::{
-    PositionalMetricType, PyPositionalMetricType, VisualMetric, VisualMetricType,
+    PositionalMetricType, PyPositionalMetricType, PyVisualMetricType, VisualMetric,
+    VisualMetricType,
 };
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -116,7 +117,7 @@ impl VisualSortOptions {
     }
 
     #[pyo3(name = "visual_metric", text_signature = "($self, metric)")]
-    fn visual_metric_py(&mut self, metric: VisualMetricType) {
+    fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
         self.metric_builder.visual_metric_py(metric);
     }
 
@@ -178,7 +179,7 @@ impl VisualSortOptions {
 #[cfg(test)]
 mod tests {
     use crate::trackers::visual::metric::{
-        PositionalMetricType, PyPositionalMetricType, VisualMetricType,
+        PositionalMetricType, PyPositionalMetricType, PyVisualMetricType, VisualMetricType,
     };
     use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 
@@ -187,7 +188,7 @@ mod tests {
         let (opts, metric) = dbg!(VisualSortOptions::new()
             .max_idle_epochs(3)
             .history_length(10)
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(100.0))
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(3)
             .visual_minimal_area(5.0)
@@ -201,7 +202,7 @@ mod tests {
         let mut opts_builder = VisualSortOptions::new();
         opts_builder.max_idle_epochs_py(3);
         opts_builder.history_length_py(10);
-        opts_builder.visual_metric_py(VisualMetricType::euclidean());
+        opts_builder.visual_metric_py(PyVisualMetricType::euclidean(100.0));
         opts_builder.positional_metric_py(PyPositionalMetricType::maha());
         opts_builder.visual_minimal_track_length_py(3);
         opts_builder.visual_minimal_area_py(5.0);

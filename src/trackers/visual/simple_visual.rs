@@ -259,7 +259,7 @@ mod tests {
         let opts = VisualSortOptions::default()
             .max_idle_epochs(3)
             .history_length(3)
-            .visual_metric(VisualMetricType::Euclidean)
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(2)
             .visual_minimal_area(5.0)
