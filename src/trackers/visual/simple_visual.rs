@@ -477,12 +477,12 @@ mod tests {
             let observations = track.get_observations(0).unwrap();
 
             fn bbox_is(b: &Observation<VisualObservationAttributes>) -> bool {
-                b.0.as_ref().unwrap().bbox_opt().is_some()
+                b.attr().as_ref().unwrap().bbox_opt().is_some()
             }
 
-            assert!(bbox_is(&observations[0]) && observations[0].1.is_some());
-            assert!(!bbox_is(&observations[1]) && observations[1].1.is_some());
-            assert!(!bbox_is(&observations[2]) && observations[2].1.is_some());
+            assert!(bbox_is(&observations[0]) && observations[0].feature().is_some());
+            assert!(!bbox_is(&observations[1]) && observations[1].feature().is_some());
+            assert!(!bbox_is(&observations[2]) && observations[2].feature().is_some());
 
             track.get_attributes().clone()
         };

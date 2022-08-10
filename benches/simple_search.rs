@@ -46,7 +46,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
             DEFAULT_FEATURE,
             Some(1.0),
             Some(Feature::from_vec(
-                (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+                (0..vec_len).map(|_| rng.sample(&gen)).collect::<Vec<_>>(),
             )),
             Some(UnboundAttributeUpdate {}),
         );
@@ -60,7 +60,7 @@ fn bench_capacity_len(vec_len: usize, count: usize, b: &mut Bencher) {
                 ObservationBuilder::new(DEFAULT_FEATURE)
                     .observation_attributes(1.0)
                     .observation(Feature::from_vec(
-                        (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+                        (0..vec_len).map(|_| rng.sample(&gen)).collect::<Vec<_>>(),
                     ))
                     .build(),
             )

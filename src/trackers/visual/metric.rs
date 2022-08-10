@@ -127,7 +127,7 @@ impl VisualMetric {
                 skip = false;
                 true
             } else {
-                e.1.is_some()
+                e.feature().is_some()
             }
         });
     }
@@ -334,7 +334,7 @@ mod optimize {
 
         let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
 
-        let mut obs = vec![Observation(
+        let mut obs = vec![Observation::new(
             Some(VisualObservationAttributes::new(
                 1.0,
                 BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
@@ -353,14 +353,14 @@ mod optimize {
         assert_eq!(obs.len(), 1);
 
         let mut obs = vec![
-            Observation(
+            Observation::new(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
                 )),
                 Some(vec2(0.0, 1.0)),
             ),
-            Observation(
+            Observation::new(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.2, 0.2, 5.0, 10.0).as_xyaah(),
@@ -383,33 +383,33 @@ mod optimize {
         assert!(
             {
                 let e = &obs[0];
-                e.1.is_none()
+                e.feature().is_none()
                     && matches!(
-                        e.0.as_ref().unwrap().bbox_opt(),
+                        e.attr().as_ref().unwrap().bbox_opt(),
                         Some(Universal2DBox { .. })
                     )
             } && {
                 let e = &obs[1];
-                e.1.is_some() && matches!(e.0.as_ref().unwrap().bbox_opt(), None)
+                e.feature().is_some() && matches!(e.attr().as_ref().unwrap().bbox_opt(), None)
             }
         );
 
         let mut obs = vec![
-            Observation(
+            Observation::new(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
                 )),
                 Some(vec2(0.0, 1.0)),
             ),
-            Observation(
+            Observation::new(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.2, 0.2, 5.0, 10.0).as_xyaah(),
                 )),
                 None,
             ),
-            Observation(
+            Observation::new(
                 Some(VisualObservationAttributes::new(
                     1.0,
                     BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
@@ -444,7 +444,7 @@ mod optimize {
 
         let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
 
-        let mut obs = vec![Observation(
+        let mut obs = vec![Observation::new(
             Some(VisualObservationAttributes::new(
                 0.25,
                 BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
@@ -472,7 +472,7 @@ mod optimize {
 
         let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
 
-        let mut obs = vec![Observation(
+        let mut obs = vec![Observation::new(
             Some(VisualObservationAttributes::new(
                 0.25,
                 BoundingBox::new(0.0, 0.0, 0.8, 1.0).as_xyaah(),

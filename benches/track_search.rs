@@ -28,7 +28,7 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
                 DEFAULT_FEATURE,
                 Some(1.0),
                 Some(Feature::from_vec(
-                    (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+                    (0..vec_len).map(|_| rng.sample(&gen)).collect::<Vec<_>>(),
                 )),
                 None,
             );
@@ -42,7 +42,7 @@ fn bench_capacity_len(vec_len: usize, track_len: usize, count: usize, b: &mut Be
             DEFAULT_FEATURE,
             Some(1.0),
             Some(Feature::from_vec(
-                (0..vec_len).map(|_| rng.sample(&gen)).collect(),
+                (0..vec_len).map(|_| rng.sample(&gen)).collect::<Vec<_>>(),
             )),
             Some(UnboundAttributeUpdate),
         );

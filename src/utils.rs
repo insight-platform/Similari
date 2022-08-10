@@ -1,14 +1,19 @@
-/// Bounding boxes
+/// Various bounding boxes implementations for axis-aligned and oriented (rotated)
+///
 pub mod bbox;
 
-/// Kalman filter
+/// Kalman filter for the prediction of axis-aligned and oriented bounding boxes
+///
 pub mod kalman;
 
-/// Bounding box clipping functions
+/// Bounding box intersection calculation for oriented bounding boxes
+///
 pub mod clipping;
 
-/// Trait implementations for primitive types
+/// Auxiliary traits implementations for primitive types
+///
 pub mod primitive;
 
-/// Non maximum suppression implementation for detected boxes
+/// Non maximum suppression implementation for axis-aligned and oriented bounding boxes
+///
 pub mod nms;

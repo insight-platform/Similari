@@ -53,7 +53,7 @@ impl ObservationMetric<NoopAttributes, ()> for TrackMetric {
         let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
             None,
-            match (e1.1.as_ref(), e2.1.as_ref()) {
+            match (e1.feature(), e2.feature()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
@@ -120,7 +120,7 @@ fn benchmark(objects: usize, flen: usize, b: &mut Bencher) {
         let tm = Instant::now();
         for i in &mut iterators {
             iteration += 1;
-            let b = i.next().unwrap().1;
+            let b = i.next().unwrap().feature().clone();
             let t = store
                 .new_track(iteration)
                 .observation(

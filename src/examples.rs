@@ -130,7 +130,7 @@ impl ObservationMetric<UnboundAttrs, f32> for UnboundMetric {
         let (e1, e2) = (mq.candidate_observation, mq.track_observation);
         Some((
             f32::calculate_metric_object(&e1.attr().as_ref(), &e2.attr().as_ref()),
-            match (e1.1.as_ref(), e2.1.as_ref()) {
+            match (e1.feature().as_ref(), e2.feature().as_ref()) {
                 (Some(x), Some(y)) => Some(euclidean(x, y)),
                 _ => None,
             },
@@ -178,7 +178,7 @@ impl Iterator for FeatGen2 {
     fn next(&mut self) -> Option<Self::Item> {
         self.x += self.gen.sample(&self.dist);
         self.y += self.gen.sample(&self.dist);
-        Some(Observation(
+        Some(Observation::new(
             Some(self.gen.sample(&self.dist) + 0.7),
             Some(vec2(self.x, self.y)),
         ))
@@ -289,6 +289,6 @@ impl Iterator for FeatGen {
             .into_iter()
             .map(|_| self.x + self.gen.sample(&self.dist))
             .collect::<Vec<_>>();
-        Some(Observation::<()>(None, Some(Feature::from_vec(v))))
+        Some(Observation::<()>::new(None, Some(Feature::from_vec(v))))
     }
 }

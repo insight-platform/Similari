@@ -74,7 +74,7 @@ impl ObservationMetric<BBoxAttributes, BoundingBox> for IOUMetric {
         is_merge: bool,
     ) -> Result<()> {
         if !is_merge {
-            if let Some(bb) = &features[prev_length].0 {
+            if let Some(bb) = &features[prev_length].attr() {
                 attrs.bboxes.push(*bb);
             }
         }
