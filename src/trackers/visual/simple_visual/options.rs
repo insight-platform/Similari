@@ -86,8 +86,8 @@ impl VisualSortOptions {
 impl Default for VisualSortOptions {
     fn default() -> Self {
         Self {
-            max_idle_epochs: 10,
-            history_length: 300,
+            max_idle_epochs: 2,
+            history_length: 10,
             metric_builder: VisualMetricBuilder::default(),
         }
     }

@@ -23,19 +23,19 @@ often used in video processing or other systems where the observer receives fuzz
 
 Similari is a framework to build custom trackers, however it provides certain algorithms as an end-user functionality:
 
-**Kalman filter**, that predicts rectangular bounding boxes co-axial to scene, supports the oriented bounding 
-  boxes as well.
+**Kalman filter**, that predicts rectangular bounding boxes axis-aligned to scene, supports the oriented (rotated) 
+bounding boxes as well.
 
-**Bounding box clipping**, that allows calculating the area of intersection for non-oriented and oriented bounding 
-boxes.
+**Bounding box clipping**, that allows calculating the area of intersection for axis-aligned and oriented (rotated) 
+bounding boxes.
 
 **Non-Maximum Suppression (NMS)** - filters rectangular bounding boxes co-axial to scene, and supports the oriented 
   bounding boxes.
 
-**SORT tracking** algorithm (non-oriented and oriented boxes are supported) - IoU and Mahalanobis distances are 
+**SORT tracking** algorithm (axis-aligned and oriented boxes are supported) - IoU and Mahalanobis distances are 
   supported.
 
-**Visual-SORT tracking** - a DeepSORT-like algorithm (non-oriented and oriented boxes are supported) - IoU and 
+**Visual-SORT tracking** - a DeepSORT-like algorithm (axis-aligned and oriented boxes are supported) - IoU and 
 Mahalanobis distances are supported for positional tracking, euclidean, cosine distances are used for visual tracking on 
 feature vectors.
 
@@ -123,9 +123,9 @@ cargo bench
 ## Python API
 
 Python interface exposes ready-to-use functions and classes of Similari. As for now, the Python interface provides:
-* the Kalman filter for co-axial and oriented boxes prediction;
+* the Kalman filter for axis-aligned and oriented (rotated) boxes prediction;
 * NMS (Non-maximum suppression);
-* the Sutherland-Hodgman clipping, intersection area for oriented boxes;
+* the Sutherland-Hodgman clipping, intersection area for oriented (rotated) boxes;
 * SORT with IoU metric (IoUSort);
 * SORT with Mahalanobis metric (MahaSort);
 * VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
@@ -190,7 +190,8 @@ Take a look at samples in the repo:
 * [incremental_track_build.rs](examples/incremental_track_build.rs) - very simple feature-based tracker.
 * [iou_tracker.rs](examples/iou_tracker.rs) - very simple IoU tracker (without Kalman filter).
 * [simple_sort_iou_tracker.rs](examples/simple_sort_iou_tracker.rs) - SORT tracker (with Kalman filter, IoU).
-* [simple_sort_iou_tracker_oriented.rs](examples/simple_sort_iou_tracker_oriented.rs) - Oriented SORT tracker (with Kalman filter, IoU).
+* [simple_sort_iou_tracker_oriented.rs](examples/simple_sort_iou_tracker_oriented.rs) - Oriented (rotated) SORT tracker 
+  (with Kalman filter, IoU).
 * [simple_sort_maha_tracker.rs](examples/simple_sort_maha_tracker.rs) - SORT tracker (with Kalman filter, Mahalanobis).
 * [simple_sort_maha_tracker_oriented.rs](examples/simple_sort_maha_tracker_oriented.rs) - Oriented SORT tracker (with Kalman filter, Mahalanobis).
 * [middleware_sort_tracker.rs](examples/middleware_sort_tracker.rs) - SORT tracker (with Kalman filter, middleware implementation).
