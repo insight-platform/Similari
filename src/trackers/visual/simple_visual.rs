@@ -131,7 +131,7 @@ impl VisualSort {
                             ),
                         );
 
-                        if let Some(feature) = &o.feature {
+                        if let Some(feature) = o.feature {
                             obs = obs.observation(Feature::from_vec(feature));
                         }
 
@@ -214,6 +214,7 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>> fo
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),
+            custom_object_id: attrs.custom_object_id,
             voting_type: attrs.voting_type.unwrap_or(Positional),
             epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,
@@ -244,81 +245,342 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>>
 
 #[cfg(test)]
 mod tests {
+    use crate::track::Observation;
+    use crate::trackers::sort::{PyWastedSortTrack, VotingType};
+    use crate::trackers::visual::metric::{PositionalMetricType, VisualMetricType};
+    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual::simple_visual::options::VisualSortOptions;
+    use crate::trackers::visual::simple_visual::VisualSort;
+    use crate::trackers::visual::VisualObservation;
+    use crate::utils::bbox::BoundingBox;
+
     #[test]
-    fn test() {}
-    //     use crate::trackers::sort::simple_iou::IoUSort;
-    //     use crate::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
-    //     use crate::utils::bbox::BoundingBox;
-    //     use crate::{EstimateClose, EPS};
-    //
-    //     #[test]
-    //     fn sort() {
-    //         let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
-    //         assert_eq!(t.current_epoch(), 0);
-    //         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
-    //         let v = t.predict(&[bb.into()]);
-    //         let wasted = t.wasted();
-    //         assert!(wasted.is_empty());
-    //         assert_eq!(v.len(), 1);
-    //         let v = v[0].clone();
-    //         let track_id = v.id;
-    //         assert_eq!(v.length, 1);
-    //         assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
-    //         assert_eq!(v.epoch, 1);
-    //         assert_eq!(t.current_epoch(), 1);
-    //
-    //         let bb = BoundingBox::new(0.1, 0.1, 10.1, 20.0);
-    //         let v = t.predict(&[bb.into()]);
-    //         let wasted = t.wasted();
-    //         assert!(wasted.is_empty());
-    //         assert_eq!(v.len(), 1);
-    //         let v = v[0].clone();
-    //         assert_eq!(v.id, track_id);
-    //         assert_eq!(v.length, 2);
-    //         assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
-    //         assert_eq!(v.epoch, 2);
-    //         assert_eq!(t.current_epoch(), 2);
-    //
-    //         let bb = BoundingBox::new(10.1, 10.1, 10.1, 20.0);
-    //         let v = t.predict(&[bb.into()]);
-    //         assert_eq!(v.len(), 1);
-    //         let v = v[0].clone();
-    //         assert_ne!(v.id, track_id);
-    //         let wasted = t.wasted();
-    //         assert!(wasted.is_empty());
-    //         assert_eq!(t.current_epoch(), 3);
-    //
-    //         let bb = t.predict(&[]);
-    //         assert!(bb.is_empty());
-    //         let wasted = t.wasted();
-    //         assert!(wasted.is_empty());
-    //         assert_eq!(t.current_epoch(), 4);
-    //         assert_eq!(t.current_epoch(), 4);
-    //
-    //         let bb = t.predict(&[]);
-    //         assert!(bb.is_empty());
-    //         let wasted = t.wasted();
-    //         assert_eq!(wasted.len(), 1);
-    //         assert_eq!(wasted[0].get_track_id(), track_id);
-    //         assert_eq!(t.current_epoch(), 5);
-    //     }
-    //
-    //     #[test]
-    //     fn sort_with_scenes() {
-    //         let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
-    //         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
-    //         assert_eq!(t.current_epoch_with_scene(1), 0);
-    //         assert_eq!(t.current_epoch_with_scene(2), 0);
-    //
-    //         let _v = t.predict_with_scene(1, &[bb.into()]);
-    //         let _v = t.predict_with_scene(1, &[bb.into()]);
-    //
-    //         assert_eq!(t.current_epoch_with_scene(1), 2);
-    //         assert_eq!(t.current_epoch_with_scene(2), 0);
-    //
-    //         let _v = t.predict_with_scene(2, &[bb.into()]);
-    //
-    //         assert_eq!(t.current_epoch_with_scene(1), 2);
-    //         assert_eq!(t.current_epoch_with_scene(2), 1);
-    //     }
+    fn visual_sort() {
+        let opts = VisualSortOptions::default()
+            .max_idle_epochs(3)
+            .history_length(3)
+            .visual_metric(VisualMetricType::Euclidean)
+            .positional_metric(PositionalMetricType::Mahalanobis)
+            .visual_minimal_track_length(2)
+            .visual_minimal_area(5.0)
+            .visual_minimal_quality_use(0.45)
+            .visual_minimal_quality_collect(0.7)
+            .visual_max_observations(3)
+            .visual_max_distance(0.5)
+            .visual_min_votes(2);
+
+        let mut tracker = VisualSort::new(1, &opts);
+
+        // new track to be initialized
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![1.0, 1.0]),
+                Some(0.9),
+                BoundingBox::new(1.0, 1.0, 3.0, 5.0).as_xyaah(),
+                Some(13),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.custom_object_id, Some(13));
+        assert_eq!(t.scene_id, 10);
+        assert!(matches!(t.voting_type, VotingType::Positional));
+        assert!(matches!(t.epoch, 1));
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 1);
+        assert_eq!(attrs.track_length, 1);
+        assert_eq!(attrs.observed_boxes.len(), 1);
+        assert_eq!(attrs.predicted_boxes.len(), 1);
+        assert_eq!(attrs.observed_features.len(), 1);
+        let first_track_id = t.id;
+
+        {
+            // another scene - new track
+            let tracks = tracker.predict_with_scene(
+                1,
+                &[VisualObservation::new(
+                    Some(&vec![1.0, 1.0]),
+                    Some(0.9),
+                    BoundingBox::new(1.0, 1.0, 3.0, 5.0).as_xyaah(),
+                    Some(133),
+                )],
+            );
+            let t = &tracks[0];
+            assert_eq!(t.custom_object_id, Some(133));
+            assert_eq!(t.scene_id, 1);
+            assert!(matches!(t.voting_type, VotingType::Positional));
+            assert!(matches!(t.epoch, 1));
+            let attrs = {
+                let store = tracker.store.get_store(t.id as usize);
+                let track = store.get(&t.id).unwrap();
+                track.get_attributes().clone()
+            };
+            assert_eq!(attrs.visual_features_collected_count, 1);
+            assert_eq!(attrs.track_length, 1);
+            assert_eq!(attrs.observed_boxes.len(), 1);
+            assert_eq!(attrs.predicted_boxes.len(), 1);
+            assert_eq!(attrs.observed_features.len(), 1);
+        }
+
+        // add the segment to the track (merge by bbox pos)
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![0.95, 0.95]),
+                Some(0.93),
+                BoundingBox::new(1.1, 1.1, 3.05, 5.01).as_xyaah(),
+                Some(15),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.id, first_track_id);
+        assert_eq!(t.custom_object_id, Some(15));
+        assert_eq!(t.scene_id, 10);
+        assert!(matches!(t.voting_type, VotingType::Positional));
+        assert!(matches!(t.epoch, 2));
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 2);
+        assert_eq!(attrs.track_length, 2);
+        assert_eq!(attrs.observed_boxes.len(), 2);
+        assert_eq!(attrs.predicted_boxes.len(), 2);
+        assert_eq!(attrs.observed_features.len(), 2);
+
+        // add the segment to the track (no visual feature)
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                None,
+                Some(0.93),
+                BoundingBox::new(1.11, 1.15, 3.15, 5.05).as_xyaah(),
+                Some(25),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.id, first_track_id);
+        assert_eq!(t.custom_object_id, Some(25));
+        assert_eq!(t.scene_id, 10);
+        assert!(matches!(t.voting_type, VotingType::Positional));
+        assert!(matches!(t.epoch, 3));
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 2);
+        assert_eq!(attrs.track_length, 3);
+        assert_eq!(attrs.observed_boxes.len(), 3);
+        assert_eq!(attrs.predicted_boxes.len(), 3);
+        assert_eq!(attrs.observed_features.len(), 3);
+        assert!(attrs.observed_features.back().unwrap().is_none());
+
+        // add the segment to the track (no visual feature)
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                None,
+                Some(0.93),
+                BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
+                Some(2),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.id, first_track_id);
+        assert!(matches!(t.voting_type, VotingType::Positional));
+        assert!(matches!(t.epoch, 4));
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 2);
+        assert_eq!(attrs.track_length, 4);
+        assert_eq!(attrs.observed_boxes.len(), 3);
+        assert_eq!(attrs.predicted_boxes.len(), 3);
+        assert_eq!(attrs.observed_features.len(), 3);
+        assert!(attrs.observed_features.back().unwrap().is_none());
+
+        // add the segment to the track (with visual feature but low quality - no use, no collect)
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![0.97, 0.97]),
+                Some(0.44),
+                BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
+                Some(2),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.id, first_track_id);
+        assert!(matches!(t.voting_type, VotingType::Positional));
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 2);
+        assert_eq!(attrs.track_length, 5);
+        assert!(attrs.observed_features.back().unwrap().is_some());
+
+        // add the segment to the track (with visual feature but low quality - use, but no collect)
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![0.97, 0.97]),
+                Some(0.6),
+                BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
+                Some(2),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.id, first_track_id);
+        assert!(matches!(t.voting_type, VotingType::Visual));
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 2);
+        assert_eq!(attrs.track_length, 6);
+        assert!(attrs.observed_features.back().unwrap().is_some());
+
+        // add the segment to the track (with visual feature of normal quality - use, collect)
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![0.97, 0.97]),
+                Some(0.8),
+                BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
+                Some(2),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.id, first_track_id);
+        assert!(matches!(t.voting_type, VotingType::Visual));
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            let observations = track.get_observations(0).unwrap();
+
+            fn bbox_is(b: &Observation<VisualObservationAttributes>) -> bool {
+                b.0.as_ref().unwrap().bbox_opt().is_some()
+            }
+
+            assert!(bbox_is(&observations[0]) && observations[0].1.is_some());
+            assert!(!bbox_is(&observations[1]) && observations[1].1.is_some());
+            assert!(!bbox_is(&observations[2]) && observations[2].1.is_some());
+
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 3);
+        assert_eq!(attrs.track_length, 7);
+        assert!(attrs.observed_features.back().unwrap().is_some());
+
+        // new track to be initialized
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![0.1, 0.1]),
+                Some(0.9),
+                BoundingBox::new(10.0, 10.0, 3.0, 5.0).as_xyaah(),
+                Some(33),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.custom_object_id, Some(33));
+        assert_eq!(t.scene_id, 10);
+        assert!(matches!(t.voting_type, VotingType::Positional));
+        assert!(matches!(t.epoch, 8));
+        assert_ne!(t.id, first_track_id);
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 1);
+        assert_eq!(attrs.track_length, 1);
+        assert_eq!(attrs.observed_boxes.len(), 1);
+        assert_eq!(attrs.predicted_boxes.len(), 1);
+        assert_eq!(attrs.observed_features.len(), 1);
+        let other_track_id = t.id;
+
+        // add segment to be initialized
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![0.12, 0.15]),
+                Some(0.88),
+                BoundingBox::new(10.1, 10.1, 3.0, 5.0).as_xyaah(),
+                Some(35),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.custom_object_id, Some(35));
+        assert_eq!(t.scene_id, 10);
+        assert!(matches!(t.voting_type, VotingType::Positional));
+        assert!(matches!(t.epoch, 9));
+        assert_eq!(t.id, other_track_id);
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 2);
+        assert_eq!(attrs.track_length, 2);
+        assert_eq!(attrs.observed_boxes.len(), 2);
+        assert_eq!(attrs.predicted_boxes.len(), 2);
+        assert_eq!(attrs.observed_features.len(), 2);
+
+        // add segment to be initialized
+        //
+        let tracks = tracker.predict_with_scene(
+            10,
+            &[VisualObservation::new(
+                Some(&vec![0.12, 0.14]),
+                Some(0.87),
+                BoundingBox::new(10.1, 10.1, 3.0, 5.0).as_xyaah(),
+                Some(31),
+            )],
+        );
+        let t = &tracks[0];
+        assert_eq!(t.custom_object_id, Some(31));
+        assert_eq!(t.scene_id, 10);
+        assert!(matches!(t.voting_type, VotingType::Visual));
+        assert!(matches!(t.epoch, 10));
+        assert_eq!(t.id, other_track_id);
+        let attrs = {
+            let store = tracker.store.get_store(t.id as usize);
+            let track = store.get(&t.id).unwrap();
+            track.get_attributes().clone()
+        };
+        assert_eq!(attrs.visual_features_collected_count, 3);
+        assert_eq!(attrs.track_length, 3);
+        assert_eq!(attrs.observed_boxes.len(), 3);
+        assert_eq!(attrs.predicted_boxes.len(), 3);
+        assert_eq!(attrs.observed_features.len(), 3);
+
+        tracker.skip_epochs_for_scene(10, 5);
+        let tracks = tracker
+            .wasted()
+            .into_iter()
+            .map(PyWastedSortTrack::from)
+            .collect::<Vec<_>>();
+        dbg!(&tracks);
+    }
 }

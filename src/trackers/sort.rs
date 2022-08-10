@@ -284,6 +284,9 @@ pub struct SortTrack {
 
     #[pyo3(get)]
     pub voting_type: VotingType,
+
+    #[pyo3(get)]
+    pub custom_object_id: Option<i64>,
 }
 
 /// Online track structure that contains tracking information for the last tracker epoch

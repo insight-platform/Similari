@@ -29,6 +29,7 @@ impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for SortTrack {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),
+            custom_object_id: None,
             voting_type: VotingType::Positional,
             epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,

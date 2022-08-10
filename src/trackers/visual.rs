@@ -1,5 +1,4 @@
 use crate::utils::bbox::Universal2DBox;
-use pyo3::prelude::*;
 
 /// Track metric implementation
 pub mod metric;
@@ -17,20 +16,17 @@ pub mod observation_attributes;
 /// Implementation of Visual tracker with simple API
 pub mod simple_visual;
 
-#[pyclass]
 #[derive(Debug, Clone)]
-pub struct VisualObservation {
-    feature: Option<Vec<f32>>,
+pub struct VisualObservation<'a> {
+    feature: Option<&'a Vec<f32>>,
     feature_quality: Option<f32>,
     bounding_box: Universal2DBox,
     custom_object_id: Option<i64>,
 }
 
-#[pymethods]
-impl VisualObservation {
-    #[new]
+impl<'a> VisualObservation<'a> {
     pub fn new(
-        feature: Option<Vec<f32>>,
+        feature: Option<&'a Vec<f32>>,
         feature_quality: Option<f32>,
         bounding_box: Universal2DBox,
         custom_object_id: Option<i64>,
@@ -43,14 +39,14 @@ impl VisualObservation {
         }
     }
 
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{:?}", self)
-    }
-
-    fn __str__(&self) -> String {
-        format!("{:#?}", self)
-    }
+    // #[classattr]
+    // const __hash__: Option<Py<PyAny>> = None;
+    //
+    // fn __repr__(&self) -> String {
+    //     format!("{:?}", self)
+    // }
+    //
+    // fn __str__(&self) -> String {
+    //     format!("{:#?}", self)
+    // }
 }

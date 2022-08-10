@@ -257,7 +257,7 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
         attrs: &mut VisualAttributes,
         observations: &mut Vec<Observation<VisualObservationAttributes>>,
         _prev_length: usize,
-        _is_merge: bool,
+        is_merge: bool,
     ) -> Result<()> {
         let mut observation = observations
             .pop()
@@ -282,11 +282,13 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
             observation.feature().clone(),
         );
 
-        if !self.feature_can_be_used(
-            &Some(observation_bbox),
-            feature_quality,
-            self.opts.visual_minimal_quality_collect,
-        ) {
+        if is_merge
+            && !self.feature_can_be_used(
+                &Some(observation_bbox),
+                feature_quality,
+                self.opts.visual_minimal_quality_collect,
+            )
+        {
             *observation.feature_mut() = None;
         }
 
@@ -451,7 +453,7 @@ mod optimize {
         )];
 
         metric
-            .optimize(0, &[], &mut attrs, &mut obs, 0, false)
+            .optimize(0, &[], &mut attrs, &mut obs, 0, true)
             .unwrap();
 
         assert!(
@@ -479,7 +481,7 @@ mod optimize {
         )];
 
         metric
-            .optimize(0, &[], &mut attrs, &mut obs, 0, false)
+            .optimize(0, &[], &mut attrs, &mut obs, 0, true)
             .unwrap();
 
         assert!(
