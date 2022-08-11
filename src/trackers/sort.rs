@@ -174,7 +174,8 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
     type Lookup = NoopLookup<SortAttributes, Universal2DBox>;
 
     fn compatible(&self, other: &SortAttributes) -> bool {
-        self.scene_id == other.scene_id
+        let status = self.opts.baked(self.scene_id, self.last_updated_epoch);
+        self.scene_id == other.scene_id && !matches!(status, Ok(TrackStatus::Wasted))
     }
 
     fn merge(&mut self, other: &SortAttributes) -> Result<()> {

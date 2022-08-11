@@ -152,7 +152,8 @@ impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAt
     type Lookup = NoopLookup<VisualAttributes, VisualObservationAttributes>;
 
     fn compatible(&self, other: &VisualAttributes) -> bool {
-        self.scene_id == other.scene_id
+        let status = self.opts.baked(self.scene_id, self.last_updated_epoch);
+        self.scene_id == other.scene_id && !matches!(status, Ok(TrackStatus::Wasted))
     }
 
     fn merge(&mut self, other: &VisualAttributes) -> Result<()> {
