@@ -1,5 +1,5 @@
 use crate::trackers::visual::metric::{
-    PositionalMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
+    PositionalMetricType, PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
 };
 use std::sync::Arc;
 
@@ -12,7 +12,6 @@ pub struct VisualMetricBuilder {
     visual_minimal_quality_use: f32,
     visual_minimal_quality_collect: f32,
     visual_max_observations: usize,
-    visual_max_distance: f32,
     pub visual_min_votes: usize,
 }
 
@@ -22,31 +21,21 @@ pub struct VisualMetricBuilder {
 impl Default for VisualMetricBuilder {
     fn default() -> Self {
         VisualMetricBuilder {
-            visual_kind: VisualMetricType::Euclidean,
+            visual_kind: VisualMetricType::Euclidean(f32::MAX),
             positional_kind: PositionalMetricType::IoU(0.3),
             visual_minimal_track_length: 3,
             visual_minimal_area: 0.0,
             visual_minimal_quality_use: 0.0,
             visual_minimal_quality_collect: 0.0,
             visual_max_observations: 5,
-            visual_max_distance: f32::MAX,
             visual_min_votes: 1,
         }
     }
 }
 
 impl VisualMetricBuilder {
-    pub(crate) fn visual_metric_py(&mut self, metric: VisualMetricType) {
-        self.visual_kind = metric;
-    }
-
-    pub(crate) fn visual_max_distance_py(&mut self, d: f32) {
-        assert!(
-            d >= 0.0,
-            "The maximum allowed feature distance must be a positive."
-        );
-
-        self.visual_max_distance = d;
+    pub(crate) fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
+        self.visual_kind = metric.0;
     }
 
     pub(crate) fn visual_min_votes_py(&mut self, n: i64) {
@@ -104,15 +93,6 @@ impl VisualMetricBuilder {
 impl VisualMetricBuilder {
     pub(crate) fn visual_min_votes(mut self, n: usize) -> Self {
         self.visual_min_votes = n;
-        self
-    }
-
-    pub fn visual_max_distance(mut self, d: f32) -> Self {
-        assert!(
-            d >= 0.0,
-            "The maximum allowed feature distance must be a positive."
-        );
-        self.visual_max_distance = d;
         self
     }
 
@@ -183,7 +163,6 @@ impl VisualMetricBuilder {
                 visual_minimal_quality_use: self.visual_minimal_quality_use,
                 visual_minimal_quality_collect: self.visual_minimal_quality_collect,
                 visual_max_observations: self.visual_max_observations,
-                visual_max_distance: self.visual_max_distance,
                 visual_min_votes: self.visual_min_votes,
             }),
         }

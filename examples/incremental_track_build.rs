@@ -115,8 +115,8 @@ fn main() {
             .new_track_random_id()
             .observation(
                 ObservationBuilder::new(FEAT0)
-                    .observation_attributes(obj1f.0.unwrap())
-                    .observation(obj1f.1.unwrap())
+                    .observation_attributes(obj1f.attr().unwrap().clone())
+                    .observation(obj1f.feature().as_ref().unwrap().clone())
                     .track_attributes_update(BBoxAttributesUpdate { bbox: obj1b })
                     .build(),
             )
@@ -129,8 +129,8 @@ fn main() {
             .new_track_random_id()
             .observation(
                 ObservationBuilder::new(FEAT0)
-                    .observation_attributes(obj2f.0.unwrap())
-                    .observation(obj2f.1.unwrap())
+                    .observation_attributes(obj2f.attr().unwrap().clone())
+                    .observation(obj2f.feature().as_ref().unwrap().clone())
                     .track_attributes_update(BBoxAttributesUpdate { bbox: obj2b })
                     .build(),
             )

@@ -14,7 +14,7 @@ pub mod store;
 pub mod utils;
 pub mod voting;
 
-/// Return type item for distances between the current track and other track.
+/// Return type item for distance between the current track's and other track's observations
 ///
 #[derive(Debug, Clone)]
 pub struct ObservationMetricOk<OA>
@@ -27,7 +27,7 @@ where
     pub to: u64,
     /// custom feature attribute metric object calculated for pairwise feature attributes
     pub attribute_metric: Option<OA::MetricObject>,
-    /// distance calculated for pairwise features
+    /// distance calculated for pairwise feature vectors
     pub feature_distance: Option<f32>,
 }
 
@@ -51,16 +51,18 @@ where
 }
 
 /// Internal feature vector representation.
+///
 pub type Feature = Vec<f32x8>;
 
 /// Number of SIMD lanes used to store observation parts internally
 const FEATURE_LANES_SIZE: usize = 8;
 
-/// Feature specification. It is a tuple of observation attributes (T) and Observation itself. Such a representation
-/// is used to support the estimation for every observation during the collecting. If the model doesn't provide the feature attributes
+/// Observation specification. It is a tuple of optional observation attributes (T) and optional feature vector itself. Such a representation
+/// is used to support the estimation for every observation during the collecting. If the model doesn't provide the observation attributes
 /// `()` may be used.
+///
 #[derive(Default, Clone)]
-pub struct Observation<T>(pub Option<T>, pub Option<Feature>)
+pub struct Observation<T>(pub(crate) Option<T>, pub(crate) Option<Feature>)
 where
     T: Send + Sync + Clone + 'static;
 
@@ -68,6 +70,10 @@ impl<T> Observation<T>
 where
     T: Send + Sync + Clone + 'static,
 {
+    pub fn new(attrs: Option<T>, feature: Option<Feature>) -> Self {
+        Self(attrs, feature)
+    }
+
     pub fn attr(&self) -> &Option<T> {
         &self.0
     }

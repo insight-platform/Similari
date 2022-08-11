@@ -14,14 +14,14 @@ fn kalman_100k(b: &mut Bencher) {
     let mut pt = FeatGen2::new(-10.0, 2.0, 0.2);
 
     b.iter(|| {
-        let v = pt.next().unwrap().1.unwrap();
+        let v = pt.next().unwrap().feature().as_ref().unwrap().clone();
         let n = v[0].as_array_ref();
 
         let bbox = Universal2DBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
 
         let mut state = f.initiate(bbox);
         for _i in 0..N {
-            let v = pt.next().unwrap().1.unwrap();
+            let v = pt.next().unwrap().feature().as_ref().unwrap().clone();
             let n = v[0].as_array_ref();
             let bb = Universal2DBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
 

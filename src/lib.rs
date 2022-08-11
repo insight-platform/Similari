@@ -19,17 +19,19 @@ pub mod examples;
 pub mod prelude;
 
 /// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions. It defines the track's
+///
 /// look and feel, provides `Track` structure that holds track attributes and features, can accumulate track features and
 /// calculate feature distances between pair of tracks.
 ///
 pub mod track;
 
-/// Ready-to-use trackers - SORT
+/// Ready-to-use trackers - IoU SORT, Mahalanobis SORT, Hybrid Visual/Positional Sort
 ///
 pub mod trackers;
 
-pub mod py;
-/// Utility objects - bounding boxes, kalman filter
+mod py;
+
+/// Utility objects - bounding boxes, kalman filter, polygon clipping, nms
 ///
 pub mod utils;
 
@@ -38,7 +40,8 @@ pub use track::voting;
 
 use thiserror::Error;
 
-/// Errors
+/// Package errors
+///
 #[derive(Error, Debug, Clone)]
 pub enum Errors {
     /// Compared tracks have incompatible attributes, so cannot be used in calculations.

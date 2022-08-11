@@ -210,8 +210,8 @@ fn feat_gen() {
 
     let drift = 0.01;
     let mut gen = FeatGen2::new(0.0, 0.0, drift);
-    let v1 = gen.next().unwrap().1.as_ref().unwrap()[0];
-    let v2 = gen.next().unwrap().1.as_ref().unwrap()[0];
+    let v1 = gen.next().unwrap().feature().unwrap()[0];
+    let v2 = gen.next().unwrap().feature().unwrap()[0];
     assert!(v1.sub(v2).abs().reduce_add() <= 2.0 * f32x8::splat(drift).reduce_add());
 }
 
@@ -291,7 +291,7 @@ impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetr
         if current_capacity > self.max_capacity {
             current_capacity = self.max_capacity
         }
-        features.sort_by(|l, r| r.0.partial_cmp(&l.0).unwrap());
+        features.sort_by(|l, r| r.attr().partial_cmp(&l.attr()).unwrap());
         features.truncate(current_capacity as usize);
         Ok(())
     }
@@ -416,8 +416,8 @@ fn main() {
                 .add(
                     *track_id,
                     *class,
-                    feature.0,
-                    feature.1.clone(),
+                    feature.attr().clone(),
+                    feature.feature().clone(),
                     Some(update),
                 )
                 .unwrap();

@@ -5,6 +5,7 @@ use crate::trackers::visual::observation_attributes::VisualObservationAttributes
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::topn::TopNVoting;
 use crate::voting::Voting;
+use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
 pub struct VisualVoting {
@@ -53,12 +54,12 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
             self.min_winner_feature_votes,
         );
 
-        let distances = distances.into_iter().collect::<Vec<_>>();
+        let (distances, distances_clone) = distances.into_iter().tee();
 
-        let feature_winners = topn_feature_voting.winners(distances.clone());
+        let feature_winners = topn_feature_voting.winners(distances);
 
         let mut excluded_tracks = HashSet::new();
-        let feature_winners = feature_winners
+        let mut feature_winners = feature_winners
             .into_iter()
             .map(|(from, w)| {
                 let winner_track = w[0].winner_track;
@@ -69,7 +70,7 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
 
         let mut remaining_candidates = HashSet::new();
         let mut remaining_tracks = HashSet::new();
-        let remaining_distances = distances
+        let remaining_distances = distances_clone
             .into_iter()
             .filter(|e: &ObservationMetricOk<VisualObservationAttributes>| {
                 (!(feature_winners.contains_key(&e.from) || excluded_tracks.contains(&e.to)))
@@ -88,14 +89,13 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
             remaining_tracks.len(),
         );
 
-        let mut winners = positional_voting
+        let positional_winners = positional_voting
             .winners(remaining_distances)
             .into_iter()
-            .map(|(from, winner)| (from, vec![(winner[0], VotingType::Positional)]))
-            .collect::<HashMap<_, _>>();
+            .map(|(from, winner)| (from, vec![(winner[0], VotingType::Positional)]));
 
-        winners.extend(feature_winners);
-        winners
+        feature_winners.extend(positional_winners);
+        feature_winners
     }
 }
 

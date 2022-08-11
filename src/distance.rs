@@ -1,7 +1,7 @@
 use crate::track::Feature;
 use std::ops::{Mul, MulAssign, SubAssign};
 
-/// Euclidian distance between two vectors
+/// Euclidian distance between two feature vectors
 ///
 /// When the features distances lengths don't match, the longer feature vector is truncated to
 /// shorter one when the distance is calculated

@@ -36,7 +36,7 @@ impl VisualObservationAttributes {
 
 impl std::fmt::Debug for Observation<VisualObservationAttributes> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({:?}, {:?})", self.0, self.1)
+        write!(f, "({:?}, {:?})", self.attr(), self.feature())
     }
 }
 
