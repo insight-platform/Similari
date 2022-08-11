@@ -12,7 +12,6 @@ if __name__ == '__main__':
 
 
     bbox1 = BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah()
-
     bbox2 = BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah()
     bbox2.rotate(0.5)
 
