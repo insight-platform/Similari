@@ -47,11 +47,14 @@ box format that represents oriented and axis-aligned bounding boxes.
 ```python
 ubb = Universal2DBox(xc=3.0, yc=4.0, angle=0.0, aspect=1.5, height=5.0)
 print(ubb)
+
 ubb = Universal2DBox(3.0, 4.0, 0.0, 1.5, 5.0)
 print(ubb)
+
 ubb.rotate(0.5)
 ubb.gen_vertices()
 print(ubb)
+
 print(ubb.area())
 print(ubb.get_radius())
 ```
