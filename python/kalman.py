@@ -5,7 +5,9 @@ if __name__ == '__main__':
     state = f.initiate(BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah())
     state = f.predict(state)
     box_xywh = state.bbox()
+    box_xyaah = state.universal_bbox()
     print(box_xywh)
+    print(box_xyaah)
     # if work with oriented box
     # import Universal2DBox and use it
     #

@@ -88,8 +88,28 @@ print(clip)
 
 ### Kalman Filter
 
-* [KalmanFilterState](https://docs.rs/similari/0.21.2/similari/utils/kalman/kalman_py/struct.PyKalmanFilterState.html)
-* [KalmanFilter](https://docs.rs/similari/0.21.2/similari/utils/kalman/kalman_py/struct.PyKalmanFilter.html)
+[KalmanFilterState](https://docs.rs/similari/0.21.2/similari/utils/kalman/kalman_py/struct.PyKalmanFilterState.html) - predicted or updated 
+state of the oriented bounding box for Kalman filter.
+
+[KalmanFilter](https://docs.rs/similari/0.21.2/similari/utils/kalman/kalman_py/struct.PyKalmanFilter.html) - Kalman filter implementation.
+
+```python
+f = KalmanFilter()
+state = f.initiate(BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah())
+state = f.predict(state)
+box_xywh = state.bbox()
+print(box_xywh)
+# if work with oriented box
+# import Universal2DBox and use it
+#
+#box_xyaah = state.universal_bbox()
+#print(box_xyaah)
+
+state = f.update(state, BoundingBox(0.2, 0.2, 5.1, 9.9).as_xyaah())
+state = f.predict(state)
+box_xywh = state.bbox()
+print(box_xywh)
+```
 
 ### Produced Tracks
 
