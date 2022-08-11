@@ -5,7 +5,7 @@ if __name__ == '__main__':
     opts = VisualSortOptions()
     opts.max_idle_epochs(3)
     opts.history_length(10)
-    opts.visual_metric(VisualMetricType.euclidean())
+    opts.visual_metric(VisualMetricType.euclidean(1.0))
     opts.positional_metric(PositionalMetricType.maha())
     opts.visual_minimal_track_length(3)
     opts.visual_minimal_area(5.0)

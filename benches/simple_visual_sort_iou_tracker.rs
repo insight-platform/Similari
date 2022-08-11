@@ -20,6 +20,21 @@ fn visual_sort_iou_00100x3x128(b: &mut Bencher) {
 }
 
 #[bench]
+fn visual_sort_iou_00200x3x128(b: &mut Bencher) {
+    bench_visual_sort(200, b);
+}
+
+#[bench]
+fn visual_sort_iou_00300x3x128(b: &mut Bencher) {
+    bench_visual_sort(300, b);
+}
+
+#[bench]
+fn visual_sort_iou_00400x3x128(b: &mut Bencher) {
+    bench_visual_sort(400, b);
+}
+
+#[bench]
 fn visual_sort_iou_00500x3x128(b: &mut Bencher) {
     bench_visual_sort(500, b);
 }

@@ -55,6 +55,13 @@ impl VisualMetricType {
             Cosine(t) => dist >= *t,
         }
     }
+
+    pub fn distance_to_weight(&self, dist: f32) -> f32 {
+        match self {
+            Euclidean(_) => dist,
+            Cosine(_) => 1.0 - dist,
+        }
+    }
 }
 
 #[pyclass]
@@ -232,7 +239,7 @@ impl VisualMetric {
             };
 
             if self.opts.visual_kind.is_ok(d) {
-                Some(d)
+                Some(self.opts.visual_kind.distance_to_weight(d))
             } else {
                 None
             }
@@ -680,14 +687,14 @@ mod metric_tests {
                 to: 2,
                 attribute_metric: Some(x),
                 feature_distance: Some(y)
-            } if (x - 1.0).abs() < EPS && (y - 1.0).abs() < EPS));
+            } if (x - 1.0).abs() < EPS && y.abs() < EPS));
     }
 
     #[test]
     fn metric_maha() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::Mahalanobis)
-            .visual_metric(VisualMetricType::Cosine(1.0))
+            .visual_metric(VisualMetricType::Euclidean(10.0))
             .visual_minimal_track_length(1)
             .build();
         let store = default_store(metric);
@@ -729,7 +736,7 @@ mod metric_tests {
                 to: 2,
                 attribute_metric: Some(x),
                 feature_distance: Some(y)
-            } if (x - 100.0).abs() < EPS && (y - 1.0).abs() < EPS));
+            } if (x - 100.0).abs() < EPS && y.abs() < EPS));
     }
 
     #[test]
