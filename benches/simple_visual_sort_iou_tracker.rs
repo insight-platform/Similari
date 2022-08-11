@@ -101,13 +101,19 @@ fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
     }
 
     let mut iteration = 0;
-    let ncores = num_cpus::get();
+    //let ncores = num_cpus::get();
 
     let opts = VisualSortOptions::default()
         .positional_metric(PositionalMetricType::IoU(0.3))
         .visual_metric(VisualMetricType::Euclidean(10.0))
         .visual_max_observations(3)
         .visual_min_votes(2);
+
+    let ncores = match objects {
+        10 => 1,
+        50 => 2,
+        _ => num_cpus::get(),
+    };
 
     let mut tracker = VisualSort::new(ncores, &opts);
 
