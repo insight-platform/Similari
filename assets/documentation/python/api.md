@@ -98,13 +98,22 @@ print(clip)
 
 ### Trackers
 
+#### SORT Trackers
 * [IoUSort](https://docs.rs/similari/0.21.3/similari/trackers/sort/simple_iou/struct.IoUSort.html)
 * [MahaSort](https://docs.rs/similari/0.21.3/similari/trackers/sort/simple_maha/struct.MahaSort.html)
-* [VisualSort](https://docs.rs/similari/0.21.2/similari/trackers/visual/simple_visual/struct.VisualSort.html)
+
+#### Visual SORT Tracker
+
+##### Tracker Configuration
+
 * [VisualSortOptions](https://docs.rs/similari/0.21.3/similari/trackers/visual/simple_visual/options/struct.VisualSortOptions.html)
 * [VisualMetricType](https://docs.rs/similari/0.21.3/similari/trackers/visual/metric/struct.PyVisualMetricType.html)
 * [PositionalMetricType](https://docs.rs/similari/0.21.3/similari/trackers/visual/metric/struct.PyPositionalMetricType.html)
+
+##### Tracker
+
 * [VisualObservation](https://docs.rs/similari/0.21.3/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservation.html)
 * [VisualObservationSet](https://docs.rs/similari/0.21.3/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservationSet.html)
+* [VisualSort](https://docs.rs/similari/0.21.2/similari/trackers/visual/simple_visual/struct.VisualSort.html)
 
 
