@@ -1,6 +1,8 @@
 from similari import VisualSortOptions, VisualObservation, VisualObservationSet, VisualSort, BoundingBox, \
     VisualMetricType, PositionalMetricType
 
+import numpy as np
+
 if __name__ == '__main__':
     opts = VisualSortOptions()
     opts.max_idle_epochs(3)
@@ -17,7 +19,7 @@ if __name__ == '__main__':
 
     tracker = VisualSort(shards=4, opts=opts)
     observation_set = VisualObservationSet()
-    observation_set.add(VisualObservation(feature=[0.1, 0.1],
+    observation_set.add(VisualObservation(feature=np.array([0.1, 0.1]),
                                           feature_quality=0.96,
                                           bounding_box=BoundingBox(0, 0, 5, 10).as_xyaah(),
                                           custom_object_id=10))
