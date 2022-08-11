@@ -86,15 +86,15 @@ clip = sutherland_hodgman_clip(bbox1, bbox2)
 print(clip)
 ```
 
-### Produced Tracks
-
-* [SortTrack](https://docs.rs/similari/0.21.3/similari/trackers/sort/struct.SortTrack.html)
-* [WastedSortTrack](https://docs.rs/similari/0.21.3/similari/trackers/sort/struct.PyWastedSortTrack.html)
-
 ### Kalman Filter
 
 * [KalmanFilterState](https://docs.rs/similari/0.21.2/similari/utils/kalman/kalman_py/struct.PyKalmanFilterState.html)
 * [KalmanFilter](https://docs.rs/similari/0.21.2/similari/utils/kalman/kalman_py/struct.PyKalmanFilter.html)
+
+### Produced Tracks
+
+* [SortTrack](https://docs.rs/similari/0.21.3/similari/trackers/sort/struct.SortTrack.html)
+* [WastedSortTrack](https://docs.rs/similari/0.21.3/similari/trackers/sort/struct.PyWastedSortTrack.html)
 
 ### Trackers
 
