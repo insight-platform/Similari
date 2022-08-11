@@ -134,7 +134,7 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 ### Build Python API in Docker
 
 ```
-docker build -t similari_py -f python/Dockerfile .
+docker build -t similari_py -f docker/rust_1.62/Dockerfile .
 ```
 
 ### Build Python API in Host System
