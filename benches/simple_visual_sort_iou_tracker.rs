@@ -10,36 +10,81 @@ use similari::trackers::visual::metric::{PositionalMetricType, VisualMetricType}
 use test::Bencher;
 
 #[bench]
-fn visual_sort_iou_00010x3x128(b: &mut Bencher) {
-    bench_visual_sort(10, b);
+fn visual_sort_iou_00010x3x0128(b: &mut Bencher) {
+    bench_visual_sort(10, 128, b);
 }
 
 #[bench]
-fn visual_sort_iou_00100x3x128(b: &mut Bencher) {
-    bench_visual_sort(100, b);
+fn visual_sort_iou_00050x3x0128(b: &mut Bencher) {
+    bench_visual_sort(50, 128, b);
 }
 
 #[bench]
-fn visual_sort_iou_00200x3x128(b: &mut Bencher) {
-    bench_visual_sort(200, b);
+fn visual_sort_iou_00100x3x0128(b: &mut Bencher) {
+    bench_visual_sort(100, 128, b);
 }
 
 #[bench]
-fn visual_sort_iou_00300x3x128(b: &mut Bencher) {
-    bench_visual_sort(300, b);
+fn visual_sort_iou_00010x3x0256(b: &mut Bencher) {
+    bench_visual_sort(10, 256, b);
 }
 
 #[bench]
-fn visual_sort_iou_00400x3x128(b: &mut Bencher) {
-    bench_visual_sort(400, b);
+fn visual_sort_iou_00050x3x0256(b: &mut Bencher) {
+    bench_visual_sort(50, 256, b);
 }
 
 #[bench]
-fn visual_sort_iou_00500x3x128(b: &mut Bencher) {
-    bench_visual_sort(500, b);
+fn visual_sort_iou_00100x3x0256(b: &mut Bencher) {
+    bench_visual_sort(100, 256, b);
 }
 
-fn bench_visual_sort(objects: usize, b: &mut Bencher) {
+#[bench]
+fn visual_sort_iou_00010x3x0512(b: &mut Bencher) {
+    bench_visual_sort(10, 512, b);
+}
+
+#[bench]
+fn visual_sort_iou_00050x3x0512(b: &mut Bencher) {
+    bench_visual_sort(50, 512, b);
+}
+
+#[bench]
+fn visual_sort_iou_00100x3x0512(b: &mut Bencher) {
+    bench_visual_sort(100, 512, b);
+}
+
+#[bench]
+fn visual_sort_iou_00010x3x1024(b: &mut Bencher) {
+    bench_visual_sort(10, 1024, b);
+}
+
+#[bench]
+fn visual_sort_iou_00050x3x1024(b: &mut Bencher) {
+    bench_visual_sort(50, 1024, b);
+}
+
+#[bench]
+fn visual_sort_iou_00100x3x1024(b: &mut Bencher) {
+    bench_visual_sort(100, 1024, b);
+}
+
+#[bench]
+fn visual_sort_iou_00010x3x2048(b: &mut Bencher) {
+    bench_visual_sort(10, 2048, b);
+}
+
+#[bench]
+fn visual_sort_iou_00050x3x2048(b: &mut Bencher) {
+    bench_visual_sort(50, 2048, b);
+}
+
+#[bench]
+fn visual_sort_iou_00100x3x2048(b: &mut Bencher) {
+    bench_visual_sort(100, 2048, b);
+}
+
+fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
     let pos_drift = 1.0;
     let box_drift = 0.01;
     let mut iterators = Vec::default();
@@ -76,7 +121,7 @@ fn bench_visual_sort(objects: usize, b: &mut Bencher) {
         let gen = Uniform::new(-0.01, 0.01);
 
         for (index, _) in iterators.iter().enumerate() {
-            let f = (0..128)
+            let f = (0..len)
                 .map(|_| rng.sample(&gen) + index as f32 * 10.0)
                 .collect::<Vec<f32>>();
             features.push(f);

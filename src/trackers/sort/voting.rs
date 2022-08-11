@@ -33,6 +33,10 @@ impl Voting<Universal2DBox> for SortVoting {
     {
         let mut candidates_index: usize = 0;
 
+        if self.track_num == 0 {
+            return HashMap::default();
+        }
+
         let mut tracks_index: Vec<u64> = Vec::default();
         tracks_index.resize(self.candidate_num, 0);
         let mut tracks_r_index: HashMap<u64, usize> = HashMap::default();
@@ -52,11 +56,7 @@ impl Voting<Universal2DBox> for SortVoting {
         {
             assert!(from > 0 && to > 0);
 
-            if self.track_num == 0 {
-                return HashMap::default();
-            }
-
-            let weight = (attribute_metric.unwrap() * F32_U64_MULT) as i64;
+            let weight = (attribute_metric.unwrap_or(0.0) * F32_U64_MULT) as i64;
 
             let row = tracks_r_index
                 .get(&from)
