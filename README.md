@@ -40,7 +40,6 @@ bounding boxes.
 Mahalanobis distances are supported for positional tracking, euclidean, cosine distances are used for visual tracking on 
 feature vectors.
 
-
 ## Applicability Notes
 
 Although Similari allows building various tracking and similarity engines, there are competitive tools that sometime 
@@ -131,6 +130,8 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 * SORT with Mahalanobis metric (MahaSort);
 * VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
   for positional tracking.
+
+Python API classes and functions can be explored [here](assets/documentation/python/api.md). 
 
 ### Build Python API in Docker
 
