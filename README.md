@@ -3,7 +3,8 @@
 [![Rust](https://img.shields.io/crates/d/similari.svg)](https://crates.io/crates/similari)
 [![Rust](https://img.shields.io/crates/v/similari.svg)](https://img.shields.io/crates/v/similari.svg)
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
-[![Rust](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin.yml)
+[![Docker Rust 1.62](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_62.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_62.yml)
+[![Docker Python 3.10](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
 Similari is a Rust framework with Python bindings that helps build sophisticated tracking systems. With Similari one 
@@ -134,7 +135,7 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 ### Build Python API in Docker
 
 ```
-docker build -t similari_py -f python/Dockerfile .
+docker build -t similari_py -f docker/rust_1.62/Dockerfile .
 ```
 
 ### Build Python API in Host System
