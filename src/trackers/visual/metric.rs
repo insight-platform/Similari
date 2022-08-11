@@ -37,7 +37,7 @@ impl VisualMetricType {
 
     pub fn cosine(threshold: f32) -> Self {
         assert!(
-            threshold >= -1.0 && threshold <= 1.0,
+            (-1.0..=1.0).contains(&threshold),
             "Threshold must lay within [-1.0:1:0]"
         );
         VisualMetricType::Cosine(threshold)
