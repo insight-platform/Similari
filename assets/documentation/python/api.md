@@ -73,7 +73,18 @@ universal_bb = bb.as_xyaah()
 print(universal_bb)
 ```
 
-[Polygon](https://docs.rs/similari/0.21.3/similari/utils/clipping/clipping_py/struct.PyPolygon.html)
+[Polygon](https://docs.rs/similari/0.21.3/similari/utils/clipping/clipping_py/struct.PyPolygon.html) - return type 
+for [sutherland_hodgman_clip](https://docs.rs/similari/0.21.3/similari/utils/clipping/clipping_py/fn.sutherland_hodgman_clip_py.html). 
+It cannot be created manually, but returned from the function:
+
+```python
+bbox1 = BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah()
+bbox2 = BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah()
+bbox2.rotate(0.5)
+
+clip = sutherland_hodgman_clip(bbox1, bbox2)
+print(clip)
+```
 
 ### Produced Tracks
 

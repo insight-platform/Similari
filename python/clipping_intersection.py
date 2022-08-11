@@ -20,3 +20,4 @@ if __name__ == '__main__':
 
     area = intersection_area(bbox1, bbox2)
     print("Intersection area:", area)
+
