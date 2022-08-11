@@ -134,8 +134,20 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 
 ### Build Python API in Docker
 
+#### Rust 1.62 Base Image
+
+If you use other rust libraries you may find it beneficial to build with base Rust container:
+
 ```
 docker build -t similari_py -f docker/rust_1.62/Dockerfile .
+```
+
+#### Python 3.10 Base Image
+
+If you use mostly Python environment, you can build with base Python container:
+
+```
+docker build -t similari_py -f docker/python_3.10/Dockerfile .
 ```
 
 ### Build Python API in Host System
