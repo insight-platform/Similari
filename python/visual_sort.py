@@ -11,8 +11,8 @@ if __name__ == '__main__':
     opts.visual_minimal_area(5.0)
     opts.visual_minimal_quality_use(0.45)
     opts.visual_minimal_quality_collect(0.5)
-    opts.visual_max_observations(25)
-    opts.visual_min_votes(5)
+    opts.visual_max_observations(5)
+    opts.visual_min_votes(2)
     print(opts)
 
     tracker = VisualSort(shards=4, opts=opts)
