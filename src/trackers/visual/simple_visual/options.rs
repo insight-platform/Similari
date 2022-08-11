@@ -12,7 +12,7 @@ use std::sync::RwLock;
 #[derive(Debug, Clone)]
 pub struct VisualSortOptions {
     max_idle_epochs: usize,
-    history_length: usize,
+    kept_history_length: usize,
     metric_builder: VisualMetricBuilder,
 }
 
@@ -22,7 +22,7 @@ impl VisualSortOptions {
             SortAttributesOptions::new(
                 Some(RwLock::new(HashMap::default())),
                 self.max_idle_epochs,
-                self.history_length,
+                self.kept_history_length,
             ),
             self.metric_builder.build(),
         )
@@ -33,18 +33,13 @@ impl VisualSortOptions {
         self
     }
 
-    pub fn history_length(mut self, n: usize) -> Self {
-        self.history_length = n;
+    pub fn kept_history_length(mut self, n: usize) -> Self {
+        self.kept_history_length = n;
         self
     }
 
     pub fn visual_metric(mut self, metric: VisualMetricType) -> Self {
         self.metric_builder = self.metric_builder.visual_metric(metric);
-        self
-    }
-
-    pub fn visual_max_distance(mut self, d: f32) -> Self {
-        self.metric_builder = self.metric_builder.visual_max_distance(d);
         self
     }
 
@@ -88,7 +83,7 @@ impl Default for VisualSortOptions {
     fn default() -> Self {
         Self {
             max_idle_epochs: 2,
-            history_length: 10,
+            kept_history_length: 10,
             metric_builder: VisualMetricBuilder::default(),
         }
     }
@@ -106,9 +101,9 @@ impl VisualSortOptions {
         self.max_idle_epochs = n.try_into().expect("Parameter must be a positive number");
     }
 
-    #[pyo3(name = "history_length", text_signature = "($self, n)")]
-    fn history_length_py(&mut self, n: i64) {
-        self.history_length = n.try_into().expect("Parameter must be a positive number");
+    #[pyo3(name = "kept_history_length", text_signature = "($self, n)")]
+    fn kept_history_length_py(&mut self, n: i64) {
+        self.kept_history_length = n.try_into().expect("Parameter must be a positive number");
     }
 
     #[pyo3(name = "visual_min_votes", text_signature = "($self, n)")]
@@ -119,11 +114,6 @@ impl VisualSortOptions {
     #[pyo3(name = "visual_metric", text_signature = "($self, metric)")]
     fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
         self.metric_builder.visual_metric_py(metric);
-    }
-
-    #[pyo3(name = "visual_max_distance", text_signature = "($self, d)")]
-    fn visual_max_distance_py(&mut self, d: f32) {
-        self.metric_builder.visual_max_distance_py(d);
     }
 
     #[pyo3(name = "positional_metric", text_signature = "($self, metric)")]
@@ -187,7 +177,7 @@ mod tests {
     fn visual_sort_options_builder() {
         let (opts, metric) = dbg!(VisualSortOptions::new()
             .max_idle_epochs(3)
-            .history_length(10)
+            .kept_history_length(10)
             .visual_metric(VisualMetricType::Euclidean(100.0))
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(3)
@@ -195,13 +185,12 @@ mod tests {
             .visual_minimal_quality_use(0.45)
             .visual_minimal_quality_collect(0.5)
             .visual_max_observations(25)
-            .visual_max_distance(1.0)
             .visual_min_votes(5)
             .build());
 
         let mut opts_builder = VisualSortOptions::new();
         opts_builder.max_idle_epochs_py(3);
-        opts_builder.history_length_py(10);
+        opts_builder.kept_history_length_py(10);
         opts_builder.visual_metric_py(PyVisualMetricType::euclidean(100.0));
         opts_builder.positional_metric_py(PyPositionalMetricType::maha());
         opts_builder.visual_minimal_track_length_py(3);
@@ -209,7 +198,6 @@ mod tests {
         opts_builder.visual_minimal_quality_use_py(0.45);
         opts_builder.visual_minimal_quality_collect_py(0.5);
         opts_builder.visual_max_observations_py(25);
-        opts_builder.visual_max_distance_py(1.0);
         opts_builder.visual_min_votes_py(5);
         let (opts_py, metric_py) = dbg!(opts_builder.build());
 

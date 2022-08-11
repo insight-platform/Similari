@@ -142,7 +142,6 @@ pub struct VisualMetricOptions {
     pub visual_minimal_quality_use: f32,
     pub visual_minimal_quality_collect: f32,
     pub visual_max_observations: usize,
-    pub visual_max_distance: f32,
     pub visual_min_votes: usize,
 }
 
@@ -162,30 +161,27 @@ impl VisualMetric {
         &self,
         observations: &mut Vec<Observation<VisualObservationAttributes>>,
     ) {
-        if observations.len() > self.opts.visual_max_observations {
-            observations.swap_remove(0);
-        } else {
-            let last = observations.len() - 1;
-            observations.swap(0, last);
-        }
+        observations.retain(|e| e.feature().is_some());
 
         // remove all old bboxes
-        observations.iter_mut().skip(1).for_each(|f| {
+        observations.iter_mut().for_each(|f| {
             if let Some(e) = &mut f.attr_mut() {
                 e.drop_bbox();
             }
         });
 
-        // if historic elements don't hold the feature, remove them from the observations
-        let mut skip = true;
-        observations.retain(|e| {
-            if skip {
-                skip = false;
-                true
-            } else {
-                e.feature().is_some()
-            }
+        observations.sort_by(|e1, e2| {
+            e2.attr()
+                .as_ref()
+                .unwrap()
+                .visual_quality()
+                .partial_cmp(&e1.attr().as_ref().unwrap().visual_quality())
+                .unwrap()
         });
+
+        if observations.len() >= self.opts.visual_max_observations {
+            observations.truncate(observations.len() - 1);
+        }
     }
 
     fn positional_metric(
@@ -362,9 +358,10 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
             },
         ));
 
-        observations.push(observation);
-
         self.optimize_observations(observations);
+        observations.push(observation);
+        let current_len = observations.len();
+        observations.swap(0, current_len - 1);
 
         attrs.visual_features_collected_count = observations
             .iter()
@@ -451,7 +448,6 @@ mod optimize {
         assert_eq!(attrs.track_length, 2);
         assert_eq!(attrs.visual_features_collected_count, 1);
         assert_eq!(obs.len(), 2);
-        dbg!(&obs);
         assert!(
             {
                 let e = &obs[0];
@@ -469,14 +465,14 @@ mod optimize {
         let mut obs = vec![
             Observation::new(
                 Some(VisualObservationAttributes::new(
-                    1.0,
+                    0.8,
                     BoundingBox::new(0.0, 0.0, 5.0, 10.0).as_xyaah(),
                 )),
                 Some(vec2(0.0, 1.0)),
             ),
             Observation::new(
                 Some(VisualObservationAttributes::new(
-                    1.0,
+                    0.7,
                     BoundingBox::new(0.2, 0.2, 5.0, 10.0).as_xyaah(),
                 )),
                 None,
@@ -488,6 +484,13 @@ mod optimize {
                 )),
                 Some(vec2(0.1, 1.1)),
             ),
+            Observation::new(
+                Some(VisualObservationAttributes::new(
+                    0.6,
+                    BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                )),
+                Some(vec2(0.0, 1.1)),
+            ),
         ];
 
         metric
@@ -498,11 +501,19 @@ mod optimize {
         assert_eq!(attrs.observed_boxes.len(), 3);
         assert_eq!(attrs.predicted_boxes.len(), 3);
         assert_eq!(attrs.track_length, 3);
-        assert_eq!(attrs.visual_features_collected_count, 2);
-        assert_eq!(obs.len(), 2);
+        assert_eq!(attrs.visual_features_collected_count, 3);
+        assert_eq!(obs.len(), 3);
+        assert!(matches!(
+            &obs[2],
+            Observation(Some(a), Some(o)) if a.bbox_opt().is_none() && a.visual_quality() == 1.0 && o[0].to_array()[..2] == [0.1 , 1.1]
+        ));
+        assert!(matches!(
+            &obs[1],
+            Observation(Some(a), Some(o)) if a.bbox_opt().is_none() && a.visual_quality() == 0.8 && o[0].to_array()[..2] == [0.0 , 1.0]
+        ));
         assert!(matches!(
             &obs[0],
-            Observation(Some(a), Some(o)) if a.bbox_opt().is_some() && o[0].to_array()[..2] == [0.1 , 1.1]
+            Observation(Some(a), Some(o)) if a.bbox_opt().is_some() && a.visual_quality() == 0.6 && o[0].to_array()[..2] == [0.0 , 1.1]
         ));
     }
 

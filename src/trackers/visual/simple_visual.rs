@@ -154,7 +154,7 @@ impl VisualSort {
                 PositionalMetricType::Mahalanobis => 1.0,
                 PositionalMetricType::IoU(t) => t,
             },
-            self.metric_opts.visual_max_distance,
+            f32::MAX,
             self.metric_opts.visual_min_votes,
         );
         let winners = voting.winners(dists);
@@ -258,15 +258,14 @@ mod tests {
     fn visual_sort() {
         let opts = VisualSortOptions::default()
             .max_idle_epochs(3)
-            .history_length(3)
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .kept_history_length(3)
+            .visual_metric(VisualMetricType::Euclidean(1.0))
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(2)
             .visual_minimal_area(5.0)
             .visual_minimal_quality_use(0.45)
             .visual_minimal_quality_collect(0.7)
             .visual_max_observations(3)
-            .visual_max_distance(0.5)
             .visual_min_votes(2);
 
         let mut tracker = VisualSort::new(1, &opts);

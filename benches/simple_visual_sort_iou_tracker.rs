@@ -62,7 +62,6 @@ fn bench_visual_sort(objects: usize, b: &mut Bencher) {
         .positional_metric(PositionalMetricType::IoU(0.3))
         .visual_metric(VisualMetricType::Euclidean(10.0))
         .visual_max_observations(3)
-        .visual_max_distance(30.0)
         .visual_min_votes(2);
 
     let mut tracker = VisualSort::new(ncores, &opts);
