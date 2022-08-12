@@ -537,6 +537,18 @@ impl Universal2DBox {
         x * x + y * y > max_distance * max_distance
     }
 
+    pub fn dist_in_2r(l: &Universal2DBox, r: &Universal2DBox) -> f32 {
+        assert!(l.aspect > 0.0);
+        assert!(l.height > 0.0);
+        assert!(r.aspect > 0.0);
+        assert!(r.height > 0.0);
+
+        let radial_distance = l.get_radius() + r.get_radius();
+        let x = l.xc - r.xc;
+        let y = l.yc - r.yc;
+        (x * x + y * y) / (radial_distance * radial_distance + EPS)
+    }
+
     pub fn intersection(l: &Universal2DBox, r: &Universal2DBox) -> f64 {
         if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
             < EPS

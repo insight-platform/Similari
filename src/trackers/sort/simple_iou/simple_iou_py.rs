@@ -1,6 +1,7 @@
 use crate::prelude::SortTrack;
 use crate::trackers::sort::simple_iou::IoUSort;
 use crate::trackers::sort::PyWastedSortTrack;
+use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
 use pyo3::prelude::*;
 
@@ -13,13 +14,20 @@ impl IoUSort {
         max_idle_epochs = "5",
         threshold = "0.3"
     )]
-    pub fn new_py(shards: i64, bbox_history: i64, max_idle_epochs: i64, threshold: f32) -> Self {
+    pub fn new_py(
+        shards: i64,
+        bbox_history: i64,
+        max_idle_epochs: i64,
+        threshold: f32,
+        spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
+    ) -> Self {
         assert!(shards > 0 && bbox_history > 0 && max_idle_epochs > 0 && threshold > 0.0);
         Self::new(
             shards.try_into().unwrap(),
             bbox_history.try_into().unwrap(),
             max_idle_epochs.try_into().unwrap(),
             threshold,
+            spatio_temporal_constraints,
         )
     }
 

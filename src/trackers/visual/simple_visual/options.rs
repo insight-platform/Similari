@@ -1,4 +1,5 @@
 use crate::trackers::sort::SortAttributesOptions;
+use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::trackers::visual::metric::builder::VisualMetricBuilder;
 use crate::trackers::visual::metric::{
     PositionalMetricType, PyPositionalMetricType, PyVisualMetricType, VisualMetric,
@@ -13,6 +14,7 @@ use std::sync::RwLock;
 pub struct VisualSortOptions {
     max_idle_epochs: usize,
     kept_history_length: usize,
+    spatio_temporal_constraints: SpatioTemporalConstraints,
     metric_builder: VisualMetricBuilder,
 }
 
@@ -23,6 +25,7 @@ impl VisualSortOptions {
                 Some(RwLock::new(HashMap::default())),
                 self.max_idle_epochs,
                 self.kept_history_length,
+                self.spatio_temporal_constraints,
             ),
             self.metric_builder.build(),
         )
@@ -45,6 +48,11 @@ impl VisualSortOptions {
 
     pub fn visual_min_votes(mut self, n: usize) -> Self {
         self.metric_builder = self.metric_builder.visual_min_votes(n);
+        self
+    }
+
+    pub fn spatio_temporal_constraints(mut self, constraints: SpatioTemporalConstraints) -> Self {
+        self.spatio_temporal_constraints = constraints;
         self
     }
 
@@ -85,6 +93,7 @@ impl Default for VisualSortOptions {
             max_idle_epochs: 2,
             kept_history_length: 10,
             metric_builder: VisualMetricBuilder::default(),
+            spatio_temporal_constraints: SpatioTemporalConstraints::default(),
         }
     }
 }
@@ -114,6 +123,14 @@ impl VisualSortOptions {
     #[pyo3(name = "visual_metric", text_signature = "($self, metric)")]
     fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
         self.metric_builder.visual_metric_py(metric);
+    }
+
+    #[pyo3(
+        name = "spatio_temporal_constraints",
+        text_signature = "($self, constraints)"
+    )]
+    fn spatio_temporal_constraints_py(&mut self, constraints: SpatioTemporalConstraints) {
+        self.spatio_temporal_constraints = constraints;
     }
 
     #[pyo3(name = "positional_metric", text_signature = "($self, metric)")]
@@ -168,6 +185,7 @@ impl VisualSortOptions {
 
 #[cfg(test)]
 mod tests {
+    use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::trackers::visual::metric::{
         PositionalMetricType, PyPositionalMetricType, PyVisualMetricType, VisualMetricType,
     };
@@ -186,6 +204,9 @@ mod tests {
             .visual_minimal_quality_collect(0.5)
             .visual_max_observations(25)
             .visual_min_votes(5)
+            .spatio_temporal_constraints(
+                SpatioTemporalConstraints::default().constraints(&[(5, 7.0)])
+            )
             .build());
 
         let mut opts_builder = VisualSortOptions::new();
@@ -199,6 +220,9 @@ mod tests {
         opts_builder.visual_minimal_quality_collect_py(0.5);
         opts_builder.visual_max_observations_py(25);
         opts_builder.visual_min_votes_py(5);
+        let mut constraints = SpatioTemporalConstraints::default();
+        constraints.add_constraints(vec![(5, 7.0)]);
+        opts_builder.spatio_temporal_constraints_py(constraints);
         let (opts_py, metric_py) = dbg!(opts_builder.build());
 
         assert_eq!(format!("{:?}", opts), format!("{:?}", opts_py));

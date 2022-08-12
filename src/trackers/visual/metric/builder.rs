@@ -91,7 +91,7 @@ impl VisualMetricBuilder {
 }
 
 impl VisualMetricBuilder {
-    pub(crate) fn visual_min_votes(mut self, n: usize) -> Self {
+    pub fn visual_min_votes(mut self, n: usize) -> Self {
         self.visual_min_votes = n;
         self
     }

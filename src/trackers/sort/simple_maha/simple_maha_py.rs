@@ -1,6 +1,7 @@
 use crate::prelude::SortTrack;
 use crate::trackers::sort::simple_maha::MahaSort;
 use crate::trackers::sort::PyWastedSortTrack;
+use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
 use pyo3::prelude::*;
 
@@ -8,12 +9,18 @@ use pyo3::prelude::*;
 impl MahaSort {
     #[new]
     #[args(shards = "4", bbox_history = "1", max_idle_epochs = "5")]
-    pub fn new_py(shards: i64, bbox_history: i64, max_idle_epochs: i64) -> Self {
+    pub fn new_py(
+        shards: i64,
+        bbox_history: i64,
+        max_idle_epochs: i64,
+        spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
+    ) -> Self {
         assert!(shards > 0 && bbox_history > 0 && max_idle_epochs > 0);
         Self::new(
             shards.try_into().unwrap(),
             bbox_history.try_into().unwrap(),
             max_idle_epochs.try_into().unwrap(),
+            spatio_temporal_constraints,
         )
     }
 

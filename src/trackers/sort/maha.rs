@@ -67,6 +67,7 @@ mod tests {
     use crate::track::ObservationMetricOk;
     use crate::trackers::sort::maha::MahaSortMetric;
     use crate::trackers::sort::{SortAttributes, SortAttributesOptions};
+    use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::utils::bbox::Universal2DBox;
     use std::sync::Arc;
 
@@ -75,7 +76,10 @@ mod tests {
         let mut track = TrackBuilder::new(0)
             .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
-                None, 0, 5,
+                None,
+                0,
+                5,
+                SpatioTemporalConstraints::default(),
             ))))
             .observation(
                 ObservationBuilder::new(0)
@@ -92,7 +96,10 @@ mod tests {
         let new_seg = TrackBuilder::new(1)
             .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
-                None, 0, 5,
+                None,
+                0,
+                5,
+                SpatioTemporalConstraints::default(),
             ))))
             .observation(
                 ObservationBuilder::new(0)
@@ -121,7 +128,10 @@ mod tests {
         let new_seg = TrackBuilder::new(1)
             .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
-                None, 0, 5,
+                None,
+                0,
+                5,
+                SpatioTemporalConstraints::default(),
             ))))
             .observation(
                 ObservationBuilder::new(0)
@@ -149,7 +159,10 @@ mod tests {
         let new_seg = TrackBuilder::new(1)
             .metric(MahaSortMetric)
             .attributes(SortAttributes::new(Arc::new(SortAttributesOptions::new(
-                None, 0, 5,
+                None,
+                0,
+                5,
+                SpatioTemporalConstraints::default(),
             ))))
             .observation(
                 ObservationBuilder::new(0)

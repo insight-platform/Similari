@@ -6,6 +6,7 @@ use rand::distributions::Uniform;
 use rand::Rng;
 use similari::examples::BoxGen2;
 use similari::prelude::{VisualObservation, VisualSort, VisualSortOptions};
+use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use similari::trackers::visual::metric::{PositionalMetricType, VisualMetricType};
 use test::Bencher;
 
@@ -107,6 +108,7 @@ fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
         .positional_metric(PositionalMetricType::IoU(0.3))
         .visual_metric(VisualMetricType::Euclidean(10.0))
         .visual_max_observations(3)
+        .spatio_temporal_constraints(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)]))
         .visual_min_votes(2);
 
     let ncores = match objects {

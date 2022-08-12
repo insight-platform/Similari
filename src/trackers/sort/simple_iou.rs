@@ -10,6 +10,7 @@ use crate::trackers::sort::{
     PyWastedSortTrack, SortAttributes, SortAttributesOptions, SortAttributesUpdate, SortTrack,
     VotingType,
 };
+use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
 use pyo3::prelude::*;
@@ -36,13 +37,20 @@ impl IoUSort {
     /// * `max_idle_epochs` - how long track survives without being updated
     /// * `threshold` - how low IoU must be to establish a new track (default from the authors of SORT is 0.3)
     ///
-    pub fn new(shards: usize, bbox_history: usize, max_idle_epochs: usize, threshold: f32) -> Self {
+    pub fn new(
+        shards: usize,
+        bbox_history: usize,
+        max_idle_epochs: usize,
+        threshold: f32,
+        spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
+    ) -> Self {
         assert!(bbox_history > 0);
         let epoch_db = RwLock::new(HashMap::default());
         let opts = Arc::new(SortAttributesOptions::new(
             Some(epoch_db),
             max_idle_epochs,
             bbox_history,
+            spatio_temporal_constraints.unwrap_or_default(),
         ));
         let store = TrackStoreBuilder::new(shards)
             .default_attributes(SortAttributes::new(opts.clone()))
@@ -230,7 +238,7 @@ mod tests {
 
     #[test]
     fn sort() {
-        let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
+        let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD, None);
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.predict(&[bb.into()]);
@@ -282,7 +290,7 @@ mod tests {
 
     #[test]
     fn sort_with_scenes() {
-        let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD);
+        let mut t = IoUSort::new(1, 10, 2, DEFAULT_SORT_IOU_THRESHOLD, None);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);

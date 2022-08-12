@@ -3,7 +3,7 @@ use similari::trackers::sort::simple_maha::MahaSort;
 use similari::utils::bbox::Universal2DBox;
 
 fn main() {
-    let mut tracker = MahaSort::new(1, 10, 1);
+    let mut tracker = MahaSort::new(1, 10, 1, None);
 
     let pos_drift = 1.0;
     let box_drift = 0.1;

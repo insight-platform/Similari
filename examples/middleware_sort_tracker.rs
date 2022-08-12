@@ -3,6 +3,7 @@ use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use similari::trackers::sort::iou::IOUSortMetric;
 use similari::trackers::sort::voting::SortVoting;
 use similari::trackers::sort::{SortAttributes, SortAttributesOptions, DEFAULT_SORT_IOU_THRESHOLD};
+use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use similari::voting::Voting;
 use std::sync::Arc;
 use std::thread;
@@ -17,6 +18,7 @@ fn main() {
             None,
             0,
             BBOX_HISTORY,
+            SpatioTemporalConstraints::default(),
         ))))
         .metric(IOUSortMetric::default())
         .notifier(NoopNotifier)

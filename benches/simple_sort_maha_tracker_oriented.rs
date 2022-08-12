@@ -4,6 +4,7 @@ extern crate test;
 
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple_maha::MahaSort;
+use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use similari::utils::bbox::Universal2DBox;
 use test::Bencher;
 
@@ -45,7 +46,12 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut tracker = MahaSort::new(ncores, 10, 1);
+    let mut tracker = MahaSort::new(
+        ncores,
+        10,
+        1,
+        Some(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)])),
+    );
 
     let mut count = 0;
     b.iter(|| {
