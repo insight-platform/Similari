@@ -5,6 +5,7 @@ use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::SortAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
+use crate::EPS;
 use anyhow::Result;
 
 #[derive(Clone)]
@@ -21,7 +22,8 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for MahaSortMetric {
             let f = KalmanFilter::default();
             let state = mq.track_attrs.state.unwrap();
             let dist = f.distance(state, candidate_observation);
-            let dist = KalmanFilter::calculate_cost(dist, true);
+            let dist =
+                KalmanFilter::calculate_cost(dist, true) / (candidate_observation.confidence + EPS);
             Some((Some(dist), None))
         }
     }
