@@ -10,7 +10,7 @@ bbox1 = (BoundingBox(10.0, 11.0, 3.0, 3.8).as_xyaah(), 1.0)
 bbox2 = (BoundingBox(10.3, 11.1, 2.9, 3.9).as_xyaah(), 0.9)
 
 res = nms([bbox2, bbox1], nms_threshold = 0.7, score_threshold = 0.0)
-print(res[0].as_xywh())
+print(res[0].as_ltwh())
 ```
 
 [sutherland_hodgman_clip](https://docs.rs/similari/0.21.3/similari/utils/clipping/clipping_py/fn.sutherland_hodgman_clip_py.html) - calculates the resulting polygon for two oriented or axis-aligned bounding boxes.
@@ -57,6 +57,9 @@ print(ubb)
 
 print(ubb.area())
 print(ubb.get_radius())
+
+ubb = Universal2DBox.new_with_confidence(xc=3.0, yc=4.0, angle=0.0, aspect=1.5, height=5.0, confidence=0.85)
+print(ubb)
 ```
 
 [BoundingBox](https://docs.rs/similari/0.21.3/similari/utils/bbox/struct.BoundingBox.html) - convenience class that must 
@@ -71,6 +74,9 @@ print(bb.left, bb.top, bb.width, bb.height)
 
 universal_bb = bb.as_xyaah()
 print(universal_bb)
+
+bb = BoundingBox.new_with_confidence(1.0, 2.0, 10.0, 15.0, 0.95)
+print(bb)
 ```
 
 [Polygon](https://docs.rs/similari/0.21.3/similari/utils/clipping/clipping_py/struct.PyPolygon.html) - return type 
@@ -97,8 +103,8 @@ state of the oriented bounding box for Kalman filter.
 f = KalmanFilter()
 state = f.initiate(BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah())
 state = f.predict(state)
-box_xywh = state.bbox()
-print(box_xywh)
+box_ltwh = state.bbox()
+print(box_ltwh)
 # if work with oriented box
 # import Universal2DBox and use it
 #
@@ -107,8 +113,8 @@ print(box_xywh)
 
 state = f.update(state, BoundingBox(0.2, 0.2, 5.1, 9.9).as_xyaah())
 state = f.predict(state)
-box_xywh = state.bbox()
-print(box_xywh)
+box_ltwh = state.bbox()
+print(box_ltwh)
 ```
 
 ### Produced Tracks

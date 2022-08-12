@@ -25,6 +25,8 @@ pub struct BoundingBox {
     width: f32,
     #[pyo3(get, set)]
     height: f32,
+    #[pyo3(get, set)]
+    confidence: f32,
 }
 
 #[pymethods]
@@ -44,7 +46,8 @@ impl BoundingBox {
         Universal2DBox::from(self)
     }
 
-    /// Constructor
+    /// Constructor. Confidence is set to 1.0
+    ///
     ///
     #[new]
     pub fn new(left: f32, top: f32, width: f32, height: f32) -> Self {
@@ -53,6 +56,30 @@ impl BoundingBox {
             top,
             width,
             height,
+            confidence: 1.0,
+        }
+    }
+
+    /// Creates the bbox with custom confidence
+    ///
+    #[staticmethod]
+    pub fn new_with_confidence(
+        left: f32,
+        top: f32,
+        width: f32,
+        height: f32,
+        confidence: f32,
+    ) -> Self {
+        assert!(
+            (0.0..=1.0).contains(&confidence),
+            "Confidence must lay between 0.0 and 1.0"
+        );
+        Self {
+            left,
+            top,
+            width,
+            height,
+            confidence,
         }
     }
 }
@@ -65,6 +92,7 @@ impl EstimateClose for BoundingBox {
             && (self.top - other.top).abs() < eps
             && (self.width - other.width) < eps
             && (self.height - other.height) < eps
+            && (self.confidence - other.confidence) < eps
     }
 }
 
@@ -82,12 +110,21 @@ pub struct Universal2DBox {
     pub aspect: f32,
     #[pyo3(get, set)]
     pub height: f32,
+    #[pyo3(get, set)]
+    pub confidence: f32,
     _vertex_cache: Option<Polygon<f64>>,
 }
 
 impl Clone for Universal2DBox {
     fn clone(&self) -> Self {
-        Universal2DBox::new(self.xc, self.yc, self.angle, self.aspect, self.height)
+        Universal2DBox::new_with_confidence(
+            self.xc,
+            self.yc,
+            self.angle,
+            self.aspect,
+            self.height,
+            self.confidence,
+        )
     }
 }
 
@@ -110,8 +147,8 @@ impl Universal2DBox {
         (hw * hw + hh * hh).sqrt()
     }
 
-    #[pyo3(name = "as_xywh")]
-    pub fn as_xywh_py(&self) -> PyResult<BoundingBox> {
+    #[pyo3(name = "as_ltwh")]
+    pub fn as_ltwh_py(&self) -> PyResult<BoundingBox> {
         let r: Result<BoundingBox> = Result::from(self);
         if let Ok(res) = r {
             Ok(res)
@@ -135,6 +172,17 @@ impl Universal2DBox {
         self.angle = Some(angle)
     }
 
+    /// Sets the angle
+    ///
+    #[pyo3(name = "set_confidence")]
+    pub fn set_confidence_py(&mut self, confidence: f32) {
+        assert!(
+            (0.0..=1.0).contains(&confidence),
+            "Confidence must lay between 0.0 and 1.0"
+        );
+        self.confidence = confidence;
+    }
+
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
     ///
     #[new]
@@ -145,6 +193,7 @@ impl Universal2DBox {
             angle,
             aspect,
             height,
+            confidence: 1.0,
             _vertex_cache: None,
         }
     }
@@ -152,8 +201,52 @@ impl Universal2DBox {
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
     ///
     #[staticmethod]
-    pub fn xywh(left: f32, top: f32, width: f32, height: f32) -> Self {
-        Self::from(BoundingBox::new(left, top, width, height))
+    pub fn new_with_confidence(
+        xc: f32,
+        yc: f32,
+        angle: Option<f32>,
+        aspect: f32,
+        height: f32,
+        confidence: f32,
+    ) -> Self {
+        assert!(
+            (0.0..=1.0).contains(&confidence),
+            "Confidence must lay between 0.0 and 1.0"
+        );
+
+        Self {
+            xc,
+            yc,
+            angle,
+            aspect,
+            height,
+            confidence,
+            _vertex_cache: None,
+        }
+    }
+
+    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+    ///
+    #[staticmethod]
+    pub fn ltwh(left: f32, top: f32, width: f32, height: f32) -> Self {
+        Self::from(BoundingBox::new_with_confidence(
+            left, top, width, height, 1.0,
+        ))
+    }
+
+    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+    ///
+    #[staticmethod]
+    pub fn ltwh_with_confidence(
+        left: f32,
+        top: f32,
+        width: f32,
+        height: f32,
+        confidence: f32,
+    ) -> Self {
+        Self::from(BoundingBox::new_with_confidence(
+            left, top, width, height, confidence,
+        ))
     }
 
     pub fn area(&self) -> f32 {
@@ -183,6 +276,7 @@ impl Universal2DBox {
             angle: Some(angle),
             aspect: self.aspect,
             height: self.height,
+            confidence: self.confidence,
             _vertex_cache: None,
         }
     }
@@ -202,14 +296,7 @@ impl EstimateClose for Universal2DBox {
 
 impl From<BoundingBox> for Universal2DBox {
     fn from(f: BoundingBox) -> Self {
-        Universal2DBox {
-            xc: f.left + f.width / 2.0,
-            yc: f.top + f.height / 2.0,
-            angle: None,
-            aspect: f.width / f.height,
-            height: f.height,
-            _vertex_cache: None,
-        }
+        Self::from(&f)
     }
 }
 
@@ -221,6 +308,7 @@ impl From<&BoundingBox> for Universal2DBox {
             angle: None,
             aspect: f.width / f.height,
             height: f.height,
+            confidence: f.confidence,
             _vertex_cache: None,
         }
     }
@@ -246,6 +334,7 @@ impl From<&Universal2DBox> for Result<BoundingBox> {
                 top: f.yc - f.height / 2.0,
                 width,
                 height: f.height,
+                confidence: f.confidence,
             })
         }
     }
@@ -356,6 +445,7 @@ impl From<&Universal2DBox> for BoundingBox {
             top: f.yc - f.height / 2.0,
             width,
             height: f.height,
+            confidence: f.confidence,
         }
     }
 }
@@ -514,25 +604,10 @@ mod tests {
 
     #[test]
     fn test_iou() {
-        let bb1 = BoundingBox {
-            left: -1.0,
-            top: -1.0,
-            width: 2.0,
-            height: 2.0,
-        };
+        let bb1 = BoundingBox::new(-1.0, -1.0, 2.0, 2.0);
 
-        let bb2 = BoundingBox {
-            left: -0.9,
-            top: -0.9,
-            width: 2.0,
-            height: 2.0,
-        };
-        let bb3 = BoundingBox {
-            left: 1.0,
-            top: 1.0,
-            width: 3.0,
-            height: 3.0,
-        };
+        let bb2 = BoundingBox::new(-0.9, -0.9, 2.0, 2.0);
+        let bb3 = BoundingBox::new(1.0, 1.0, 3.0, 3.0);
 
         assert!(BoundingBox::calculate_metric_object(&Some(&bb1), &Some(&bb1)).unwrap() > 0.999);
         assert!(BoundingBox::calculate_metric_object(&Some(&bb2), &Some(&bb2)).unwrap() > 0.999);

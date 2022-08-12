@@ -11,6 +11,7 @@ use crate::trackers::visual::observation_attributes::VisualObservationAttributes
 use crate::trackers::visual::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
+use crate::EPS;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::default::Default;
@@ -201,14 +202,19 @@ impl VisualMetric {
                         let state = track_attributes.get_state().unwrap();
                         let f = KalmanFilter::default();
                         let dist = f.distance(state, candidate_observation_bbox);
-                        Some(KalmanFilter::calculate_cost(dist, true))
+                        Some(
+                            KalmanFilter::calculate_cost(dist, true)
+                                / (candidate_observation_bbox.confidence + EPS),
+                        )
                     }
                     PositionalMetricType::IoU(threshold) => {
                         let box_m_opt = Universal2DBox::calculate_metric_object(
                             &candidate_observation_bbox_opt.as_ref(),
                             &track_observation_bbox_opt.as_ref(),
                         );
-                        box_m_opt.filter(|e| *e >= threshold)
+                        box_m_opt
+                            .map(|e| e * candidate_observation_bbox.confidence)
+                            .filter(|e| *e >= threshold)
                     }
                 }
             }
@@ -740,6 +746,7 @@ mod metric_tests {
 
         let dists = track1.distances(&track2, 0).unwrap();
         assert_eq!(dists.len(), 1);
+        dbg!(&dists[0]);
         assert!(matches!(
             dists[0],
             ObservationMetricOk {
@@ -747,7 +754,7 @@ mod metric_tests {
                 to: 2,
                 attribute_metric: Some(x),
                 feature_distance: Some(y)
-            } if (x - 100.0).abs() < EPS && y.abs() < EPS));
+            } if (x - 99.999).abs() < EPS && y.abs() < EPS));
     }
 
     #[test]
