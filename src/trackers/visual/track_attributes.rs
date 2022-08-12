@@ -152,9 +152,25 @@ impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAt
     type Lookup = NoopLookup<VisualAttributes, VisualObservationAttributes>;
 
     fn compatible(&self, other: &VisualAttributes) -> bool {
-        let is_ok = self.opts.max_idle_epochs() as i128
-            >= (self.last_updated_epoch as i128 - other.last_updated_epoch as i128).abs();
-        self.scene_id == other.scene_id && is_ok
+        if self.scene_id == other.scene_id {
+            let o1 = self.predicted_boxes.back().unwrap();
+            let o2 = other.predicted_boxes.back().unwrap();
+
+            let epoch_delta = (self.last_updated_epoch as i128 - other.last_updated_epoch as i128)
+                .abs()
+                .try_into()
+                .unwrap();
+
+            let center_dist = Universal2DBox::dist_in_2r(o1, o2);
+
+            self.opts.max_idle_epochs() >= epoch_delta
+                && self
+                    .opts
+                    .spatio_temporal_constraints
+                    .validate(epoch_delta, center_dist)
+        } else {
+            false
+        }
     }
 
     fn merge(&mut self, other: &VisualAttributes) -> Result<()> {
@@ -175,6 +191,7 @@ impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAt
 #[cfg(test)]
 mod tests {
     use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::trackers::visual::track_attributes::VisualAttributes;
     use crate::utils::bbox::BoundingBox;
     use std::collections::HashMap;
@@ -182,7 +199,12 @@ mod tests {
 
     #[test]
     fn attribute_operations() {
-        let opts = SortAttributesOptions::new(Some(RwLock::new(HashMap::default())), 5, 1);
+        let opts = SortAttributesOptions::new(
+            Some(RwLock::new(HashMap::default())),
+            5,
+            1,
+            SpatioTemporalConstraints::default(),
+        );
         let mut attributes = VisualAttributes::new(Arc::new(opts));
         attributes.update_history(
             &BoundingBox::new(0.0, 3.0, 5.0, 7.0).as_xyaah(),

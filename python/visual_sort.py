@@ -1,5 +1,5 @@
 from similari import VisualSortOptions, VisualObservation, VisualObservationSet, VisualSort, BoundingBox, \
-    VisualMetricType, PositionalMetricType
+    VisualMetricType, PositionalMetricType, SpatioTemporalConstraints
 
 import numpy as np
 
@@ -15,6 +15,9 @@ if __name__ == '__main__':
     opts.visual_minimal_quality_collect(0.5)
     opts.visual_max_observations(5)
     opts.visual_min_votes(2)
+    constraints = SpatioTemporalConstraints()
+    constraints.add_constraints([(1, 1.0)])
+    opts.spatio_temporal_constraints(constraints)
     print(opts)
 
     tracker = VisualSort(shards=4, opts=opts)

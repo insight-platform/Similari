@@ -393,6 +393,7 @@ mod optimize {
     use crate::examples::vec2;
     use crate::track::{Observation, ObservationMetric};
     use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::trackers::visual::metric::builder::VisualMetricBuilder;
     use crate::trackers::visual::metric::{PositionalMetricType, VisualMetricType};
     use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
@@ -407,7 +408,12 @@ mod optimize {
             .visual_metric(VisualMetricType::Euclidean(f32::MAX))
             .build();
 
-        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        )));
 
         let mut obs = vec![Observation::new(
             Some(VisualObservationAttributes::new(
@@ -531,7 +537,12 @@ mod optimize {
             .visual_minimal_quality_collect(0.3)
             .build();
 
-        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        )));
 
         let mut obs = vec![Observation::new(
             Some(VisualObservationAttributes::new(
@@ -559,7 +570,12 @@ mod optimize {
             .visual_minimal_area(1.0)
             .build();
 
-        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)));
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        )));
 
         let mut obs = vec![Observation::new(
             Some(VisualObservationAttributes::new(
@@ -587,6 +603,7 @@ mod metric_tests {
     use crate::store::TrackStore;
     use crate::track::ObservationMetricOk;
     use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::trackers::visual::metric::builder::VisualMetricBuilder;
     use crate::trackers::visual::metric::{PositionalMetricType, VisualMetric, VisualMetricType};
     use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
@@ -596,7 +613,12 @@ mod metric_tests {
     use std::sync::Arc;
 
     fn default_attrs() -> VisualAttributes {
-        VisualAttributes::new(Arc::new(SortAttributesOptions::new(None, 0, 5)))
+        VisualAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        )))
     }
 
     fn default_store(

@@ -6,6 +6,7 @@ use rand::Rng;
 use similari::examples::BoxGen2;
 use similari::trackers::sort::simple_iou::IoUSort;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
+use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use similari::utils::bbox::Universal2DBox;
 use test::Bencher;
 
@@ -47,7 +48,13 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut tracker = IoUSort::new(ncores, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
+    let mut tracker = IoUSort::new(
+        ncores,
+        10,
+        1,
+        DEFAULT_SORT_IOU_THRESHOLD,
+        Some(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)])),
+    );
     let mut rng = rand::thread_rng();
 
     let mut count = 0;

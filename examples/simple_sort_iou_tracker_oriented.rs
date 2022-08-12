@@ -4,7 +4,7 @@ use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use similari::utils::bbox::Universal2DBox;
 
 fn main() {
-    let mut tracker = IoUSort::new(1, 10, 1, DEFAULT_SORT_IOU_THRESHOLD);
+    let mut tracker = IoUSort::new(1, 10, 1, DEFAULT_SORT_IOU_THRESHOLD, None);
 
     let pos_drift = 1.0;
     let box_drift = 0.1;
