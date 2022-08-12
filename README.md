@@ -3,9 +3,12 @@
 [![Rust](https://img.shields.io/crates/d/similari.svg)](https://crates.io/crates/similari)
 [![Rust](https://img.shields.io/crates/v/similari.svg)](https://img.shields.io/crates/v/similari.svg)
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
-[![Docker Rust 1.62](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_62.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_62.yml)
-[![Docker Python 3.10](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
+
+[![Docker Rust 1.62](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_62.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_62.yml)
+[![Docker Python 3.8](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml)
+[![Docker Python 3.10](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml)
+
 
 Similari is a Rust framework with Python bindings that helps build sophisticated tracking systems. With Similari one 
 can develop highly efficient parallelized [SORT](https://github.com/abewley/sort), [DeepSORT](https://github.com/nwojke/deep_sort), and 
