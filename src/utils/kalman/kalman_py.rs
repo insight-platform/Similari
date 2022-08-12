@@ -24,7 +24,7 @@ impl PyKalmanFilterState {
 
     #[pyo3(text_signature = "($self)")]
     pub fn bbox(&self) -> PyResult<BoundingBox> {
-        self.universal_bbox().as_xywh_py()
+        self.universal_bbox().as_ltwh_py()
     }
 }
 
