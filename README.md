@@ -146,9 +146,17 @@ If you use other rust libraries you may find it beneficial to build with base Ru
 docker build -t similari_py -f docker/rust_1.62/Dockerfile .
 ```
 
+#### Python 3.8 Base Image
+
+A lot of Machine Learning, Data Science libraries are bound to Python 3.8. Here is how to build Similari with it.
+
+```
+docker build -t similari_py -f docker/python_3.8/Dockerfile .
+```
+
 #### Python 3.10 Base Image
 
-If you use mostly Python environment, you can build with base Python container:
+If you use mostly the most recent Python environment, you can build with base Python container:
 
 ```
 docker build -t similari_py -f docker/python_3.10/Dockerfile .
