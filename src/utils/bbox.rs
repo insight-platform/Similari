@@ -546,7 +546,7 @@ impl Universal2DBox {
         let radial_distance = l.get_radius() + r.get_radius();
         let x = l.xc - r.xc;
         let y = l.yc - r.yc;
-        (x * x + y * y) / (radial_distance * radial_distance + EPS)
+        (x * x + y * y).sqrt() / (radial_distance * radial_distance + EPS).sqrt()
     }
 
     pub fn intersection(l: &Universal2DBox, r: &Universal2DBox) -> f64 {
@@ -611,8 +611,59 @@ impl PartialEq<Self> for Universal2DBox {
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::Universal2DBox;
     use crate::track::ObservationAttributes;
     use crate::utils::bbox::BoundingBox;
+    use crate::EPS;
+
+    #[test]
+    fn test_radius() {
+        let bb1 = BoundingBox::new(0.0, 0.0, 6.0, 8.0).as_xyaah();
+        let r = bb1.get_radius();
+        assert!((r - 5.0).abs() < EPS);
+    }
+
+    #[test]
+    fn test_not_too_far() {
+        let bb1 = BoundingBox::new(0.0, 0.0, 6.0, 8.0).as_xyaah();
+        let bb2 = BoundingBox::new(6.0, 0.0, 6.0, 8.0).as_xyaah();
+        assert!(!Universal2DBox::too_far(&bb1, &bb2));
+    }
+
+    #[test]
+    fn test_same() {
+        let bb1 = BoundingBox::new(0.0, 0.0, 6.0, 8.0).as_xyaah();
+        assert!(!Universal2DBox::too_far(&bb1, &bb1));
+    }
+
+    #[test]
+    fn test_too_far() {
+        let bb1 = BoundingBox::new(0.0, 0.0, 6.0, 8.0).as_xyaah();
+        let bb2 = BoundingBox::new(10.1, 0.0, 6.0, 8.0).as_xyaah();
+        assert!(Universal2DBox::too_far(&bb1, &bb2));
+    }
+
+    #[test]
+    fn dist_same() {
+        let bb1 = BoundingBox::new(0.0, 0.0, 6.0, 8.0).as_xyaah();
+        assert!(Universal2DBox::dist_in_2r(&bb1, &bb1) < EPS);
+    }
+
+    #[test]
+    fn dist_less_1() {
+        let bb1 = BoundingBox::new(0.0, 0.0, 6.0, 8.0).as_xyaah();
+        let bb2 = BoundingBox::new(6.0, 0.0, 6.0, 8.0).as_xyaah();
+        let d = Universal2DBox::dist_in_2r(&bb1, &bb2);
+        assert!((d - 0.6).abs() < EPS);
+    }
+
+    #[test]
+    fn dist_is_1() {
+        let bb1 = BoundingBox::new(0.0, 0.0, 6.0, 8.0).as_xyaah();
+        let bb2 = BoundingBox::new(10.0, 0.0, 6.0, 8.0).as_xyaah();
+        let d = Universal2DBox::dist_in_2r(&bb1, &bb2);
+        assert!((d - 1.0).abs() < EPS);
+    }
 
     #[test]
     fn test_iou() {
