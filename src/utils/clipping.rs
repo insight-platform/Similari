@@ -1,4 +1,10 @@
+/// Python interface for `sutherland_hodgman_clip`
+///
 pub mod clipping_py;
+
+/// The function to calculate polygons solely owned by a bounding box
+///
+pub mod bbox_own_areas;
 
 use geo::{Coordinate, CoordsIter, LineString, Polygon};
 

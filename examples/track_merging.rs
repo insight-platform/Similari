@@ -291,7 +291,7 @@ impl ObservationMetric<CamTrackingAttributes, f32> for CamTrackingAttributesMetr
         if current_capacity > self.max_capacity {
             current_capacity = self.max_capacity
         }
-        features.sort_by(|l, r| r.attr().partial_cmp(&l.attr()).unwrap());
+        features.sort_by(|l, r| r.attr().partial_cmp(l.attr()).unwrap());
         features.truncate(current_capacity as usize);
         Ok(())
     }
@@ -416,7 +416,7 @@ fn main() {
                 .add(
                     *track_id,
                     *class,
-                    feature.attr().clone(),
+                    *feature.attr(),
                     feature.feature().clone(),
                     Some(update),
                 )
