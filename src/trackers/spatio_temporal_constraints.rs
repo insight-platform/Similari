@@ -83,17 +83,17 @@ mod tests {
         spc.add_constraints(vec![(1, 0.5), (2, 1.0), (3, 2.0), (4, 4.0)]);
         spc.add_constraints(vec![(3, 2.5), (4, 4.5), (7, 8.5)]);
 
-        assert_eq!(spc.validate(1, 0.4), true);
-        assert_eq!(spc.validate(1, 0.6), false);
+        assert!(spc.validate(1, 0.4));
+        assert!(!spc.validate(1, 0.6));
 
-        assert_eq!(spc.validate(6, 7.0), true);
-        assert_eq!(spc.validate(6, 9.0), false);
+        assert!(spc.validate(6, 7.0));
+        assert!(!spc.validate(6, 9.0));
 
-        assert_eq!(spc.validate(7, 8.4), true);
-        assert_eq!(spc.validate(7, 8.5), true);
-        assert_eq!(spc.validate(7, 8.7), false);
+        assert!(spc.validate(7, 8.4));
+        assert!(spc.validate(7, 8.5));
+        assert!(!spc.validate(7, 8.7));
 
-        assert_eq!(spc.validate(9, 8.7), true);
-        assert_eq!(spc.validate(9, 100.0), true);
+        assert!(spc.validate(9, 8.7));
+        assert!(spc.validate(9, 100.0));
     }
 }
