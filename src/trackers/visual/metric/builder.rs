@@ -12,7 +12,9 @@ pub struct VisualMetricBuilder {
     visual_minimal_quality_use: f32,
     visual_minimal_quality_collect: f32,
     visual_max_observations: usize,
-    pub visual_min_votes: usize,
+    visual_min_votes: usize,
+    visual_minimal_own_area_percentage_use: f32,
+    visual_minimal_own_area_percentage_collect: f32,
 }
 
 /// By default the metric object is constructed with: Euclidean visual metric, IoU(0.3) positional metric
@@ -29,6 +31,8 @@ impl Default for VisualMetricBuilder {
             visual_minimal_quality_collect: 0.0,
             visual_max_observations: 5,
             visual_min_votes: 1,
+            visual_minimal_own_area_percentage_use: 0.0,
+            visual_minimal_own_area_percentage_collect: 0.0,
         }
     }
 }
@@ -69,6 +73,22 @@ impl VisualMetricBuilder {
         self.visual_minimal_area = area;
     }
 
+    pub(crate) fn visual_minimal_own_area_percentage_use_py(&mut self, area: f32) {
+        assert!(
+            (0.0..=1.0).contains(&area),
+            "Argument must be contained within (0.0..=1.0)"
+        );
+        self.visual_minimal_own_area_percentage_use = area;
+    }
+
+    pub(crate) fn visual_minimal_own_area_percentage_collect_py(&mut self, area: f32) {
+        assert!(
+            (0.0..=1.0).contains(&area),
+            "Argument must be contained within (0.0..=1.0)"
+        );
+        self.visual_minimal_own_area_percentage_collect = area;
+    }
+
     pub(crate) fn visual_minimal_quality_use_py(&mut self, q: f32) {
         assert!(
             q >= 0.0,
@@ -91,6 +111,16 @@ impl VisualMetricBuilder {
 }
 
 impl VisualMetricBuilder {
+    pub fn visual_minimal_own_area_percentage_use(mut self, area: f32) -> Self {
+        self.visual_minimal_own_area_percentage_use_py(area);
+        self
+    }
+
+    pub fn visual_minimal_own_area_percentage_collect(mut self, area: f32) -> Self {
+        self.visual_minimal_own_area_percentage_collect_py(area);
+        self
+    }
+
     pub fn visual_min_votes(mut self, n: usize) -> Self {
         self.visual_min_votes = n;
         self
@@ -164,6 +194,9 @@ impl VisualMetricBuilder {
                 visual_minimal_quality_collect: self.visual_minimal_quality_collect,
                 visual_max_observations: self.visual_max_observations,
                 visual_min_votes: self.visual_min_votes,
+                visual_minimal_own_area_percentage_use: self.visual_minimal_own_area_percentage_use,
+                visual_minimal_own_area_percentage_collect: self
+                    .visual_minimal_own_area_percentage_collect,
             }),
         }
     }

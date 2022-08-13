@@ -136,14 +136,16 @@ impl PyPositionalMetricType {
 
 #[derive(Debug)]
 pub struct VisualMetricOptions {
+    pub visual_max_observations: usize,
+    pub visual_min_votes: usize,
     pub visual_kind: VisualMetricType,
     pub positional_kind: PositionalMetricType,
     pub visual_minimal_track_length: usize,
     pub visual_minimal_area: f32,
     pub visual_minimal_quality_use: f32,
     pub visual_minimal_quality_collect: f32,
-    pub visual_max_observations: usize,
-    pub visual_min_votes: usize,
+    pub visual_minimal_own_area_percentage_use: f32,
+    pub visual_minimal_own_area_percentage_collect: f32,
 }
 
 #[derive(Clone, Debug)]

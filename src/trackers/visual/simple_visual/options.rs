@@ -85,6 +85,20 @@ impl VisualSortOptions {
         self.metric_builder = self.metric_builder.visual_minimal_quality_collect(q);
         self
     }
+
+    pub fn visual_minimal_own_area_percentage_use(mut self, area: f32) -> Self {
+        self.metric_builder = self
+            .metric_builder
+            .visual_minimal_own_area_percentage_use(area);
+        self
+    }
+
+    pub fn visual_minimal_own_area_percentage_collect(mut self, area: f32) -> Self {
+        self.metric_builder = self
+            .metric_builder
+            .visual_minimal_own_area_percentage_collect(area);
+        self
+    }
 }
 
 impl Default for VisualSortOptions {
@@ -171,6 +185,24 @@ impl VisualSortOptions {
         self.metric_builder.visual_minimal_quality_collect_py(q);
     }
 
+    #[pyo3(
+        name = "visual_minimal_own_area_percentage_use",
+        text_signature = "($self, area)"
+    )]
+    fn visual_minimal_own_area_percentage_use_py(&mut self, area: f32) {
+        self.metric_builder
+            .visual_minimal_own_area_percentage_use_py(area);
+    }
+
+    #[pyo3(
+        name = "visual_minimal_own_area_percentage_collect",
+        text_signature = "($self, area)"
+    )]
+    fn visual_minimal_own_area_percentage_collect_py(&mut self, area: f32) {
+        self.metric_builder
+            .visual_minimal_own_area_percentage_collect_py(area);
+    }
+
     #[classattr]
     const __hash__: Option<Py<PyAny>> = None;
 
@@ -204,6 +236,8 @@ mod tests {
             .visual_minimal_quality_collect(0.5)
             .visual_max_observations(25)
             .visual_min_votes(5)
+            .visual_minimal_own_area_percentage_use(0.1)
+            .visual_minimal_own_area_percentage_collect(0.2)
             .spatio_temporal_constraints(
                 SpatioTemporalConstraints::default().constraints(&[(5, 7.0)])
             )
@@ -219,6 +253,8 @@ mod tests {
         opts_builder.visual_minimal_quality_use_py(0.45);
         opts_builder.visual_minimal_quality_collect_py(0.5);
         opts_builder.visual_max_observations_py(25);
+        opts_builder.visual_minimal_own_area_percentage_use_py(0.1);
+        opts_builder.visual_minimal_own_area_percentage_collect_py(0.2);
         opts_builder.visual_min_votes_py(5);
         let mut constraints = SpatioTemporalConstraints::default();
         constraints.add_constraints(vec![(5, 7.0)]);
