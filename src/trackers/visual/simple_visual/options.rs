@@ -162,7 +162,7 @@ impl VisualSortOptions {
         self
     }
 
-    /// The threshold is calculated as solely_owned_area / all_area of the bounding box that prevents
+    /// The threshold is calculated as `solely_owned_area / all_area` of the bounding box that prevents
     /// low-quality visual features received in a messy environment from being collected to a track
     /// for making visual predictions.
     ///
