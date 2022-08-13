@@ -107,8 +107,8 @@ impl VisualSortOptions {
         self
     }
 
-    /// Defines which positional metric is used to calculate distances between the track candidate
-    /// and tracks kept in the store. There are two metrics are supported - the Mahalanobis metric
+    /// The parameter defines which positional metric is used to calculate distances between the track
+    /// candidate and tracks kept in the store. There are two metrics are supported - the Mahalanobis metric
     /// and the IoU metric.
     ///
     pub fn positional_metric(mut self, metric: PositionalMetricType) -> Self {
@@ -136,15 +136,15 @@ impl VisualSortOptions {
     }
 
     /// The visual quality threshold of a feature that activates the visual estimation of a candidate
-    /// to tracks.
+    /// versus the tracks kept in the store.
     ///
     pub fn visual_minimal_quality_use(mut self, q: f32) -> Self {
         self.metric_builder = self.metric_builder.visual_minimal_quality_use(q);
         self
     }
 
-    /// The visual quality threshold of a feature that activats the collecting that feature in the
-    /// track the visual estimation.
+    /// The visual quality threshold of a feature that activates the adding of the visual feature
+    /// to the track's visual features.
     ///
     pub fn visual_minimal_quality_collect(mut self, q: f32) -> Self {
         self.metric_builder = self.metric_builder.visual_minimal_quality_collect(q);
