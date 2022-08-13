@@ -11,7 +11,9 @@ use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 use crate::trackers::visual::track_attributes::{VisualAttributes, VisualAttributesUpdate};
 use crate::trackers::visual::voting::VisualVoting;
 use crate::trackers::visual::VisualObservation;
-use crate::utils::clipping::bbox_own_areas::{compute_own_areas_percentage, compute_own_polygons};
+use crate::utils::clipping::bbox_own_areas::{
+    exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
+};
 use crate::voting::Voting;
 use pyo3::prelude::*;
 use rand::Rng;
@@ -128,9 +130,9 @@ impl VisualSort {
                 .map(|e| &e.bounding_box)
                 .collect::<Vec<_>>();
 
-            percentages = compute_own_areas_percentage(
+            percentages = exclusively_owned_areas_normalized_shares(
                 boxes.as_ref(),
-                compute_own_polygons(boxes.as_ref()).as_ref(),
+                exclusively_owned_areas(boxes.as_ref()).as_ref(),
             );
         }
 

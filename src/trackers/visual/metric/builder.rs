@@ -184,6 +184,12 @@ impl VisualMetricBuilder {
     }
 
     pub fn build(self) -> VisualMetric {
+        assert!(
+            0 < self.visual_min_votes
+                && 0 < self.visual_minimal_track_length
+                && self.visual_minimal_track_length <= self.visual_max_observations,
+            "Ratios for (visual_min_votes, visual_minimal_track_length, visual_max_observations) are broken"
+        );
         VisualMetric {
             opts: Arc::new(VisualMetricOptions {
                 visual_kind: self.visual_kind,

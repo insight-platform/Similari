@@ -40,6 +40,10 @@ impl VisualObservationAttributes {
         &self.bbox
     }
 
+    pub fn own_area_percentage_opt(&self) -> &Option<f32> {
+        &self.own_area_percentage
+    }
+
     pub fn drop_bbox(&mut self) {
         self.bbox = None;
     }

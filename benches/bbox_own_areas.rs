@@ -4,7 +4,7 @@ extern crate test;
 
 use similari::examples::BoxGen2;
 use similari::utils::clipping::bbox_own_areas::{
-    compute_own_areas_percentage, compute_own_polygons,
+    exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
 };
 use test::Bencher;
 
@@ -46,8 +46,9 @@ fn bench_bbox_own_areas(objects: usize, b: &mut Bencher) {
             observations.push(b.unwrap().into());
         }
         let input = observations.iter().collect::<Vec<_>>();
-        let polygons = compute_own_polygons(input.as_slice());
-        let areas = compute_own_areas_percentage(input.as_slice(), polygons.as_slice());
+        let polygons = exclusively_owned_areas(input.as_slice());
+        let areas =
+            exclusively_owned_areas_normalized_shares(input.as_slice(), polygons.as_slice());
         assert_eq!(areas.len(), objects);
     });
 }
