@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-pub fn compute_own_polygons(boxes: &[Universal2DBox]) -> Vec<MultiPolygon> {
+pub fn compute_own_polygons(boxes: &[&Universal2DBox]) -> Vec<MultiPolygon> {
     let mut distances = HashSet::new();
     for (i, b1) in boxes.iter().enumerate() {
         for (j, b2) in boxes[i + 1..].iter().enumerate() {
@@ -21,10 +21,10 @@ pub fn compute_own_polygons(boxes: &[Universal2DBox]) -> Vec<MultiPolygon> {
         .par_iter()
         .enumerate()
         .map(|(i, own)| {
-            let mut own_poly = MultiPolygon::from(Polygon::from(own));
+            let mut own_poly = MultiPolygon::from(Polygon::from(*own));
             for (j, other) in boxes.iter().enumerate() {
                 if distances.contains(&(i, j)) || distances.contains(&(j, i)) {
-                    let clipping = MultiPolygon::from(Polygon::from(other));
+                    let clipping = MultiPolygon::from(Polygon::from(*other));
                     own_poly = own_poly.difference(&clipping);
                 }
             }
@@ -33,8 +33,8 @@ pub fn compute_own_polygons(boxes: &[Universal2DBox]) -> Vec<MultiPolygon> {
         .collect()
 }
 
-pub fn compute_relative_own_areas(
-    boxes: &[Universal2DBox],
+pub fn compute_own_areas_percentage(
+    boxes: &[&Universal2DBox],
     own_polygons: &[MultiPolygon],
 ) -> Vec<f32> {
     boxes
@@ -48,7 +48,7 @@ pub fn compute_relative_own_areas(
 mod tests {
     use crate::prelude::BoundingBox;
     use crate::utils::clipping::bbox_own_areas::{
-        compute_own_polygons, compute_relative_own_areas,
+        compute_own_areas_percentage, compute_own_polygons,
     };
     use crate::EPS;
     use geo::Area;
@@ -58,7 +58,7 @@ mod tests {
         let bb1 = BoundingBox::new(0.0, 0.0, 10.0, 10.0);
         let bb2 = BoundingBox::new(5.0, 5.0, 10.0, 10.0);
         let bb3 = BoundingBox::new(10.0, 10.0, 10.0, 10.0);
-        let boxes = &[bb1.into(), bb2.into(), bb3.into()];
+        let boxes = &[&bb1.into(), &bb2.into(), &bb3.into()];
 
         let own_polygons = compute_own_polygons(boxes);
 
@@ -70,7 +70,7 @@ mod tests {
         assert!((bb2_own - 50.0).abs() < EPS as f64);
         assert!((bb3_own - 75.0).abs() < EPS as f64);
 
-        let own_areas = compute_relative_own_areas(boxes, own_polygons.as_slice());
+        let own_areas = compute_own_areas_percentage(boxes, own_polygons.as_slice());
 
         assert!((own_areas[0] - 0.75).abs() < EPS);
         assert!((own_areas[1] - 0.50).abs() < EPS);

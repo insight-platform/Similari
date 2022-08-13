@@ -7,6 +7,7 @@ use std::fmt::Formatter;
 pub struct VisualObservationAttributes {
     bbox: Option<Universal2DBox>,
     visual_quality: f32,
+    own_area_percentage: Option<f32>,
 }
 
 impl VisualObservationAttributes {
@@ -14,6 +15,20 @@ impl VisualObservationAttributes {
         Self {
             visual_quality: q,
             bbox: Some(b),
+            own_area_percentage: None,
+        }
+    }
+
+    pub fn with_own_area_percentage(q: f32, b: Universal2DBox, own_area_percentage: f32) -> Self {
+        assert!(
+            (0.0..=1.0).contains(&own_area_percentage),
+            "Own area percentage must be contained in (0.0..=1.0)"
+        );
+
+        Self {
+            visual_quality: q,
+            bbox: Some(b),
+            own_area_percentage: Some(own_area_percentage),
         }
     }
 
