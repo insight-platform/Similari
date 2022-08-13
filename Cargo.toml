@@ -28,6 +28,7 @@ log = "0.4.17"
 nalgebra = "0.31.0"
 pathfinding = "3.0.13"
 geo = "0.22"
+rayon = "1.5.3"
 
 [dependencies.pyo3]
 version = "0.16"
