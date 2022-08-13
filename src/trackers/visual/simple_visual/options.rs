@@ -20,7 +20,7 @@ pub struct VisualSortOptions {
 }
 
 impl VisualSortOptions {
-    pub fn build(self) -> (SortAttributesOptions, VisualMetric) {
+    pub(crate) fn build(self) -> (SortAttributesOptions, VisualMetric) {
         (
             SortAttributesOptions::new(
                 Some(RwLock::new(HashMap::default())),
