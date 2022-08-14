@@ -3,7 +3,8 @@
 extern crate test;
 
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple_maha::MahaSort;
+use similari::prelude::Sort;
+use similari::trackers::sort::PositionalMetricType::Mahalanobis;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use test::Bencher;
 
@@ -45,10 +46,11 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut tracker = MahaSort::new(
+    let mut tracker = Sort::new(
         ncores,
         10,
         1,
+        Mahalanobis,
         Some(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)])),
     );
 
@@ -59,7 +61,7 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         for i in &mut iterators {
             iteration += 1;
             let b = i.next();
-            observations.push(b.unwrap().into());
+            observations.push((b.unwrap().into(), None));
         }
         let tracks = tracker.predict(&observations);
         assert_eq!(tracks.len(), objects);

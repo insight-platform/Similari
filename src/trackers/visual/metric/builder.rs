@@ -1,5 +1,6 @@
+use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::visual::metric::{
-    PositionalMetricType, PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
+    PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
 };
 use std::sync::Arc;
 

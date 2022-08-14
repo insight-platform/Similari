@@ -1,18 +1,20 @@
 use crate::prelude::SortTrack;
-use crate::trackers::sort::simple_maha::MahaSort;
+use crate::trackers::sort::simple_api::Sort;
+use crate::trackers::sort::PyPositionalMetricType;
 use crate::trackers::sort::PyWastedSortTrack;
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
 use pyo3::prelude::*;
 
 #[pymethods]
-impl MahaSort {
+impl Sort {
     #[new]
     #[args(shards = "4", bbox_history = "1", max_idle_epochs = "5")]
     pub fn new_py(
         shards: i64,
         bbox_history: i64,
         max_idle_epochs: i64,
+        method: PyPositionalMetricType,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
         assert!(shards > 0 && bbox_history > 0 && max_idle_epochs > 0);
@@ -20,6 +22,7 @@ impl MahaSort {
             shards.try_into().unwrap(),
             bbox_history.try_into().unwrap(),
             max_idle_epochs.try_into().unwrap(),
+            method.0,
             spatio_temporal_constraints,
         )
     }
@@ -84,7 +87,7 @@ impl MahaSort {
     /// * `bboxes` - bounding boxes received from a detector
     ///
     #[pyo3(name = "predict", text_signature = "($self, bboxes)")]
-    pub fn predict_py(&mut self, bboxes: Vec<Universal2DBox>) -> Vec<SortTrack> {
+    pub fn predict_py(&mut self, bboxes: Vec<(Universal2DBox, Option<i64>)>) -> Vec<SortTrack> {
         self.predict_with_scene_py(0, bboxes)
     }
 
@@ -101,12 +104,12 @@ impl MahaSort {
     pub fn predict_with_scene_py(
         &mut self,
         scene_id: i64,
-        bboxes: Vec<Universal2DBox>,
+        bboxes: Vec<(Universal2DBox, Option<i64>)>,
     ) -> Vec<SortTrack> {
-        assert!(scene_id >= 0);
         let gil = Python::acquire_gil();
         let py = gil.python();
 
+        assert!(scene_id >= 0);
         py.allow_threads(|| self.predict_with_scene(scene_id.try_into().unwrap(), &bboxes))
     }
 

@@ -11,15 +11,11 @@ use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
-/// SORT implementation with IoU distance
-pub mod iou;
-/// SORT implementation with Mahalanobis distance
-pub mod maha;
+/// SORT implementation with IoU and Mahalanobis distances
+pub mod tracker;
 
-/// SORT implementation with a very tiny interface (IoU)
-pub mod simple_iou;
-/// SORT implementation with a very tiny interface (Mahalanobis)
-pub mod simple_maha;
+/// SORT implementation with a very tiny interface
+pub mod simple_api;
 
 /// Voting engine with Hungarian algorithm
 pub mod voting;
@@ -78,6 +74,8 @@ pub struct SortAttributes {
     pub track_length: usize,
     /// Customer-specific scene identifier that splits the objects by classes, realms, etc.
     pub scene_id: u64,
+    /// Custom object id
+    pub custom_object_id: Option<i64>,
 
     /// Kalman filter predicted state
     state: Option<KalmanState>,
@@ -103,6 +101,7 @@ impl Default for SortAttributes {
             track_length: 0,
             scene_id: 0,
             state: None,
+            custom_object_id: None,
             opts: Arc::new(SortAttributesOptions::default()),
         }
     }
@@ -144,6 +143,7 @@ impl SortAttributes {
 pub struct SortAttributesUpdate {
     epoch: usize,
     scene_id: u64,
+    custom_object_id: Option<i64>,
 }
 
 impl SortAttributesUpdate {
@@ -152,16 +152,24 @@ impl SortAttributesUpdate {
     /// # Parameters
     /// * `epoch` - epoch update
     ///
-    pub fn new(epoch: usize) -> Self {
-        Self { epoch, scene_id: 0 }
+    pub fn new(epoch: usize, custom_object_id: Option<i64>) -> Self {
+        Self {
+            epoch,
+            scene_id: 0,
+            custom_object_id,
+        }
     }
     /// update epoch for a specific scene_id
     ///
     /// # Parameters
     /// * `epoch` - epoch
     /// * `scene_id` - scene_id
-    pub fn new_with_scene(epoch: usize, scene_id: u64) -> Self {
-        Self { epoch, scene_id }
+    pub fn new_with_scene(epoch: usize, scene_id: u64, custom_object_id: Option<i64>) -> Self {
+        Self {
+            epoch,
+            scene_id,
+            custom_object_id,
+        }
     }
 }
 
@@ -169,6 +177,7 @@ impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
     fn apply(&self, attrs: &mut SortAttributes) -> Result<()> {
         attrs.last_updated_epoch = self.epoch;
         attrs.scene_id = self.scene_id;
+        attrs.custom_object_id = self.custom_object_id;
         Ok(())
     }
 }
@@ -201,6 +210,7 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
 
     fn merge(&mut self, other: &SortAttributes) -> Result<()> {
         self.last_updated_epoch = other.last_updated_epoch;
+        self.custom_object_id = other.custom_object_id;
         Ok(())
     }
 
@@ -212,7 +222,8 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
 #[cfg(test)]
 mod track_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
-    use crate::trackers::sort::iou::IOUSortMetric;
+    use crate::trackers::sort::tracker::SortMetric;
+    use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;
     use crate::utils::kalman::KalmanFilter;
@@ -228,7 +239,7 @@ mod track_tests {
 
         let mut t1 = TrackBuilder::new(1)
             .attributes(SortAttributes::default())
-            .metric(IOUSortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
+            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
@@ -252,7 +263,7 @@ mod track_tests {
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
-            .metric(IOUSortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
+            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
@@ -389,6 +400,46 @@ pub enum VotingType {
 
 #[pymethods]
 impl VotingType {
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:#?}", self)
+    }
+}
+
+#[derive(Clone, Default, Copy, Debug)]
+pub enum PositionalMetricType {
+    #[default]
+    Mahalanobis,
+    IoU(f32),
+}
+
+#[pyclass]
+#[pyo3(name = "PositionalMetricType")]
+#[derive(Clone, Debug)]
+pub struct PyPositionalMetricType(pub PositionalMetricType);
+
+#[pymethods]
+impl PyPositionalMetricType {
+    #[staticmethod]
+    pub fn maha() -> Self {
+        PyPositionalMetricType(PositionalMetricType::Mahalanobis)
+    }
+
+    #[staticmethod]
+    pub fn iou(threshold: f32) -> Self {
+        assert!(
+            threshold > 0.0 && threshold < 1.0,
+            "Threshold must lay between (0.0 and 1.0)"
+        );
+        PyPositionalMetricType(PositionalMetricType::IoU(threshold))
+    }
+
     #[classattr]
     const __hash__: Option<Py<PyAny>> = None;
 

@@ -16,6 +16,8 @@ pub trait TrackAttributesKalmanPrediction {
 
         let prediction = f.predict(state);
         self.set_state(prediction);
-        prediction.universal_bbox()
+        let mut res = prediction.universal_bbox();
+        res.confidence = observation_bbox.confidence;
+        res
     }
 }

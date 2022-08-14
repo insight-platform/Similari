@@ -1,9 +1,10 @@
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple_maha::MahaSort;
+use similari::prelude::Sort;
+use similari::trackers::sort::PositionalMetricType::Mahalanobis;
 use similari::utils::bbox::Universal2DBox;
 
 fn main() {
-    let mut tracker = MahaSort::new(1, 10, 1, None);
+    let mut tracker = Sort::new(1, 10, 1, Mahalanobis, None);
 
     let pos_drift = 1.0;
     let box_drift = 0.1;
@@ -13,7 +14,7 @@ fn main() {
     for i in 0..30 {
         let obj1b = Universal2DBox::from(b1.next().unwrap()).rotate(0.35 + (i as f32 / 10.0));
         let obj2b = Universal2DBox::from(b2.next().unwrap()).rotate(0.55 + (i as f32 / 10.0));
-        let _tracks = tracker.predict(&[obj1b, obj2b]);
+        let _tracks = tracker.predict(&[(obj1b, None), (obj2b, None)]);
     }
 
     tracker.skip_epochs(2);

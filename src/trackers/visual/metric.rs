@@ -5,6 +5,7 @@ use crate::distance::{cosine, euclidean};
 use crate::track::{Feature, MetricQuery, ObservationAttributes, ObservationMetricOk};
 use crate::track::{MetricOutput, Observation, ObservationMetric};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
+use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::visual::metric::builder::VisualMetricBuilder;
 use crate::trackers::visual::metric::VisualMetricType::{Cosine, Euclidean};
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
@@ -80,46 +81,6 @@ impl PyVisualMetricType {
     #[staticmethod]
     pub fn cosine(threshold: f32) -> Self {
         PyVisualMetricType(VisualMetricType::cosine(threshold))
-    }
-
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{:?}", self)
-    }
-
-    fn __str__(&self) -> String {
-        format!("{:#?}", self)
-    }
-}
-
-#[derive(Clone, Default, Copy, Debug)]
-pub enum PositionalMetricType {
-    #[default]
-    Mahalanobis,
-    IoU(f32),
-}
-
-#[pyclass]
-#[pyo3(name = "PositionalMetricType")]
-#[derive(Clone, Debug)]
-pub struct PyPositionalMetricType(pub PositionalMetricType);
-
-#[pymethods]
-impl PyPositionalMetricType {
-    #[staticmethod]
-    pub fn maha() -> Self {
-        PyPositionalMetricType(PositionalMetricType::Mahalanobis)
-    }
-
-    #[staticmethod]
-    pub fn iou(threshold: f32) -> Self {
-        assert!(
-            threshold > 0.0 && threshold < 1.0,
-            "Threshold must lay between (0.0 and 1.0)"
-        );
-        PyPositionalMetricType(PositionalMetricType::IoU(threshold))
     }
 
     #[classattr]
@@ -410,10 +371,10 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
 mod optimize {
     use crate::examples::vec2;
     use crate::track::{Observation, ObservationMetric};
-    use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-    use crate::trackers::visual::metric::{PositionalMetricType, VisualMetricType};
+    use crate::trackers::visual::metric::VisualMetricType;
     use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
     use crate::trackers::visual::track_attributes::VisualAttributes;
     use crate::utils::bbox::{BoundingBox, Universal2DBox};
@@ -655,10 +616,10 @@ mod metric_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
     use crate::store::TrackStore;
     use crate::track::ObservationMetricOk;
-    use crate::trackers::sort::SortAttributesOptions;
+    use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-    use crate::trackers::visual::metric::{PositionalMetricType, VisualMetric, VisualMetricType};
+    use crate::trackers::visual::metric::{VisualMetric, VisualMetricType};
     use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
     use crate::trackers::visual::track_attributes::VisualAttributes;
     use crate::utils::bbox::BoundingBox;

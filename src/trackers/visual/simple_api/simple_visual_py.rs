@@ -1,6 +1,6 @@
 use crate::prelude::SortTrack;
-use crate::trackers::visual::simple_visual::options::VisualSortOptions;
-use crate::trackers::visual::simple_visual::VisualSort;
+use crate::trackers::visual::simple_api::options::VisualSortOptions;
+use crate::trackers::visual::simple_api::VisualSort;
 use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
 use crate::utils::bbox::Universal2DBox;
 use pyo3::prelude::*;

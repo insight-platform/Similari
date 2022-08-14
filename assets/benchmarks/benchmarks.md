@@ -28,7 +28,7 @@ The benchmark is located at [benches/nms.rs](benches/nms.rs).
 
 The benchmark is located at [benches/nms_oriented.rs](benches/nms_oriented.rs).
 
-**SORT tracking (IoU)**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics that 
+**SORT tracking (IoU)**. Benchmark for N simultaneously observed objects. The benchmark uses the heuristics that 
 separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_iou_tracker.rs](benches/simple_sort_iou_tracker.rs).
@@ -37,23 +37,21 @@ The benchmark is located at [benches/simple_sort_iou_tracker.rs](benches/simple_
 |---------|----------------|-------|
 | 10      | 127,508        | 12048 |
 | 100     | 1,959,395      | 433   |
-| 500     | 24,170,165     | 41    |
-| 1000    | 83,859,085     | 11    |
+| 500     | 20,265,114     | 49    |
 
 
-**Oriented SORT tracking (IoU)**. Benchmark for N simultaneously observed **oriented** objects. The benchmark use 
-heuristics that separate the observed objects based on object distances.
+**Oriented SORT tracking (IoU)**. Benchmark for N simultaneously observed **oriented** objects. The benchmark uses 
+the heuristics that separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_iou_tracker_oriented.rs](benches/simple_sort_iou_tracker_oriented.rs).
 
 | Objects | Time (ns/iter) | FPS  |
 |---------|----------------|------|
 | 10      | 150,702        | 6600 |
-| 100     | 2,532,766      | 390  |
-| 500     | 26,976,983     | 37   |
-| 1000    | 87,453,176     | 11   |
+| 100     | 2,102,687      | 475  |
+| 500     | 20,265,114     | 49   |
 
-**SORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark doesn't use heuristics 
+**SORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark uses heuristics 
 that separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_maha_tracker.rs](benches/simple_sort_maha_tracker.rs).
@@ -61,23 +59,21 @@ The benchmark is located at [benches/simple_sort_maha_tracker.rs](benches/simple
 | Objects | Time (ns/iter) | FPS  |
 |---------|----------------|------|
 | 10      | 121,941        | 8100 |
-| 100     | 2,397,841      | 470  |
-| 500     | 27,444,708     | 36   |
-| 1000    | 85,111,059     | 11   |
+| 100     | 1,974,091      | 500  |
+| 500     | 20,268,841     | 49   |
 
 **Oriented SORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed **oriented** objects. The benchmark 
-use heuristics that separate the observed objects based on object distances.
+uses the heuristics that separate the observed objects based on object distances.
 
 The benchmark is located at [benches/simple_sort_maha_tracker_oriented.rs](benches/simple_sort_maha_tracker_oriented.rs).
 
 | Objects | Time (ns/iter) | FPS  |
 |---------|----------------|------|
 | 10      | 133,531        | 7400 |
-| 100     | 2,565,572      | 389  |
-| 500     | 30,443,250     | 32   |
-| 1000    | 82,211,441     | 12   |
+| 100     | 1,859,690      | 500  |
+| 500     | 20,594,887     | 49   |
 
-**Feature (256 @ f32, hist=3) tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use 
+**Visual (256 @ f32, hist=3) tracking**. Benchmark for N simultaneously observed objects. The benchmark doesn't use 
 heuristics that separate the observed objects based on object distances. The 3 last observations are used to select 
 winning track.
 
@@ -88,3 +84,26 @@ The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs
 | 10      | 101,465        | 9900 |
 | 100     | 4,020,673      | 250  |
 | 500     | 61,716,729     | 16   |
+
+**Visual SORT (aka DeepSORT) tracking**. Benchmark for N simultaneously observed objects with feature vectors. The benchmark uses heuristics 
+that separate the observed objects based on object distances. Every track holds 3 feature vectors for comparison with candidats.
+
+The benchmark is located at [benches/simple_visual_sort_tracker.rs](benches/simple_visual_sort_tracker.rs).
+
+| Objects | Vector Len | Time (ns/iter) | FPS  |
+|---------|------------|----------------|------|
+| 10      | 128        | 356,237        | 2800 |
+| 10      | 256        | 404,416        | 2460 |
+| 10      | 512        | 447,903        | 2230 |
+| 10      | 1024       | 573,197        | 1740 |
+| 10      | 2048       | 767,031        | 1300 |
+| 50      | 128        | 1,923,861      | 519  |
+| 50      | 256        | 2,105,886      | 474  |
+| 50      | 512        | 2,249,694      | 444  |
+| 50      | 1024       | 2,958,547      | 337  |
+| 50      | 2048       | 4,563,691      | 218  |
+| 100     | 128        | 3,807,716      | 262  |
+| 100     | 256        | 4,717,401      | 211  |
+| 100     | 512        | 5,775,469      | 173  |
+| 100     | 1024       | 7,497,783      | 133  |
+| 100     | 2048       | 10,527,237     | 94   |
