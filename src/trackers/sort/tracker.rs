@@ -50,8 +50,8 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
                 }
                 PositionalMetricType::IoU(threshold) => {
                     let box_m_opt = Universal2DBox::calculate_metric_object(
-                        &Some(&candidate_bbox),
-                        &Some(&track_bbox),
+                        &Some(candidate_bbox),
+                        &Some(track_bbox),
                     );
                     (
                         box_m_opt
