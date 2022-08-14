@@ -1,10 +1,11 @@
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple_iou::IoUSort;
+use similari::trackers::sort::simple_api::Sort;
+use similari::trackers::sort::PositionalMetricType::IoU;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use similari::utils::bbox::Universal2DBox;
 
 fn main() {
-    let mut tracker = IoUSort::new(1, 10, 1, DEFAULT_SORT_IOU_THRESHOLD, None);
+    let mut tracker = Sort::new(1, 10, 1, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
 
     let pos_drift = 1.0;
     let box_drift = 0.1;

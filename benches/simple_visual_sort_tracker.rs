@@ -6,8 +6,9 @@ use rand::distributions::Uniform;
 use rand::Rng;
 use similari::examples::BoxGen2;
 use similari::prelude::{VisualObservation, VisualSort, VisualSortOptions};
+use similari::trackers::sort::PositionalMetricType;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-use similari::trackers::visual::metric::{PositionalMetricType, VisualMetricType};
+use similari::trackers::visual::metric::VisualMetricType;
 use test::Bencher;
 
 #[bench]

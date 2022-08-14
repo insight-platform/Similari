@@ -4,7 +4,8 @@ extern crate test;
 
 use rand::Rng;
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple_iou::IoUSort;
+use similari::trackers::sort::simple_api::Sort;
+use similari::trackers::sort::PositionalMetricType::IoU;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use similari::utils::bbox::Universal2DBox;
@@ -48,11 +49,11 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         _ => num_cpus::get(),
     };
 
-    let mut tracker = IoUSort::new(
+    let mut tracker = Sort::new(
         ncores,
         10,
         1,
-        DEFAULT_SORT_IOU_THRESHOLD,
+        IoU(DEFAULT_SORT_IOU_THRESHOLD),
         Some(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)])),
     );
     let mut rng = rand::thread_rng();

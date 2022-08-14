@@ -1,10 +1,11 @@
 use anyhow::Result;
 use similari::examples::BoxGen2;
-use similari::trackers::sort::simple_maha::MahaSort;
+use similari::prelude::Sort;
+use similari::trackers::sort::PositionalMetricType::Mahalanobis;
 use similari::utils::bbox::BoundingBox;
 
 fn main() {
-    let mut tracker = MahaSort::new(1, 10, 1, None);
+    let mut tracker = Sort::new(1, 10, 1, Mahalanobis, None);
 
     let pos_drift = 1.0;
     let box_drift = 0.2;

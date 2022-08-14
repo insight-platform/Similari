@@ -1,13 +1,15 @@
-pub mod simple_maha_py;
+pub mod simple_iou_py;
 
-use crate::prelude::{NoopNotifier, ObservationBuilder, SortTrack, TrackStoreBuilder};
+use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::{Track, TrackStatus};
 use crate::trackers::epoch_db::EpochDb;
-use crate::trackers::sort::maha::MahaSortMetric;
+use crate::trackers::sort::tracker::SortMetric;
 use crate::trackers::sort::voting::SortVoting;
+use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::sort::{
-    PyWastedSortTrack, SortAttributes, SortAttributesOptions, SortAttributesUpdate, VotingType,
+    PyWastedSortTrack, SortAttributes, SortAttributesOptions, SortAttributesUpdate, SortTrack,
+    VotingType,
 };
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
@@ -19,45 +21,15 @@ use std::sync::{Arc, RwLock};
 
 /// Easy to use SORT tracker implementation
 ///
-#[pyclass(text_signature = "(shards, bbox_history, max_idle_epochs)")]
-pub struct MahaSort {
-    store: TrackStore<SortAttributes, MahaSortMetric, Universal2DBox>,
+
+#[pyclass(text_signature = "(shards, bbox_history, max_idle_epochs, threshold)")]
+pub struct Sort {
+    store: TrackStore<SortAttributes, SortMetric, Universal2DBox>,
+    method: PositionalMetricType,
     opts: Arc<SortAttributesOptions>,
 }
 
-impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for SortTrack {
-    fn from(track: Track<SortAttributes, MahaSortMetric, Universal2DBox>) -> Self {
-        let attrs = track.get_attributes();
-        SortTrack {
-            id: track.get_track_id(),
-            custom_object_id: None,
-            voting_type: VotingType::Positional,
-            epoch: attrs.last_updated_epoch,
-            scene_id: attrs.scene_id,
-            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
-            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
-            length: attrs.track_length,
-        }
-    }
-}
-
-impl From<Track<SortAttributes, MahaSortMetric, Universal2DBox>> for PyWastedSortTrack {
-    fn from(track: Track<SortAttributes, MahaSortMetric, Universal2DBox>) -> Self {
-        let attrs = track.get_attributes();
-        PyWastedSortTrack {
-            id: track.get_track_id(),
-            epoch: attrs.last_updated_epoch,
-            scene_id: attrs.scene_id,
-            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
-            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
-            length: attrs.track_length,
-            predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
-            observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),
-        }
-    }
-}
-
-impl MahaSort {
+impl Sort {
     /// Creates new tracker
     ///
     /// # Parameters
@@ -70,6 +42,7 @@ impl MahaSort {
         shards: usize,
         bbox_history: usize,
         max_idle_epochs: usize,
+        method: PositionalMetricType,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
         assert!(bbox_history > 0);
@@ -82,11 +55,15 @@ impl MahaSort {
         ));
         let store = TrackStoreBuilder::new(shards)
             .default_attributes(SortAttributes::new(opts.clone()))
-            .metric(MahaSortMetric)
+            .metric(SortMetric::new(method))
             .notifier(NoopNotifier)
             .build();
 
-        Self { opts, store }
+        Self {
+            store,
+            method,
+            opts,
+        }
     }
 
     /// Skip number of epochs to force tracks to turn to terminal state
@@ -173,7 +150,14 @@ impl MahaSort {
         let num_tracks = tracks.len();
         let (dists, errs) = self.store.foreign_track_distances(tracks.clone(), 0, false);
         assert!(errs.all().is_empty());
-        let voting = SortVoting::new(1.0, num_tracks, self.store.shard_stats().iter().sum());
+        let voting = SortVoting::new(
+            match self.method {
+                PositionalMetricType::Mahalanobis => 0.1,
+                PositionalMetricType::IoU(t) => t,
+            },
+            num_tracks,
+            self.store.shard_stats().iter().sum(),
+        );
         let winners = voting.winners(dists);
         let mut res = Vec::default();
         for t in tracks {
@@ -205,9 +189,7 @@ impl MahaSort {
 
     /// Receive all the tracks with expired life
     ///
-    /// See `max_idle_epochs` constructor parameter for details.
-    ///
-    pub fn wasted(&mut self) -> Vec<Track<SortAttributes, MahaSortMetric, Universal2DBox>> {
+    pub fn wasted(&mut self) -> Vec<Track<SortAttributes, SortMetric, Universal2DBox>> {
         let res = self.store.find_usable();
         let wasted = res
             .into_iter()
@@ -219,15 +201,49 @@ impl MahaSort {
     }
 }
 
+impl From<Track<SortAttributes, SortMetric, Universal2DBox>> for SortTrack {
+    fn from(track: Track<SortAttributes, SortMetric, Universal2DBox>) -> Self {
+        let attrs = track.get_attributes();
+        SortTrack {
+            id: track.get_track_id(),
+            custom_object_id: None,
+            voting_type: VotingType::Positional,
+            epoch: attrs.last_updated_epoch,
+            scene_id: attrs.scene_id,
+            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
+            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
+            length: attrs.track_length,
+        }
+    }
+}
+
+impl From<Track<SortAttributes, SortMetric, Universal2DBox>> for PyWastedSortTrack {
+    fn from(track: Track<SortAttributes, SortMetric, Universal2DBox>) -> Self {
+        let attrs = track.get_attributes();
+        PyWastedSortTrack {
+            id: track.get_track_id(),
+            epoch: attrs.last_updated_epoch,
+            scene_id: attrs.scene_id,
+            length: attrs.track_length,
+            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
+            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
+            predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
+            observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::trackers::sort::simple_maha::MahaSort;
+    use crate::trackers::sort::simple_api::Sort;
+    use crate::trackers::sort::PositionalMetricType::IoU;
+    use crate::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
     use crate::utils::bbox::BoundingBox;
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn sort() {
-        let mut t = MahaSort::new(1, 10, 2, None);
+        let mut t = Sort::new(1, 10, 2, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.predict(&[bb.into()]);
@@ -279,7 +295,7 @@ mod tests {
 
     #[test]
     fn sort_with_scenes() {
-        let mut t = MahaSort::new(1, 10, 2, None);
+        let mut t = Sort::new(1, 10, 2, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);

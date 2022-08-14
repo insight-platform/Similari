@@ -15,7 +15,7 @@ pub mod track_attributes;
 pub mod observation_attributes;
 
 /// Implementation of Visual tracker with simple API
-pub mod simple_visual;
+pub mod simple_api;
 
 #[derive(Debug, Clone)]
 pub struct VisualObservation<'a> {

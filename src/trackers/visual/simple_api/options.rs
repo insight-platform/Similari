@@ -1,10 +1,7 @@
-use crate::trackers::sort::SortAttributesOptions;
+use crate::trackers::sort::{PositionalMetricType, PyPositionalMetricType, SortAttributesOptions};
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-use crate::trackers::visual::metric::{
-    PositionalMetricType, PyPositionalMetricType, PyVisualMetricType, VisualMetric,
-    VisualMetricType,
-};
+use crate::trackers::visual::metric::{PyVisualMetricType, VisualMetric, VisualMetricType};
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -290,11 +287,10 @@ impl VisualSortOptions {
 
 #[cfg(test)]
 mod tests {
+    use crate::trackers::sort::{PositionalMetricType, PyPositionalMetricType};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-    use crate::trackers::visual::metric::{
-        PositionalMetricType, PyPositionalMetricType, PyVisualMetricType, VisualMetricType,
-    };
-    use crate::trackers::visual::simple_visual::options::VisualSortOptions;
+    use crate::trackers::visual::metric::{PyVisualMetricType, VisualMetricType};
+    use crate::trackers::visual::simple_api::options::VisualSortOptions;
 
     #[test]
     fn visual_sort_options_builder() {

@@ -11,15 +11,11 @@ use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
-/// SORT implementation with IoU distance
-pub mod iou;
-/// SORT implementation with Mahalanobis distance
-pub mod maha;
+/// SORT implementation with IoU and Mahalanobis distances
+pub mod tracker;
 
-/// SORT implementation with a very tiny interface (IoU)
-pub mod simple_iou;
-/// SORT implementation with a very tiny interface (Mahalanobis)
-pub mod simple_maha;
+/// SORT implementation with a very tiny interface
+pub mod simple_api;
 
 /// Voting engine with Hungarian algorithm
 pub mod voting;
@@ -212,7 +208,8 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
 #[cfg(test)]
 mod track_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
-    use crate::trackers::sort::iou::IOUSortMetric;
+    use crate::trackers::sort::tracker::SortMetric;
+    use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;
     use crate::utils::kalman::KalmanFilter;
@@ -228,7 +225,7 @@ mod track_tests {
 
         let mut t1 = TrackBuilder::new(1)
             .attributes(SortAttributes::default())
-            .metric(IOUSortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
+            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
@@ -252,7 +249,7 @@ mod track_tests {
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
-            .metric(IOUSortMetric::new(DEFAULT_SORT_IOU_THRESHOLD))
+            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
@@ -389,6 +386,46 @@ pub enum VotingType {
 
 #[pymethods]
 impl VotingType {
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:#?}", self)
+    }
+}
+
+#[derive(Clone, Default, Copy, Debug)]
+pub enum PositionalMetricType {
+    #[default]
+    Mahalanobis,
+    IoU(f32),
+}
+
+#[pyclass]
+#[pyo3(name = "PositionalMetricType")]
+#[derive(Clone, Debug)]
+pub struct PyPositionalMetricType(pub PositionalMetricType);
+
+#[pymethods]
+impl PyPositionalMetricType {
+    #[staticmethod]
+    pub fn maha() -> Self {
+        PyPositionalMetricType(PositionalMetricType::Mahalanobis)
+    }
+
+    #[staticmethod]
+    pub fn iou(threshold: f32) -> Self {
+        assert!(
+            threshold > 0.0 && threshold < 1.0,
+            "Threshold must lay between (0.0 and 1.0)"
+        );
+        PyPositionalMetricType(PositionalMetricType::IoU(threshold))
+    }
+
     #[classattr]
     const __hash__: Option<Py<PyAny>> = None;
 

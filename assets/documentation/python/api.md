@@ -117,7 +117,7 @@ box_ltwh = state.bbox()
 print(box_ltwh)
 ```
 
-### SORT-like Trackers
+### SORT Tracker
 
 #### Produced Tracks
 
@@ -224,8 +224,8 @@ PyWastedSortTrack {
 
 #### Trackers
 
-* [IoUSort](https://docs.rs/similari/0.21.7/similari/trackers/sort/simple_iou/struct.IoUSort.html)
-* [MahaSort](https://docs.rs/similari/0.21.7/similari/trackers/sort/simple_maha/struct.MahaSort.html)
+* [Sort](https://docs.rs/similari/0.21.8/similari/trackers/sort/simple_api/struct.Sort.html)
+* [MahaSort](https://docs.rs/similari/0.21.8/similari/trackers/sort/simple_maha/struct.MahaSort.html)
 
 #### Visual SORT Tracker
 

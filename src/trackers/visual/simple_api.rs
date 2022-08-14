@@ -3,11 +3,11 @@ use crate::store::TrackStore;
 use crate::track::utils::FromVec;
 use crate::track::{Feature, Track, TrackStatus};
 use crate::trackers::epoch_db::EpochDb;
-use crate::trackers::sort::SortAttributesOptions;
 use crate::trackers::sort::VotingType::Positional;
-use crate::trackers::visual::metric::{PositionalMetricType, VisualMetric, VisualMetricOptions};
+use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
+use crate::trackers::visual::metric::{VisualMetric, VisualMetricOptions};
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-use crate::trackers::visual::simple_visual::options::VisualSortOptions;
+use crate::trackers::visual::simple_api::options::VisualSortOptions;
 use crate::trackers::visual::track_attributes::{VisualAttributes, VisualAttributesUpdate};
 use crate::trackers::visual::voting::VisualVoting;
 use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
@@ -282,11 +282,11 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>>
 #[cfg(test)]
 mod tests {
     use crate::track::Observation;
-    use crate::trackers::sort::VotingType;
-    use crate::trackers::visual::metric::{PositionalMetricType, VisualMetricType};
+    use crate::trackers::sort::{PositionalMetricType, VotingType};
+    use crate::trackers::visual::metric::VisualMetricType;
     use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-    use crate::trackers::visual::simple_visual::options::VisualSortOptions;
-    use crate::trackers::visual::simple_visual::VisualSort;
+    use crate::trackers::visual::simple_api::options::VisualSortOptions;
+    use crate::trackers::visual::simple_api::VisualSort;
     use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
     use crate::utils::bbox::BoundingBox;
 
