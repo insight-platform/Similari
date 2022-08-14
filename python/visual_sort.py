@@ -4,7 +4,11 @@ from similari import VisualSortOptions, VisualObservation, VisualObservationSet,
 import numpy as np
 
 if __name__ == '__main__':
+    constraints = SpatioTemporalConstraints()
+    constraints.add_constraints([(1, 1.0)])
+
     opts = VisualSortOptions()
+    opts.spatio_temporal_constraints(constraints)
     opts.max_idle_epochs(3)
     opts.kept_history_length(10)
     opts.visual_metric(VisualMetricType.euclidean(1.0))
@@ -15,9 +19,6 @@ if __name__ == '__main__':
     opts.visual_minimal_quality_collect(0.5)
     opts.visual_max_observations(5)
     opts.visual_min_votes(2)
-    constraints = SpatioTemporalConstraints()
-    constraints.add_constraints([(1, 1.0)])
-    opts.spatio_temporal_constraints(constraints)
     print(opts)
 
     tracker = VisualSort(shards=4, opts=opts)
