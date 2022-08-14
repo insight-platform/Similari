@@ -136,14 +136,16 @@ impl PyPositionalMetricType {
 
 #[derive(Debug)]
 pub struct VisualMetricOptions {
+    pub visual_max_observations: usize,
+    pub visual_min_votes: usize,
     pub visual_kind: VisualMetricType,
     pub positional_kind: PositionalMetricType,
     pub visual_minimal_track_length: usize,
     pub visual_minimal_area: f32,
     pub visual_minimal_quality_use: f32,
     pub visual_minimal_quality_collect: f32,
-    pub visual_max_observations: usize,
-    pub visual_min_votes: usize,
+    pub visual_minimal_own_area_percentage_use: f32,
+    pub visual_minimal_own_area_percentage_collect: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -253,18 +255,25 @@ impl VisualMetric {
     fn feature_can_be_used(
         &self,
         bbox_opt: &Option<&Universal2DBox>,
-        q: f32,
-        threshold: f32,
+        feature_quality: f32,
+        visual_minimal_quality: f32,
+        visual_own_area_percentage: &Option<f32>,
+        visual_minimal_area_percentage: f32,
     ) -> bool {
-        let quality_is_ok = q >= threshold;
+        let quality_is_ok = feature_quality >= visual_minimal_quality;
+
+        let percentage_is_ok = visual_own_area_percentage
+            .map(|p| p >= visual_minimal_area_percentage)
+            .unwrap_or(true);
+
         let bbox_is_ok = if let Some(bbox) = bbox_opt {
             let area = bbox.area();
             area >= self.opts.visual_minimal_area
         } else {
-            false
+            unreachable!("The bbox must always present for candidate track");
         };
 
-        bbox_is_ok && quality_is_ok
+        bbox_is_ok && quality_is_ok && percentage_is_ok
     }
 }
 
@@ -273,26 +282,23 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
         &self,
         mq: &MetricQuery<VisualAttributes, VisualObservationAttributes>,
     ) -> MetricOutput<f32> {
-        let candidate_bbox_opt = mq
+        let candidate_obs_attrs = mq
             .candidate_observation
             .attr()
             .as_ref()
-            .expect("Observation attributes must always present.")
-            .bbox_opt();
+            .expect("Observation attributes must always present.");
 
-        let candidate_feature_q = mq
-            .candidate_observation
-            .attr()
-            .as_ref()
-            .expect("Observation atributes must always present.")
-            .visual_quality();
-
-        let track_bbox_opt = mq
+        let track_obs_attrs = mq
             .track_observation
             .attr()
             .as_ref()
-            .expect("Observation attributes must always present.")
-            .bbox_opt();
+            .expect("Observation attributes must always present.");
+
+        let candidate_bbox_opt = candidate_obs_attrs.bbox_opt();
+        let candidate_feature_q = candidate_obs_attrs.visual_quality();
+        let candidate_own_area_percentage_opt = candidate_obs_attrs.own_area_percentage_opt();
+
+        let track_bbox_opt = track_obs_attrs.bbox_opt();
 
         let candidate_feature_opt = mq.candidate_observation.feature().as_ref();
         let track_feature_opt = mq.track_observation.feature().as_ref();
@@ -303,6 +309,8 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
                 &candidate_bbox_opt.as_ref(),
                 candidate_feature_q,
                 self.opts.visual_minimal_quality_use,
+                candidate_own_area_percentage_opt,
+                self.opts.visual_minimal_own_area_percentage_use,
             ) {
                 match (candidate_feature_opt, track_feature_opt) {
                     (Some(c), Some(t)) => self.visual_metric(c, t, mq.track_attrs),
@@ -327,17 +335,14 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
             .pop()
             .expect("At least one observation must present in the track.");
 
-        let observation_bbox = observation
+        let obs_attrs = observation
             .attr()
             .as_ref()
-            .expect("New track element must have bbox.")
-            .unchecked_bbox_ref();
+            .expect("Observation attributes must always present.");
 
-        let feature_quality = observation
-            .attr()
-            .as_ref()
-            .expect("New track element must have feature quality parameter.")
-            .visual_quality();
+        let observation_bbox = obs_attrs.unchecked_bbox_ref();
+        let feature_quality = obs_attrs.visual_quality();
+        let own_area_percentage_opt = *obs_attrs.own_area_percentage_opt();
 
         let predicted_bbox = attrs.make_prediction(observation_bbox);
         attrs.update_history(
@@ -351,18 +356,31 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
                 &Some(observation_bbox),
                 feature_quality,
                 self.opts.visual_minimal_quality_collect,
+                &own_area_percentage_opt,
+                self.opts.visual_minimal_own_area_percentage_collect,
             )
         {
             *observation.feature_mut() = None;
         }
 
-        *observation.attr_mut() = Some(VisualObservationAttributes::new(
-            feature_quality,
-            match self.opts.positional_kind {
-                PositionalMetricType::Mahalanobis => predicted_bbox,
-                PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
-            },
-        ));
+        *observation.attr_mut() = Some(if let Some(percentage) = own_area_percentage_opt {
+            VisualObservationAttributes::with_own_area_percentage(
+                feature_quality,
+                match self.opts.positional_kind {
+                    PositionalMetricType::Mahalanobis => predicted_bbox,
+                    PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
+                },
+                percentage,
+            )
+        } else {
+            VisualObservationAttributes::new(
+                feature_quality,
+                match self.opts.positional_kind {
+                    PositionalMetricType::Mahalanobis => predicted_bbox,
+                    PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
+                },
+            )
+        });
 
         self.optimize_observations(observations);
         observations.push(observation);
@@ -594,6 +612,41 @@ mod optimize {
             "Feature must be removed because the box area is lower than minimal area required for collected features"
         );
     }
+
+    #[test]
+    fn optimize_overlap() {
+        let mut metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_minimal_area(1.0)
+            .visual_minimal_own_area_percentage_collect(0.6)
+            .build();
+
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        )));
+
+        let mut obs = vec![Observation::new(
+            Some(VisualObservationAttributes::with_own_area_percentage(
+                0.8,
+                BoundingBox::new(0.0, 0.0, 8.0, 10.0).as_xyaah(),
+                0.5,
+            )),
+            Some(vec2(0.0, 1.0)),
+        )];
+
+        metric
+            .optimize(0, &[], &mut attrs, &mut obs, 0, true)
+            .unwrap();
+
+        assert!(
+            obs[0].feature().is_none(),
+            "Feature must be removed because the minimum own area percentage is lower than specified in metric options"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -645,9 +698,10 @@ mod metric_tests {
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.1))
-                    .observation_attributes(VisualObservationAttributes::new(
+                    .observation_attributes(VisualObservationAttributes::with_own_area_percentage(
                         1.0,
                         BoundingBox::new(100.3, 0.3, 5.1, 10.0).as_xyaah(),
+                        0.1,
                     ))
                     .build(),
             )
@@ -659,9 +713,10 @@ mod metric_tests {
             .observation(
                 ObservationBuilder::new(0)
                     .observation(vec2(0.1, 1.0))
-                    .observation_attributes(VisualObservationAttributes::new(
+                    .observation_attributes(VisualObservationAttributes::with_own_area_percentage(
                         1.0,
                         BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                        0.2,
                     ))
                     .build(),
             )
@@ -997,7 +1052,60 @@ mod metric_tests {
                 from: 1,
                 to: 2,
                 attribute_metric: Some(x),
-                feature_distance: None     // track too short
+                feature_distance: None     // quality is low
+            } if (x - 1.0).abs() < EPS));
+    }
+
+    #[test]
+    fn visual_own_area_percentage_low() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_minimal_own_area_percentage_use(0.6)
+            .visual_minimal_track_length(1)
+            .build();
+
+        let store = default_store(metric);
+
+        let track1 = store
+            .new_track(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::with_own_area_percentage(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                        0.5,
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .new_track(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        dbg!(&dists);
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: Some(x),
+                feature_distance: None     // own area percentage is low
             } if (x - 1.0).abs() < EPS));
     }
 }

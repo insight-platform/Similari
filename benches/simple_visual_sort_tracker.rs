@@ -109,6 +109,8 @@ fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
         .visual_metric(VisualMetricType::Euclidean(10.0))
         .visual_max_observations(3)
         .spatio_temporal_constraints(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)]))
+        .visual_minimal_own_area_percentage_use(0.5)
+        .visual_minimal_own_area_percentage_collect(0.6)
         .visual_min_votes(2);
 
     let ncores = match objects {

@@ -11,6 +11,9 @@ use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 use crate::trackers::visual::track_attributes::{VisualAttributes, VisualAttributesUpdate};
 use crate::trackers::visual::voting::VisualVoting;
 use crate::trackers::visual::VisualObservation;
+use crate::utils::clipping::bbox_own_areas::{
+    exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
+};
 use crate::voting::Voting;
 use pyo3::prelude::*;
 use rand::Rng;
@@ -115,20 +118,47 @@ impl VisualSort {
         scene_id: u64,
         observations: &[VisualObservation],
     ) -> Vec<SortTrack> {
+        let mut percentages = Vec::default();
+        let use_own_area_percentage = self.metric_opts.visual_minimal_own_area_percentage_collect
+            + self.metric_opts.visual_minimal_own_area_percentage_use
+            > 0.0;
+
+        if use_own_area_percentage {
+            percentages.reserve(observations.len());
+            let boxes = observations
+                .iter()
+                .map(|e| &e.bounding_box)
+                .collect::<Vec<_>>();
+
+            percentages = exclusively_owned_areas_normalized_shares(
+                boxes.as_ref(),
+                exclusively_owned_areas(boxes.as_ref()).as_ref(),
+            );
+        }
+
         let mut rng = rand::thread_rng();
         let epoch = self.track_opts.next_epoch(scene_id).unwrap();
 
         let mut tracks = observations
             .iter()
-            .map(|o| {
+            .enumerate()
+            .map(|(i, o)| {
                 self.store
                     .new_track(rng.gen())
                     .observation({
                         let mut obs = ObservationBuilder::new(0).observation_attributes(
-                            VisualObservationAttributes::new(
-                                o.feature_quality.unwrap_or(1.0),
-                                o.bounding_box.clone(),
-                            ),
+                            if use_own_area_percentage {
+                                VisualObservationAttributes::with_own_area_percentage(
+                                    o.feature_quality.unwrap_or(1.0),
+                                    o.bounding_box.clone(),
+                                    percentages[i],
+                                )
+                            } else {
+                                VisualObservationAttributes::new(
+                                    o.feature_quality.unwrap_or(1.0),
+                                    o.bounding_box.clone(),
+                                )
+                            },
                         );
 
                         if let Some(feature) = o.feature {
