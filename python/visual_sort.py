@@ -28,3 +28,6 @@ if __name__ == '__main__':
                                           custom_object_id=10))
     tracks = tracker.predict(observation_set)
     print(tracks[0])
+    tracker.skip_epochs(10)
+    wasted = tracker.wasted()
+    print(wasted[0])

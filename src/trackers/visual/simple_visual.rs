@@ -3,14 +3,14 @@ use crate::store::TrackStore;
 use crate::track::utils::FromVec;
 use crate::track::{Feature, Track, TrackStatus};
 use crate::trackers::epoch_db::EpochDb;
+use crate::trackers::sort::SortAttributesOptions;
 use crate::trackers::sort::VotingType::Positional;
-use crate::trackers::sort::{PyWastedSortTrack, SortAttributesOptions};
 use crate::trackers::visual::metric::{PositionalMetricType, VisualMetric, VisualMetricOptions};
 use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
 use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 use crate::trackers::visual::track_attributes::{VisualAttributes, VisualAttributesUpdate};
 use crate::trackers::visual::voting::VisualVoting;
-use crate::trackers::visual::VisualObservation;
+use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
 use crate::utils::clipping::bbox_own_areas::{
     exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
 };
@@ -256,11 +256,11 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>> fo
 }
 
 impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>>
-    for PyWastedSortTrack
+    for PyWastedVisualSortTrack
 {
     fn from(track: Track<VisualAttributes, VisualMetric, VisualObservationAttributes>) -> Self {
         let attrs = track.get_attributes();
-        PyWastedSortTrack {
+        PyWastedVisualSortTrack {
             id: track.get_track_id(),
             epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,
@@ -269,6 +269,12 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>>
             predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
             predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
             observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),
+            observed_features: attrs
+                .observed_features
+                .clone()
+                .iter()
+                .map(|f_opt| f_opt.as_ref().map(Vec::from_vec))
+                .collect(),
         }
     }
 }
@@ -276,12 +282,12 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>>
 #[cfg(test)]
 mod tests {
     use crate::track::Observation;
-    use crate::trackers::sort::{PyWastedSortTrack, VotingType};
+    use crate::trackers::sort::VotingType;
     use crate::trackers::visual::metric::{PositionalMetricType, VisualMetricType};
     use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
     use crate::trackers::visual::simple_visual::options::VisualSortOptions;
     use crate::trackers::visual::simple_visual::VisualSort;
-    use crate::trackers::visual::VisualObservation;
+    use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
     use crate::utils::bbox::BoundingBox;
 
     #[test]
@@ -608,7 +614,7 @@ mod tests {
         let tracks = tracker
             .wasted()
             .into_iter()
-            .map(PyWastedSortTrack::from)
+            .map(PyWastedVisualSortTrack::from)
             .collect::<Vec<_>>();
         dbg!(&tracks);
     }

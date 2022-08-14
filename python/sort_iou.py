@@ -10,4 +10,4 @@ if __name__ == '__main__':
         print(t)
     sort.skip_epochs(10)
     wasted = sort.wasted()
-    # print(wasted[0])
+    print(wasted[0])
