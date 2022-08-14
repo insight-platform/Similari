@@ -296,7 +296,7 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
 
         let candidate_bbox_opt = candidate_obs_attrs.bbox_opt();
         let candidate_feature_q = candidate_obs_attrs.visual_quality();
-        let candidate_own_area_percentage_opt = track_obs_attrs.own_area_percentage_opt();
+        let candidate_own_area_percentage_opt = candidate_obs_attrs.own_area_percentage_opt();
 
         let track_bbox_opt = track_obs_attrs.bbox_opt();
 
@@ -610,6 +610,41 @@ mod optimize {
         assert!(
             obs[0].feature().is_none(),
             "Feature must be removed because the box area is lower than minimal area required for collected features"
+        );
+    }
+
+    #[test]
+    fn optimize_overlap() {
+        let mut metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_minimal_area(1.0)
+            .visual_minimal_own_area_percentage_collect(0.6)
+            .build();
+
+        let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        )));
+
+        let mut obs = vec![Observation::new(
+            Some(VisualObservationAttributes::with_own_area_percentage(
+                0.8,
+                BoundingBox::new(0.0, 0.0, 8.0, 10.0).as_xyaah(),
+                0.5,
+            )),
+            Some(vec2(0.0, 1.0)),
+        )];
+
+        metric
+            .optimize(0, &[], &mut attrs, &mut obs, 0, true)
+            .unwrap();
+
+        assert!(
+            obs[0].feature().is_none(),
+            "Feature must be removed because the minimum own area percentage is lower than specified in metric options"
         );
     }
 }
@@ -1017,7 +1052,60 @@ mod metric_tests {
                 from: 1,
                 to: 2,
                 attribute_metric: Some(x),
-                feature_distance: None     // track too short
+                feature_distance: None     // quality is low
+            } if (x - 1.0).abs() < EPS));
+    }
+
+    #[test]
+    fn visual_own_area_percentage_low() {
+        let metric = VisualMetricBuilder::default()
+            .positional_metric(PositionalMetricType::IoU(0.3))
+            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_minimal_own_area_percentage_use(0.6)
+            .visual_minimal_track_length(1)
+            .build();
+
+        let store = default_store(metric);
+
+        let track1 = store
+            .new_track(1)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::with_own_area_percentage(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                        0.5,
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let track2 = store
+            .new_track(2)
+            .observation(
+                ObservationBuilder::new(0)
+                    .observation(vec2(0.1, 1.0))
+                    .observation_attributes(VisualObservationAttributes::new(
+                        1.0,
+                        BoundingBox::new(0.3, 0.3, 5.1, 10.0).as_xyaah(),
+                    ))
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let dists = track1.distances(&track2, 0).unwrap();
+        dbg!(&dists);
+        assert_eq!(dists.len(), 1);
+        assert!(matches!(
+            dists[0],
+            ObservationMetricOk {
+                from: 1,
+                to: 2,
+                attribute_metric: Some(x),
+                feature_distance: None     // own area percentage is low
             } if (x - 1.0).abs() < EPS));
     }
 }
