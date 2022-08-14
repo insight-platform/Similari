@@ -119,6 +119,8 @@ print(box_ltwh)
 
 ### SORT Tracker
 
+[PositionalMetricType](https://docs.rs/similari/0.22.0/similari/trackers/sort/struct.PyPositionalMetricType.html)
+
 #### Produced Tracks
 
 [SortTrack](https://docs.rs/similari/0.22.0/similari/trackers/sort/struct.SortTrack.html) - the calling of the tracker's
@@ -224,21 +226,19 @@ PyWastedSortTrack {
 
 #### Trackers
 
-* [Sort](https://docs.rs/similari/0.21.8/similari/trackers/sort/simple_api/struct.Sort.html)
-* [MahaSort](https://docs.rs/similari/0.21.8/similari/trackers/sort/simple_maha/struct.MahaSort.html)
+* [Sort](https://docs.rs/similari/0.22.0/similari/trackers/sort/simple_api/struct.Sort.html)
 
 #### Visual SORT Tracker
 
 ##### Tracker Configuration
 
-* [VisualSortOptions](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_visual/options/struct.VisualSortOptions.html)
+* [VisualSortOptions](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/options/struct.VisualSortOptions.html)
 * [VisualMetricType](https://docs.rs/similari/0.22.0/similari/trackers/visual/metric/struct.PyVisualMetricType.html)
-* [PositionalMetricType](https://docs.rs/similari/0.22.0/similari/trackers/visual/metric/struct.PyPositionalMetricType.html)
 
 ##### Tracker
 
-* [VisualObservation](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservation.html)
-* [VisualObservationSet](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservationSet.html)
-* [VisualSort](https://docs.rs/similari/0.21.2/similari/trackers/visual/simple_visual/struct.VisualSort.html)
+* [VisualObservation](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/simple_visual_py/struct.PyVisualObservation.html)
+* [VisualObservationSet](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/simple_visual_py/struct.PyVisualObservationSet.html)
+* [VisualSort](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/struct.VisualSort.html)
 
 
