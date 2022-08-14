@@ -15,7 +15,7 @@ fn main() {
     for _ in 0..10 {
         let obj1b = b1.next().unwrap();
         let obj2b = b2.next().unwrap();
-        let _tracks = tracker.predict(&[obj1b.into(), obj2b.into()]);
+        let _tracks = tracker.predict(&[(obj1b.into(), None), (obj2b.into(), None)]);
         //eprintln!("Tracked objects: {:#?}", _tracks);
     }
 

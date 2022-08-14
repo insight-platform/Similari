@@ -14,7 +14,7 @@ fn main() {
     for i in 0..30 {
         let obj1b = Universal2DBox::from(b1.next().unwrap()).rotate(0.35 + (i as f32 / 10.0));
         let obj2b = Universal2DBox::from(b2.next().unwrap()).rotate(0.55 + (i as f32 / 10.0));
-        let _tracks = tracker.predict(&[obj1b, obj2b]);
+        let _tracks = tracker.predict(&[(obj1b, None), (obj2b, None)]);
     }
 
     tracker.skip_epochs(2);

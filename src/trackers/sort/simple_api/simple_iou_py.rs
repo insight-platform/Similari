@@ -87,7 +87,7 @@ impl Sort {
     /// * `bboxes` - bounding boxes received from a detector
     ///
     #[pyo3(name = "predict", text_signature = "($self, bboxes)")]
-    pub fn predict_py(&mut self, bboxes: Vec<Universal2DBox>) -> Vec<SortTrack> {
+    pub fn predict_py(&mut self, bboxes: Vec<(Universal2DBox, Option<i64>)>) -> Vec<SortTrack> {
         self.predict_with_scene_py(0, bboxes)
     }
 
@@ -104,7 +104,7 @@ impl Sort {
     pub fn predict_with_scene_py(
         &mut self,
         scene_id: i64,
-        bboxes: Vec<Universal2DBox>,
+        bboxes: Vec<(Universal2DBox, Option<i64>)>,
     ) -> Vec<SortTrack> {
         let gil = Python::acquire_gil();
         let py = gil.python();

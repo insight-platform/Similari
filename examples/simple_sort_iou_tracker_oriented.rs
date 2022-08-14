@@ -19,7 +19,7 @@ fn main() {
         let obj2b = Universal2DBox::from(b2.next().unwrap())
             .rotate(0.55 + (i as f32 / 10.0))
             .gen_vertices();
-        let _tracks = tracker.predict(&[obj1b, obj2b]);
+        let _tracks = tracker.predict(&[(obj1b, None), (obj2b, None)]);
     }
 
     tracker.skip_epochs(2);

@@ -101,3 +101,96 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::{BoundingBox, PositionalMetricType};
+    use crate::track::{MetricQuery, Observation, ObservationMetric};
+    use crate::trackers::sort::tracker::SortMetric;
+    use crate::trackers::sort::{
+        SortAttributes, SortAttributesOptions, DEFAULT_SORT_IOU_THRESHOLD,
+    };
+    use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
+    use crate::EPS;
+    use std::sync::Arc;
+
+    #[test]
+    fn confidence_preserved_during_optimization() {
+        let mut attrs = SortAttributes::new(Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        )));
+
+        let mut metric = SortMetric::new(PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD));
+
+        let mut obs = vec![Observation::new(
+            Some(BoundingBox::new_with_confidence(0.0, 0.0, 8.0, 10.0, 0.8).as_xyaah()),
+            None,
+        )];
+
+        metric
+            .optimize(0, &[], &mut attrs, &mut obs, 0, true)
+            .unwrap();
+
+        assert_eq!(
+            obs[0].0.as_ref().unwrap().confidence,
+            0.8,
+            "Confidence must be preserved during optimization"
+        );
+    }
+
+    #[test]
+    fn confidence_used_in_distance_calculation() {
+        let attr_opts = Arc::new(SortAttributesOptions::new(
+            None,
+            0,
+            5,
+            SpatioTemporalConstraints::default(),
+        ));
+
+        let candidate_attrs = SortAttributes::new(attr_opts.clone());
+        let track_attrs = SortAttributes::new(attr_opts.clone());
+
+        let metric = SortMetric::new(PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD));
+
+        let candidate_obs = Observation::new(
+            Some(BoundingBox::new_with_confidence(0.0, 0.0, 8.0, 10.0, 0.8).as_xyaah()),
+            None,
+        );
+
+        let track_obs = Observation::new(
+            Some(BoundingBox::new_with_confidence(0.0, 0.0, 8.0, 10.0, 1.0).as_xyaah()),
+            None,
+        );
+
+        let mq = MetricQuery {
+            feature_class: 0,
+            candidate_attrs: &candidate_attrs,
+            candidate_observation: &candidate_obs,
+            track_attrs: &track_attrs,
+            track_observation: &track_obs,
+        };
+
+        let res = metric.metric(&mq);
+        assert!(
+            (res.unwrap().0.unwrap() - 0.8).abs() < EPS,
+            "Confidence value in candidate box must be used."
+        );
+
+        let mq = MetricQuery {
+            feature_class: 0,
+            candidate_attrs: &track_attrs,
+            candidate_observation: &track_obs,
+            track_attrs: &candidate_attrs,
+            track_observation: &candidate_obs,
+        };
+
+        let res = metric.metric(&mq);
+        assert!(
+            (res.unwrap().0.unwrap() - 1.0).abs() < EPS,
+            "Confidence in track box must NOT be used."
+        );
+    }
+}

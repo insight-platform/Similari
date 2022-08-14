@@ -111,7 +111,7 @@ impl Sort {
     /// # Parameters
     /// * `bboxes` - bounding boxes received from a detector
     ///
-    pub fn predict(&mut self, bboxes: &[Universal2DBox]) -> Vec<SortTrack> {
+    pub fn predict(&mut self, bboxes: &[(Universal2DBox, Option<i64>)]) -> Vec<SortTrack> {
         self.predict_with_scene(0, bboxes)
     }
 
@@ -124,21 +124,23 @@ impl Sort {
     pub fn predict_with_scene(
         &mut self,
         scene_id: u64,
-        bboxes: &[Universal2DBox],
+        bboxes: &[(Universal2DBox, Option<i64>)],
     ) -> Vec<SortTrack> {
         let mut rng = rand::thread_rng();
         let epoch = self.opts.next_epoch(scene_id).unwrap();
 
         let tracks = bboxes
             .iter()
-            .map(|bb| {
+            .map(|(bb, custom_object_id)| {
                 self.store
                     .new_track(rng.gen())
                     .observation(
                         ObservationBuilder::new(0)
                             .observation_attributes(bb.clone())
                             .track_attributes_update(SortAttributesUpdate::new_with_scene(
-                                epoch, scene_id,
+                                epoch,
+                                scene_id,
+                                *custom_object_id,
                             ))
                             .build(),
                     )
@@ -206,7 +208,7 @@ impl From<Track<SortAttributes, SortMetric, Universal2DBox>> for SortTrack {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),
-            custom_object_id: None,
+            custom_object_id: attrs.custom_object_id,
             voting_type: VotingType::Positional,
             epoch: attrs.last_updated_epoch,
             scene_id: attrs.scene_id,
@@ -246,23 +248,25 @@ mod tests {
         let mut t = Sort::new(1, 10, 2, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
-        let v = t.predict(&[bb.into()]);
+        let v = t.predict(&[(bb.into(), None)]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
         let v = v[0].clone();
         let track_id = v.id;
+        assert_eq!(v.custom_object_id, None);
         assert_eq!(v.length, 1);
         assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
         assert_eq!(v.epoch, 1);
         assert_eq!(t.current_epoch(), 1);
 
         let bb = BoundingBox::new(0.1, 0.1, 10.1, 20.0);
-        let v = t.predict(&[bb.into()]);
+        let v = t.predict(&[(bb.into(), Some(2))]);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
         assert_eq!(v.len(), 1);
         let v = v[0].clone();
+        assert_eq!(v.custom_object_id, Some(2));
         assert_eq!(v.id, track_id);
         assert_eq!(v.length, 2);
         assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
@@ -270,9 +274,10 @@ mod tests {
         assert_eq!(t.current_epoch(), 2);
 
         let bb = BoundingBox::new(10.1, 10.1, 10.1, 20.0);
-        let v = t.predict(&[bb.into()]);
+        let v = t.predict(&[(bb.into(), Some(3))]);
         assert_eq!(v.len(), 1);
         let v = v[0].clone();
+        assert_eq!(v.custom_object_id, Some(3));
         assert_ne!(v.id, track_id);
         let wasted = t.wasted();
         assert!(wasted.is_empty());
@@ -300,13 +305,13 @@ mod tests {
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.predict_with_scene(1, &[bb.into()]);
-        let _v = t.predict_with_scene(1, &[bb.into()]);
+        let _v = t.predict_with_scene(1, &[(bb.into(), Some(4))]);
+        let _v = t.predict_with_scene(1, &[(bb.into(), Some(5))]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 0);
 
-        let _v = t.predict_with_scene(2, &[bb.into()]);
+        let _v = t.predict_with_scene(2, &[(bb.into(), Some(6))]);
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 1);

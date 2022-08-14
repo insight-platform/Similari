@@ -61,7 +61,7 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         for i in &mut iterators {
             iteration += 1;
             let b = i.next();
-            observations.push(b.unwrap().into());
+            observations.push((b.unwrap().into(), None));
         }
         let tracks = tracker.predict(&observations);
         assert_eq!(tracks.len(), objects);

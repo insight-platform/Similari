@@ -3,7 +3,7 @@
 Python API is generated with PyO3 & Maturin.
 
 ## Functions
-[nms](https://docs.rs/similari/0.21.7/similari/utils/nms/nms_py/fn.nms_py.html) - non-maximum suppression implementation for oriented or axis-aligned bounding boxes.
+[nms](https://docs.rs/similari/0.22.0/similari/utils/nms/nms_py/fn.nms_py.html) - non-maximum suppression implementation for oriented or axis-aligned bounding boxes.
 
 ```python
 bbox1 = (BoundingBox(10.0, 11.0, 3.0, 3.8).as_xyaah(), 1.0)
@@ -13,7 +13,7 @@ res = nms([bbox2, bbox1], nms_threshold = 0.7, score_threshold = 0.0)
 print(res[0].as_ltwh())
 ```
 
-[sutherland_hodgman_clip](https://docs.rs/similari/0.21.7/similari/utils/clipping/clipping_py/fn.sutherland_hodgman_clip_py.html) - calculates the resulting polygon for two oriented or axis-aligned bounding boxes.
+[sutherland_hodgman_clip](https://docs.rs/similari/0.22.0/similari/utils/clipping/clipping_py/fn.sutherland_hodgman_clip_py.html) - calculates the resulting polygon for two oriented or axis-aligned bounding boxes.
 
 ```python
 bbox1 = BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah()
@@ -23,7 +23,7 @@ clip = sutherland_hodgman_clip(bbox1, bbox2)
 print(clip)
 ```
 
-[intersection_area](https://docs.rs/similari/0.21.7/similari/utils/clipping/clipping_py/fn.intersection_area_py.html) - calculates the area of intersection for two oriented or axis-aligned bounding boxes.
+[intersection_area](https://docs.rs/similari/0.22.0/similari/utils/clipping/clipping_py/fn.intersection_area_py.html) - calculates the area of intersection for two oriented or axis-aligned bounding boxes.
 
 ```python
 bbox1 = BoundingBox(0.0, 0.0, 5.0, 10.0).as_xyaah()
@@ -41,7 +41,7 @@ print("Intersection area:", area)
 
 ### Areas
 
-[Universal2DBox](https://docs.rs/similari/0.21.7/similari/utils/bbox/struct.Universal2DBox.html) - universal 2D bounding 
+[Universal2DBox](https://docs.rs/similari/0.22.0/similari/utils/bbox/struct.Universal2DBox.html) - universal 2D bounding 
 box format that represents oriented and axis-aligned bounding boxes.
 
 ```python
@@ -62,7 +62,7 @@ ubb = Universal2DBox.new_with_confidence(xc=3.0, yc=4.0, angle=0.0, aspect=1.5, 
 print(ubb)
 ```
 
-[BoundingBox](https://docs.rs/similari/0.21.7/similari/utils/bbox/struct.BoundingBox.html) - convenience class that must 
+[BoundingBox](https://docs.rs/similari/0.22.0/similari/utils/bbox/struct.BoundingBox.html) - convenience class that must 
 be transformed to Universal2DBox by calling `as_xyaah()` before passing to any methods.
 
 ```python
@@ -79,8 +79,8 @@ bb = BoundingBox.new_with_confidence(1.0, 2.0, 10.0, 15.0, 0.95)
 print(bb)
 ```
 
-[Polygon](https://docs.rs/similari/0.21.7/similari/utils/clipping/clipping_py/struct.PyPolygon.html) - return type 
-for [sutherland_hodgman_clip](https://docs.rs/similari/0.21.7/similari/utils/clipping/clipping_py/fn.sutherland_hodgman_clip_py.html). 
+[Polygon](https://docs.rs/similari/0.22.0/similari/utils/clipping/clipping_py/struct.PyPolygon.html) - return type 
+for [sutherland_hodgman_clip](https://docs.rs/similari/0.22.0/similari/utils/clipping/clipping_py/fn.sutherland_hodgman_clip_py.html). 
 It cannot be created manually, but returned from the function:
 
 ```python
@@ -121,7 +121,7 @@ print(box_ltwh)
 
 #### Produced Tracks
 
-[SortTrack](https://docs.rs/similari/0.21.7/similari/trackers/sort/struct.SortTrack.html) - the calling of the tracker's
+[SortTrack](https://docs.rs/similari/0.22.0/similari/trackers/sort/struct.SortTrack.html) - the calling of the tracker's
 `predict` causes the track candidates to be merged with the current tracks or form new tracks. The resulting information 
 is returned for each track in the form of the structure `SortTrack`. Fields are accessible by their names.
 
@@ -163,7 +163,7 @@ SortTrack {
 }
 ```
 
-[WastedSortTrack](https://docs.rs/similari/0.21.7/similari/trackers/sort/struct.PyWastedSortTrack.html) - the trackers 
+[WastedSortTrack](https://docs.rs/similari/0.22.0/similari/trackers/sort/struct.PyWastedSortTrack.html) - the trackers 
 return the structure for the track when it is wasted from the track store. Fields are accessible by their names. Despite
 the `SortTrack` the `WastedSortTrack` includes historical data for predictions and observations.
 
@@ -231,14 +231,14 @@ PyWastedSortTrack {
 
 ##### Tracker Configuration
 
-* [VisualSortOptions](https://docs.rs/similari/0.21.7/similari/trackers/visual/simple_visual/options/struct.VisualSortOptions.html)
-* [VisualMetricType](https://docs.rs/similari/0.21.7/similari/trackers/visual/metric/struct.PyVisualMetricType.html)
-* [PositionalMetricType](https://docs.rs/similari/0.21.7/similari/trackers/visual/metric/struct.PyPositionalMetricType.html)
+* [VisualSortOptions](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_visual/options/struct.VisualSortOptions.html)
+* [VisualMetricType](https://docs.rs/similari/0.22.0/similari/trackers/visual/metric/struct.PyVisualMetricType.html)
+* [PositionalMetricType](https://docs.rs/similari/0.22.0/similari/trackers/visual/metric/struct.PyPositionalMetricType.html)
 
 ##### Tracker
 
-* [VisualObservation](https://docs.rs/similari/0.21.7/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservation.html)
-* [VisualObservationSet](https://docs.rs/similari/0.21.7/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservationSet.html)
+* [VisualObservation](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservation.html)
+* [VisualObservationSet](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_visual/simple_visual_py/struct.PyVisualObservationSet.html)
 * [VisualSort](https://docs.rs/similari/0.21.2/similari/trackers/visual/simple_visual/struct.VisualSort.html)
 
 

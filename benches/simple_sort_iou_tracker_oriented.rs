@@ -64,10 +64,8 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         let mut observations = Vec::new();
         for i in &mut iterators {
             iteration += 1;
-            let b = Universal2DBox::from(i.next().unwrap())
-                .rotate(rng.gen_range(0.0..1.0))
-                .gen_vertices();
-            observations.push(b);
+            let b = Universal2DBox::from(i.next().unwrap()).rotate(rng.gen_range(0.0..1.0));
+            observations.push((b, None));
         }
         let tracks = tracker.predict(&observations);
         assert_eq!(tracks.len(), objects);

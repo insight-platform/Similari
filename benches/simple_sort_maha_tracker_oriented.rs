@@ -63,7 +63,7 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
             iteration += 1;
             let b = Universal2DBox::from(i.next().unwrap())
                 .rotate(tracker.current_epoch() as f32 / 10.0);
-            observations.push(b);
+            observations.push((b, None));
         }
         let tracks = tracker.predict(&observations);
         assert_eq!(tracks.len(), objects);
