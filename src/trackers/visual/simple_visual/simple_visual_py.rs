@@ -1,8 +1,7 @@
 use crate::prelude::SortTrack;
-use crate::trackers::sort::PyWastedSortTrack;
 use crate::trackers::visual::simple_visual::options::VisualSortOptions;
 use crate::trackers::visual::simple_visual::VisualSort;
-use crate::trackers::visual::VisualObservation;
+use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
 use crate::utils::bbox::Universal2DBox;
 use pyo3::prelude::*;
 
@@ -190,14 +189,14 @@ impl VisualSort {
     /// Remove all the tracks with expired life
     ///
     #[pyo3(name = "wasted", text_signature = "($self)")]
-    pub fn wasted_py(&mut self) -> Vec<PyWastedSortTrack> {
+    pub fn wasted_py(&mut self) -> Vec<PyWastedVisualSortTrack> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         py.allow_threads(|| {
             self.wasted()
                 .into_iter()
-                .map(PyWastedSortTrack::from)
+                .map(PyWastedVisualSortTrack::from)
                 .collect()
         })
     }
