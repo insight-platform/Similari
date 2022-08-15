@@ -270,6 +270,15 @@ The examples of the tracker usage are located at:
 * [SORT_MAHA](../python/sort_maha.py) - Mahalanobis SORT tracker;
 * [SORT_IOU_ROTATED](../python/sort_iou_rotated.py) - IoU SORT with rotated boxes.
 
+Also, with Similari SORT you can use custom `scene_id` that allows combining several trackers in 
+one without the need to create a separate tracker for every object class. There are methods that support
+`scene_id` passing:
+
+* [SORT_IOU_SCENE_ID](../python/sort_iou_scene_id.py)
+
+To increase the performance of the SORT in scenes with large number of objects one can use 
+[SpatioTemporalConstraints](https://docs.rs/similari/0.22.0/similari/trackers/spatio_temporal_constraints/struct.SpatioTemporalConstraints.html).
+
 #### Visual SORT Tracker
 
 ##### Tracker Configuration
