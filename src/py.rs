@@ -2,12 +2,13 @@ use crate::prelude::{Sort, SortTrack};
 use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
 use crate::trackers::sort::{PyPositionalMetricType, PyWastedSortTrack};
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-use crate::trackers::visual_sort::metric::PyVisualMetricType;
+use crate::trackers::visual_sort::metric::PyVisualSortMetricType;
 use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
 use crate::trackers::visual_sort::simple_api::simple_visual_py::{
-    PyVisualObservation, PyVisualObservationSet,
+    PyVisualSortObservation, PyVisualSortObservationSet,
 };
 use crate::trackers::visual_sort::simple_api::VisualSort;
+use crate::trackers::visual_sort::visual_py::PyVisualSortPredictionBatchRequest;
 use crate::trackers::visual_sort::PyWastedVisualSortTrack;
 use crate::utils::bbox::{BoundingBox, Universal2DBox};
 use crate::utils::clipping::clipping_py::{
@@ -33,10 +34,11 @@ fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Sort>()?;
 
     m.add_class::<PyPositionalMetricType>()?;
-    m.add_class::<PyVisualMetricType>()?;
+    m.add_class::<PyVisualSortMetricType>()?;
     m.add_class::<VisualSortOptions>()?;
-    m.add_class::<PyVisualObservation>()?;
-    m.add_class::<PyVisualObservationSet>()?;
+    m.add_class::<PyVisualSortObservation>()?;
+    m.add_class::<PyVisualSortObservationSet>()?;
+    m.add_class::<PyVisualSortPredictionBatchRequest>()?;
     m.add_class::<PyWastedVisualSortTrack>()?;
     m.add_class::<VisualSort>()?;
 

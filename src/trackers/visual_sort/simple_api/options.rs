@@ -2,7 +2,7 @@ use crate::trackers::sort::{PositionalMetricType, PyPositionalMetricType, SortAt
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::trackers::visual_sort::metric::builder::VisualMetricBuilder;
 use crate::trackers::visual_sort::metric::{
-    PyVisualMetricType, VisualMetric, VisualSortMetricType,
+    PyVisualSortMetricType, VisualMetric, VisualSortMetricType,
 };
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -207,7 +207,7 @@ impl VisualSortOptions {
     }
 
     #[pyo3(name = "visual_metric", text_signature = "($self, metric)")]
-    fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
+    fn visual_metric_py(&mut self, metric: PyVisualSortMetricType) {
         self.metric_builder.visual_metric_py(metric);
     }
 
@@ -291,7 +291,7 @@ impl VisualSortOptions {
 mod tests {
     use crate::trackers::sort::{PositionalMetricType, PyPositionalMetricType};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-    use crate::trackers::visual_sort::metric::{PyVisualMetricType, VisualSortMetricType};
+    use crate::trackers::visual_sort::metric::{PyVisualSortMetricType, VisualSortMetricType};
     use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
 
     #[test]
@@ -317,7 +317,7 @@ mod tests {
         let mut opts_builder = VisualSortOptions::new();
         opts_builder.max_idle_epochs_py(3);
         opts_builder.kept_history_length_py(10);
-        opts_builder.visual_metric_py(PyVisualMetricType::euclidean(100.0));
+        opts_builder.visual_metric_py(PyVisualSortMetricType::euclidean(100.0));
         opts_builder.positional_metric_py(PyPositionalMetricType::maha());
         opts_builder.visual_minimal_track_length_py(3);
         opts_builder.visual_minimal_area_py(5.0);

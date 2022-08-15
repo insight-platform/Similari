@@ -67,20 +67,20 @@ impl VisualSortMetricType {
 }
 
 #[pyclass]
-#[pyo3(name = "VisualMetricType")]
+#[pyo3(name = "VisualSortMetricType")]
 #[derive(Clone, Debug)]
-pub struct PyVisualMetricType(pub VisualSortMetricType);
+pub struct PyVisualSortMetricType(pub VisualSortMetricType);
 
 #[pymethods]
-impl PyVisualMetricType {
+impl PyVisualSortMetricType {
     #[staticmethod]
     pub fn euclidean(threshold: f32) -> Self {
-        PyVisualMetricType(VisualSortMetricType::euclidean(threshold))
+        PyVisualSortMetricType(VisualSortMetricType::euclidean(threshold))
     }
 
     #[staticmethod]
     pub fn cosine(threshold: f32) -> Self {
-        PyVisualMetricType(VisualSortMetricType::cosine(threshold))
+        PyVisualSortMetricType(VisualSortMetricType::cosine(threshold))
     }
 
     #[classattr]

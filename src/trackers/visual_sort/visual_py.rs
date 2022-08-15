@@ -1,12 +1,12 @@
 use crate::trackers::batch::PredictionBatchRequest;
-use crate::trackers::visual_sort::simple_api::simple_visual_py::PyVisualObservation;
+use crate::trackers::visual_sort::simple_api::simple_visual_py::PyVisualSortObservation;
 use pyo3::prelude::*;
 
 #[derive(Debug)]
 #[pyclass]
 #[pyo3(name = "VisualSortPredictionBatchRequest")]
 pub(crate) struct PyVisualSortPredictionBatchRequest {
-    batch: PredictionBatchRequest<PyVisualObservation>,
+    batch: PredictionBatchRequest<PyVisualSortObservation>,
 }
 
 #[pymethods]
@@ -18,7 +18,7 @@ impl PyVisualSortPredictionBatchRequest {
         }
     }
 
-    fn add(&mut self, scene_id: u64, elt: PyVisualObservation) {
+    fn add(&mut self, scene_id: u64, elt: PyVisualSortObservation) {
         self.batch.add(scene_id, elt)
     }
 }

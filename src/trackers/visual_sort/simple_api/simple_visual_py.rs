@@ -9,8 +9,8 @@ use pyo3::prelude::*;
     text_signature = "(feature_opt, feature_quality_opt, bounding_box, custom_object_id_opt)"
 )]
 #[derive(Debug, Clone)]
-#[pyo3(name = "VisualObservation")]
-pub struct PyVisualObservation {
+#[pyo3(name = "VisualSortObservation")]
+pub struct PyVisualSortObservation {
     pub feature: Option<Vec<f32>>,
     pub feature_quality: Option<f32>,
     pub bounding_box: Universal2DBox,
@@ -18,7 +18,7 @@ pub struct PyVisualObservation {
 }
 
 #[pymethods]
-impl PyVisualObservation {
+impl PyVisualSortObservation {
     #[new]
     pub fn new(
         feature: Option<Vec<f32>>,
@@ -50,13 +50,13 @@ impl PyVisualObservation {
     text_signature = "(feature_opt, feature_quality_opt, bounding_box, custom_object_id_opt)"
 )]
 #[derive(Debug)]
-#[pyo3(name = "VisualObservationSet")]
-pub struct PyVisualObservationSet {
-    inner: Vec<PyVisualObservation>,
+#[pyo3(name = "VisualSortObservationSet")]
+pub struct PyVisualSortObservationSet {
+    inner: Vec<PyVisualSortObservation>,
 }
 
 #[pymethods]
-impl PyVisualObservationSet {
+impl PyVisualSortObservationSet {
     #[new]
     fn new() -> Self {
         Self {
@@ -65,7 +65,7 @@ impl PyVisualObservationSet {
     }
 
     #[pyo3(text_signature = "($self, observation)")]
-    fn add(&mut self, observation: PyVisualObservation) {
+    fn add(&mut self, observation: PyVisualSortObservation) {
         self.inner.push(observation);
     }
 
@@ -149,7 +149,7 @@ impl VisualSort {
     /// * `bboxes` - bounding boxes received from a detector
     ///
     #[pyo3(name = "predict", text_signature = "($self, observation_set)")]
-    pub fn predict_py(&mut self, observation_set: &PyVisualObservationSet) -> Vec<SortTrack> {
+    pub fn predict_py(&mut self, observation_set: &PyVisualSortObservationSet) -> Vec<SortTrack> {
         self.predict_with_scene_py(0, observation_set)
     }
 
@@ -166,7 +166,7 @@ impl VisualSort {
     pub fn predict_with_scene_py(
         &mut self,
         scene_id: i64,
-        observation_set: &PyVisualObservationSet,
+        observation_set: &PyVisualSortObservationSet,
     ) -> Vec<SortTrack> {
         assert!(scene_id >= 0);
         let gil = Python::acquire_gil();

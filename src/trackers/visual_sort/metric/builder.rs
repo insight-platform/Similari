@@ -1,6 +1,6 @@
 use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::visual_sort::metric::{
-    PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualSortMetricType,
+    PyVisualSortMetricType, VisualMetric, VisualMetricOptions, VisualSortMetricType,
 };
 use std::sync::Arc;
 
@@ -39,7 +39,7 @@ impl Default for VisualMetricBuilder {
 }
 
 impl VisualMetricBuilder {
-    pub(crate) fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
+    pub(crate) fn visual_metric_py(&mut self, metric: PyVisualSortMetricType) {
         self.visual_kind = metric.0;
     }
 
