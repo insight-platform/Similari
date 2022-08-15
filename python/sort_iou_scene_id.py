@@ -8,9 +8,17 @@ if __name__ == '__main__':
                 spatio_temporal_constraints=constraints)
 
     box = BoundingBox(10., 5., 7., 7.).as_xyaah()
-    tracks = sort.predict([(box, 11111)])
+    tracks = sort.predict_with_scene(1, [(box, 11111)])
     for t in tracks:
         print(t)
-    sort.skip_epochs(10)
+
+    box = BoundingBox(10., 5., 7., 7.).as_xyaah()
+    tracks = sort.predict_with_scene(2, [(box, 22222)])
+    for t in tracks:
+        print(t)
+
+    sort.skip_epochs_for_scene(1, 10)
+    sort.skip_epochs_for_scene(2, 10)
+
     wasted = sort.wasted()
     print(wasted[0])

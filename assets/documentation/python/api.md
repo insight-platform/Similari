@@ -119,7 +119,17 @@ print(box_ltwh)
 
 ### SORT Tracker
 
-[PositionalMetricType](https://docs.rs/similari/0.22.0/similari/trackers/sort/struct.PyPositionalMetricType.html)
+[PositionalMetricType](https://docs.rs/similari/0.22.0/similari/trackers/sort/struct.PyPositionalMetricType.html) - enum type that 
+allows setting the positional metric used by a tracker. Two positional metrics are supported:
+* IoU(threshold) - intersection over union with threshold that defines when the area is too low to merge the track candidate 
+  with the track, and it is required to form a new track;
+* Mahalanobis - Mahalanobis distance is used to compute the distance between track candidates and
+  tracks kept in the store.
+
+```python
+metric = PositionalMetricType.iou(threshold=0.3)
+metric = PositionalMetricType.maha()
+```
 
 #### Produced Tracks
 
@@ -226,7 +236,48 @@ PyWastedSortTrack {
 
 #### Trackers
 
-* [Sort](https://docs.rs/similari/0.22.0/similari/trackers/sort/simple_api/struct.Sort.html)
+[SORT](https://docs.rs/similari/0.22.0/similari/trackers/sort/simple_api/struct.Sort.html) - basic tracker that uses 
+only positional information for tracking. The SORT tracker is widely used in the environments with rare or no occlusions 
+happen. SORT is a high-performance low-resource tracker. Despite the original SORT, Similari SORT supports
+both axis-aligned and oriented (rotated) bounding boxes.
+
+The Similari SORT is able to achieve following speed:
+
+| Objects | Time (ms/prediction) | FPS  |
+|---------|----------------------|------|
+| 10      | 0.588                | 1700 |
+| 100     | 2.432                | 411  |
+| 200     | 6.528                | 153  |
+| 300     | 9.911                | 100  |
+| 500     | 17.432               | 57   |
+| 1000    | 53.098               | 18   |
+
+Comparing to a standard Python SORT from the original [repository](https://github.com/abewley/sort) the tracker works 
+several times faster:
+
+| Objects | Time (ms/prediction)  | FPS | Similari Gain |
+|---------|-----------------------|-----|---------------|
+| 10      | 1.588                 | 620 | x2.74         |
+| 100     | 11.976                | 83  | x4.95         |
+| 200     | 25.160                | 39  | x3.92         |
+| 300     | 40.922                | 24  | x4.16         |
+| 500     | 74.254                | 13  | x4.38         |
+| 1000    | 162.037               | 6   | x3            |
+
+The examples of the tracker usage are located at:
+* [SORT IOU](../python/sort_iou.py) - IoU SORT tracker;
+* [SORT_IOU_BENCH](../python/sort_iou_bench.py) - IoU SORT tracker benchmark;
+* [SORT_MAHA](../python/sort_maha.py) - Mahalanobis SORT tracker;
+* [SORT_IOU_ROTATED](../python/sort_iou_rotated.py) - IoU SORT with rotated boxes.
+
+Also, with Similari SORT you can use custom `scene_id` that allows combining several trackers in 
+one without the need to create a separate tracker for every object class. There are methods that support
+`scene_id` passing:
+
+* [SORT_IOU_SCENE_ID](../python/sort_iou_scene_id.py)
+
+To increase the performance of the SORT in scenes with large number of objects one can use 
+[SpatioTemporalConstraints](https://docs.rs/similari/0.22.0/similari/trackers/spatio_temporal_constraints/struct.SpatioTemporalConstraints.html).
 
 #### Visual SORT Tracker
 
