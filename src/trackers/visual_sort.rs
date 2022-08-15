@@ -18,7 +18,7 @@ pub mod observation_attributes;
 pub mod simple_api;
 
 /// Python API implementation
-pub mod visual_py;
+pub mod visual_sort_py;
 
 #[derive(Debug, Clone)]
 pub struct VisualObservation<'a> {

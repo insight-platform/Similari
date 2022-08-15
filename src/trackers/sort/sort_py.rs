@@ -14,7 +14,7 @@ impl PySortPredictionBatchRequest {
     #[new]
     fn new() -> Self {
         Self {
-            batch: PredictionBatchRequest::new(),
+            batch: PredictionBatchRequest::default(),
         }
     }
 

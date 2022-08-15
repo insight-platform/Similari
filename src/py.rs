@@ -8,7 +8,7 @@ use crate::trackers::visual_sort::simple_api::simple_visual_py::{
     PyVisualSortObservation, PyVisualSortObservationSet,
 };
 use crate::trackers::visual_sort::simple_api::VisualSort;
-use crate::trackers::visual_sort::visual_py::PyVisualSortPredictionBatchRequest;
+use crate::trackers::visual_sort::visual_sort_py::PyVisualSortPredictionBatchRequest;
 use crate::trackers::visual_sort::PyWastedVisualSortTrack;
 use crate::utils::bbox::{BoundingBox, Universal2DBox};
 use crate::utils::clipping::clipping_py::{
