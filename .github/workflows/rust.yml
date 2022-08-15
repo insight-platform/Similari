@@ -1,4 +1,4 @@
-name: Rust 1.62
+name: Rust 1.63
 
 on:
   push:
