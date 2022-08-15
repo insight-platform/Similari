@@ -98,7 +98,7 @@ impl PartialEq<Self> for VisualObservationAttributes {
 #[cfg(test)]
 mod tests {
     use crate::track::ObservationAttributes;
-    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
     use crate::utils::bbox::BoundingBox;
     use crate::EPS;
 

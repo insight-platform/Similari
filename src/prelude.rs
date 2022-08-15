@@ -9,10 +9,11 @@ pub use track::store::builder::TrackStoreBuilder;
 pub use crate::trackers::sort::PositionalMetricType;
 pub use trackers::sort::simple_api::Sort;
 pub use trackers::sort::SortTrack;
-pub use trackers::visual::metric::VisualMetricType;
-pub use trackers::visual::simple_api::options::VisualSortOptions;
-pub use trackers::visual::simple_api::VisualSort;
-pub use trackers::visual::VisualObservation;
+
+pub use trackers::visual_sort::metric::VisualSortMetricType;
+pub use trackers::visual_sort::simple_api::options::VisualSortOptions;
+pub use trackers::visual_sort::simple_api::VisualSort;
+pub use trackers::visual_sort::VisualObservation;
 
 pub use utils::bbox::BoundingBox;
 pub use utils::bbox::Universal2DBox;

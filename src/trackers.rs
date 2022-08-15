@@ -6,7 +6,7 @@ pub mod sort;
 mod epoch_db;
 
 /// Visual tracker implementations
-pub mod visual;
+pub mod visual_sort;
 
 /// Trait that implements kalman prediction for attributes
 pub mod kalman_prediction;

@@ -1,7 +1,7 @@
 use crate::track::ObservationMetricOk;
 use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::VotingType;
-use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::topn::TopNVoting;
 use crate::voting::Voting;
@@ -102,7 +102,7 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
 #[cfg(test)]
 mod voting_tests {
     use crate::track::ObservationMetricOk;
-    use crate::trackers::visual::voting::{VisualVoting, VotingType};
+    use crate::trackers::visual_sort::voting::{VisualVoting, VotingType};
     use crate::voting::Voting;
 
     #[test]
@@ -188,9 +188,9 @@ mod voting_tests {
             ObservationMetricOk::new(1, 2, None, Some(0.65)),
             ObservationMetricOk::new(1, 3, Some(0.7), Some(0.7)),
             ObservationMetricOk::new(1, 3, None, Some(0.64)),
-            ObservationMetricOk::new(11, 2, Some(0.8), Some(0.7)), // will be excluded by visual voting (1>2)
-            ObservationMetricOk::new(11, 3, None, Some(0.64)),     // no pos metric, as visual votes
-                                                                   // less 2 will go to pos voting, but no pos metric.
+            ObservationMetricOk::new(11, 2, Some(0.8), Some(0.7)), // will be excluded by visual_sort voting (1>2)
+            ObservationMetricOk::new(11, 3, None, Some(0.64)), // no pos metric, as visual_sort votes
+                                                               // less 2 will go to pos voting, but no pos metric.
         ]);
         let res = w.get(&1).unwrap();
         assert_eq!(res.len(), 1);

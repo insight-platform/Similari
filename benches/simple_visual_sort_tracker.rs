@@ -8,7 +8,7 @@ use similari::examples::BoxGen2;
 use similari::prelude::{VisualObservation, VisualSort, VisualSortOptions};
 use similari::trackers::sort::PositionalMetricType;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-use similari::trackers::visual::metric::VisualMetricType;
+use similari::trackers::visual_sort::metric::VisualSortMetricType;
 use test::Bencher;
 
 #[bench]
@@ -107,7 +107,7 @@ fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
 
     let opts = VisualSortOptions::default()
         .positional_metric(PositionalMetricType::IoU(0.3))
-        .visual_metric(VisualMetricType::Euclidean(10.0))
+        .visual_metric(VisualSortMetricType::Euclidean(10.0))
         .visual_max_observations(3)
         .spatio_temporal_constraints(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)]))
         .visual_minimal_own_area_percentage_use(0.5)

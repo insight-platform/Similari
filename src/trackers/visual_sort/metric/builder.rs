@@ -1,12 +1,12 @@
 use crate::trackers::sort::PositionalMetricType;
-use crate::trackers::visual::metric::{
-    PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
+use crate::trackers::visual_sort::metric::{
+    PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualSortMetricType,
 };
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct VisualMetricBuilder {
-    visual_kind: VisualMetricType,
+    visual_kind: VisualSortMetricType,
     positional_kind: PositionalMetricType,
     visual_minimal_track_length: usize,
     visual_minimal_area: f32,
@@ -18,13 +18,13 @@ pub struct VisualMetricBuilder {
     visual_minimal_own_area_percentage_collect: f32,
 }
 
-/// By default the metric object is constructed with: Euclidean visual metric, IoU(0.3) positional metric
-/// and minimal visual track length = 3
+/// By default the metric object is constructed with: Euclidean visual_sort metric, IoU(0.3) positional metric
+/// and minimal visual_sort track length = 3
 ///
 impl Default for VisualMetricBuilder {
     fn default() -> Self {
         VisualMetricBuilder {
-            visual_kind: VisualMetricType::Euclidean(f32::MAX),
+            visual_kind: VisualSortMetricType::Euclidean(f32::MAX),
             positional_kind: PositionalMetricType::IoU(0.3),
             visual_minimal_track_length: 3,
             visual_minimal_area: 0.0,
@@ -61,7 +61,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_track_length_py(&mut self, length: usize) {
         assert!(
             length > 0,
-            "The minimum amount of visual features collected before visual metric is applied should be greater than 0."
+            "The minimum amount of visual_sort features collected before visual_sort metric is applied should be greater than 0."
         );
         self.visual_minimal_track_length = length;
     }
@@ -69,7 +69,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_area_py(&mut self, area: f32) {
         assert!(
             area >= 0.0,
-            "The minimum area of bbox for visual feature distance calculated and feature collected should be greater than 0."
+            "The minimum area of bbox for visual_sort feature distance calculated and feature collected should be greater than 0."
         );
         self.visual_minimal_area = area;
     }
@@ -93,7 +93,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_quality_use_py(&mut self, q: f32) {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_use = q;
     }
@@ -105,7 +105,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_quality_collect_py(&mut self, q: f32) {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_collect = q;
     }
@@ -127,7 +127,7 @@ impl VisualMetricBuilder {
         self
     }
 
-    pub fn visual_metric(mut self, metric: VisualMetricType) -> Self {
+    pub fn visual_metric(mut self, metric: VisualSortMetricType) -> Self {
         self.visual_kind = metric;
         self
     }
@@ -146,7 +146,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_track_length(mut self, length: usize) -> Self {
         assert!(
             length > 0,
-            "The minimum amount of visual features collected before visual metric is applied should be greater than 0."
+            "The minimum amount of visual_sort features collected before visual_sort metric is applied should be greater than 0."
         );
         self.visual_minimal_track_length = length;
         self
@@ -155,7 +155,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_area(mut self, area: f32) -> Self {
         assert!(
             area >= 0.0,
-            "The minimum area of bbox for visual feature distance calculated and feature collected should be greater than 0."
+            "The minimum area of bbox for visual_sort feature distance calculated and feature collected should be greater than 0."
         );
         self.visual_minimal_area = area;
         self
@@ -164,7 +164,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_quality_use(mut self, q: f32) -> Self {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_use = q;
         self
@@ -178,7 +178,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_quality_collect(mut self, q: f32) -> Self {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_collect = q;
         self

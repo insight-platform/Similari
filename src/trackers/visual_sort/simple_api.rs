@@ -5,12 +5,12 @@ use crate::track::{Feature, Track, TrackStatus};
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::VotingType::Positional;
 use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
-use crate::trackers::visual::metric::{VisualMetric, VisualMetricOptions};
-use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-use crate::trackers::visual::simple_api::options::VisualSortOptions;
-use crate::trackers::visual::track_attributes::{VisualAttributes, VisualAttributesUpdate};
-use crate::trackers::visual::voting::VisualVoting;
-use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
+use crate::trackers::visual_sort::metric::{VisualMetric, VisualMetricOptions};
+use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
+use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
+use crate::trackers::visual_sort::track_attributes::{VisualAttributes, VisualAttributesUpdate};
+use crate::trackers::visual_sort::voting::VisualVoting;
+use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
 use crate::utils::clipping::bbox_own_areas::{
     exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
 };
@@ -283,11 +283,11 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>>
 mod tests {
     use crate::track::Observation;
     use crate::trackers::sort::{PositionalMetricType, VotingType};
-    use crate::trackers::visual::metric::VisualMetricType;
-    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-    use crate::trackers::visual::simple_api::options::VisualSortOptions;
-    use crate::trackers::visual::simple_api::VisualSort;
-    use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
+    use crate::trackers::visual_sort::metric::VisualSortMetricType;
+    use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
+    use crate::trackers::visual_sort::simple_api::VisualSort;
+    use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
     use crate::utils::bbox::BoundingBox;
 
     #[test]
@@ -295,7 +295,7 @@ mod tests {
         let opts = VisualSortOptions::default()
             .max_idle_epochs(3)
             .kept_history_length(3)
-            .visual_metric(VisualMetricType::Euclidean(1.0))
+            .visual_metric(VisualSortMetricType::Euclidean(1.0))
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(2)
             .visual_minimal_area(5.0)
@@ -390,7 +390,7 @@ mod tests {
         assert_eq!(attrs.predicted_boxes.len(), 2);
         assert_eq!(attrs.observed_features.len(), 2);
 
-        // add the segment to the track (no visual feature)
+        // add the segment to the track (no visual_sort feature)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -419,7 +419,7 @@ mod tests {
         assert_eq!(attrs.observed_features.len(), 3);
         assert!(attrs.observed_features.back().unwrap().is_none());
 
-        // add the segment to the track (no visual feature)
+        // add the segment to the track (no visual_sort feature)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -446,7 +446,7 @@ mod tests {
         assert_eq!(attrs.observed_features.len(), 3);
         assert!(attrs.observed_features.back().unwrap().is_none());
 
-        // add the segment to the track (with visual feature but low quality - no use, no collect)
+        // add the segment to the track (with visual_sort feature but low quality - no use, no collect)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -469,7 +469,7 @@ mod tests {
         assert_eq!(attrs.track_length, 5);
         assert!(attrs.observed_features.back().unwrap().is_some());
 
-        // add the segment to the track (with visual feature but low quality - use, but no collect)
+        // add the segment to the track (with visual_sort feature but low quality - use, but no collect)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -492,7 +492,7 @@ mod tests {
         assert_eq!(attrs.track_length, 6);
         assert!(attrs.observed_features.back().unwrap().is_some());
 
-        // add the segment to the track (with visual feature of normal quality - use, collect)
+        // add the segment to the track (with visual_sort feature of normal quality - use, collect)
         //
         let tracks = tracker.predict_with_scene(
             10,

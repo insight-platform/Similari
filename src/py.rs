@@ -2,13 +2,13 @@ use crate::prelude::{Sort, SortTrack};
 use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
 use crate::trackers::sort::{PyPositionalMetricType, PyWastedSortTrack};
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-use crate::trackers::visual::metric::PyVisualMetricType;
-use crate::trackers::visual::simple_api::options::VisualSortOptions;
-use crate::trackers::visual::simple_api::simple_visual_py::{
+use crate::trackers::visual_sort::metric::PyVisualMetricType;
+use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
+use crate::trackers::visual_sort::simple_api::simple_visual_py::{
     PyVisualObservation, PyVisualObservationSet,
 };
-use crate::trackers::visual::simple_api::VisualSort;
-use crate::trackers::visual::PyWastedVisualSortTrack;
+use crate::trackers::visual_sort::simple_api::VisualSort;
+use crate::trackers::visual_sort::PyWastedVisualSortTrack;
 use crate::utils::bbox::{BoundingBox, Universal2DBox};
 use crate::utils::clipping::clipping_py::{
     intersection_area_py, sutherland_hodgman_clip_py, PyPolygon,
