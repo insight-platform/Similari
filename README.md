@@ -140,7 +140,8 @@ Python API classes and functions can be explored [here](assets/documentation/pyt
 
 #### Rust 1.62 Base Image
 
-If you use other rust libraries you may find it beneficial to build with base Rust container:
+If you use other rust libraries you may find it beneficial to build with base Rust 
+container (and Python 3.8):  
 
 ```
 docker build -t similari_py -f docker/rust_1.62/Dockerfile .
@@ -148,7 +149,7 @@ docker build -t similari_py -f docker/rust_1.62/Dockerfile .
 
 #### Python 3.8 Base Image
 
-A lot of Machine Learning, Data Science libraries are bound to Python 3.8. Here is how to build Similari with it.
+Python 3.8 is still a very frequently used. Here is how to build Similari with it:
 
 ```
 docker build -t similari_py -f docker/python_3.8/Dockerfile .
