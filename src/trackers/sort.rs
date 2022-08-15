@@ -314,10 +314,12 @@ pub struct SortTrack {
     ///
     #[pyo3(get)]
     pub length: usize,
-
+    /// what kind of voting was led to the current merge
+    ///
     #[pyo3(get)]
     pub voting_type: VotingType,
-
+    /// custom object id passed by the user to find the track easily
+    ///
     #[pyo3(get)]
     pub custom_object_id: Option<i64>,
 }

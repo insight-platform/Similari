@@ -13,12 +13,8 @@ fn main() {
     let mut b2 = BoxGen2::new_monotonous(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
 
     for i in 0..30 {
-        let obj1b = Universal2DBox::from(b1.next().unwrap())
-            .rotate(0.35 + (i as f32 / 10.0))
-            .gen_vertices();
-        let obj2b = Universal2DBox::from(b2.next().unwrap())
-            .rotate(0.55 + (i as f32 / 10.0))
-            .gen_vertices();
+        let obj1b = Universal2DBox::from(b1.next().unwrap()).rotate(0.35 + (i as f32 / 10.0));
+        let obj2b = Universal2DBox::from(b2.next().unwrap()).rotate(0.55 + (i as f32 / 10.0));
         let _tracks = tracker.predict(&[(obj1b, None), (obj2b, None)]);
     }
 
