@@ -234,7 +234,7 @@ PyWastedSortTrack {
 }
 ```
 
-#### Trackers
+#### Tracker Usage
 
 [SORT](https://docs.rs/similari/0.22.0/similari/trackers/sort/simple_api/struct.Sort.html) - basic tracker that uses 
 only positional information for tracking. The SORT tracker is widely used in the environments with rare or no occlusions 
@@ -281,12 +281,15 @@ To increase the performance of the SORT in scenes with large number of objects o
 
 #### Visual SORT Tracker
 
+Visual SORT tracker is DeepSORT flavour with improvements. It uses custom user ReID model and 
+positional tracking based on IoU or Mahalanobis distance.
+
 ##### Tracker Configuration
 
 * [VisualSortOptions](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/options/struct.VisualSortOptions.html)
 * [VisualMetricType](https://docs.rs/similari/0.22.0/similari/trackers/visual/metric/struct.PyVisualMetricType.html)
 
-##### Tracker
+##### Tracker Usage
 
 * [VisualObservation](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/simple_visual_py/struct.PyVisualObservation.html)
 * [VisualObservationSet](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/simple_visual_py/struct.PyVisualObservationSet.html)
