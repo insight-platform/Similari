@@ -257,7 +257,7 @@ the Similari SORT tracker works several times faster:
 
 | Objects | Time (ms/prediction)  | FPS | CPU Cores (NumPy) | Similari Gain |
 |---------|-----------------------|-----|-------------------|---------------|
-| 10      | 1.588                 | 620 | ALL               | x10           |
+| 10      | 1.588                 | 620 | ALL               | x10.8         |
 | 100     | 11.976                | 83  | ALL               | x7.25         |
 | 200     | 25.160                | 39  | ALL               | x5.23         |
 | 300     | 40.922                | 24  | ALL               | x4.58         |
