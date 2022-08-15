@@ -39,7 +39,7 @@ bounding boxes.
 **SORT tracking** algorithm (axis-aligned and oriented boxes are supported) - IoU and Mahalanobis distances are 
   supported.
 
-**Visual-SORT tracking** - a DeepSORT-like algorithm (axis-aligned and oriented boxes are supported) - IoU and 
+**VisualSORT tracking** - a DeepSORT-like algorithm (axis-aligned and oriented boxes are supported) - IoU and 
 Mahalanobis distances are supported for positional tracking, euclidean, cosine distances are used for visual tracking on 
 feature vectors.
 
@@ -129,22 +129,21 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 * the Kalman filter for axis-aligned and oriented (rotated) boxes prediction;
 * NMS (Non-maximum suppression);
 * the Sutherland-Hodgman clipping, intersection area for oriented (rotated) boxes;
-* SORT with IoU metric (IoUSort);
-* SORT with Mahalanobis metric (MahaSort);
+* SORT with IoU and Mahalanobis metric (Sort);
 * VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
-  for positional tracking.
+  for positional tracking (VisualSort).
 
 Python API classes and functions can be explored [here](assets/documentation/python/api.md). 
 
 ### Build Python API in Docker
 
-#### Rust 1.62 Base Image
+#### Rust 1.63 Base Image
 
 If you use other rust libraries you may find it beneficial to build with base Rust 
 container (and Python 3.8):  
 
 ```
-docker build -t similari_py -f docker/rust_1.62/Dockerfile .
+docker build -t similari_py -f docker/rust_1.63/Dockerfile .
 ```
 
 #### Python 3.8 Base Image

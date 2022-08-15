@@ -1,4 +1,4 @@
-FROM rust:1.62-bullseye as chef
+FROM rust:1.63-bullseye as chef
 
 RUN cargo install cargo-chef --locked
 RUN apt-get update && apt-get install -y python3 build-essential python3-dev python3-pip
