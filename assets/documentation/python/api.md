@@ -241,7 +241,7 @@ only positional information for tracking. The SORT tracker is widely used in the
 happen. SORT is a high-performance low-resource tracker. Despite the original SORT, Similari SORT supports
 both axis-aligned and oriented (rotated) bounding boxes.
 
-The Similari SORT is able to achieve following speed:
+The Similari SORT is able to achieve the following speed:
 
 | Objects | Time (ms/prediction) | FPS  |
 |---------|----------------------|------|
