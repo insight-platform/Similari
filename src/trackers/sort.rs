@@ -18,7 +18,12 @@ pub mod tracker;
 pub mod simple_api;
 
 /// Voting engine with Hungarian algorithm
+///
 pub mod voting;
+
+/// Python bindings for SORT objects
+///
+pub mod sort_py;
 
 /// Default IoU threshold that is defined by SORT author in the original repo
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;

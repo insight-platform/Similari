@@ -15,3 +15,7 @@ pub mod kalman_prediction;
 /// It helps to decrease the brute-force space
 ///
 pub mod spatio_temporal_constraints;
+
+/// Prediction batch request implementation
+///
+pub mod batch;

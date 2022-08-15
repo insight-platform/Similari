@@ -17,6 +17,9 @@ pub mod observation_attributes;
 /// Implementation of Visual tracker with simple API
 pub mod simple_api;
 
+/// Python API implementation
+pub mod visual_py;
+
 #[derive(Debug, Clone)]
 pub struct VisualObservation<'a> {
     feature: Option<&'a Vec<f32>>,

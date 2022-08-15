@@ -1,4 +1,5 @@
 use crate::prelude::{Sort, SortTrack};
+use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
 use crate::trackers::sort::{PyPositionalMetricType, PyWastedSortTrack};
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::trackers::visual::metric::PyVisualMetricType;
@@ -27,6 +28,7 @@ fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyKalmanFilterState>()?;
     m.add_class::<PyKalmanFilter>()?;
 
+    m.add_class::<PySortPredictionBatchRequest>()?;
     m.add_class::<SpatioTemporalConstraints>()?;
     m.add_class::<Sort>()?;
 
