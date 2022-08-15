@@ -157,7 +157,7 @@ docker build -t similari_py -f docker/python_3.8/Dockerfile .
 
 #### Python 3.10 Base Image
 
-If you use mostly the most recent Python environment, you can build with base Python container:
+If you use the most recent Python environment, you can build with base Python container:
 
 ```
 docker build -t similari_py -f docker/python_3.10/Dockerfile .
