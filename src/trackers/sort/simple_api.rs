@@ -147,7 +147,7 @@ impl Sort {
             })
             .collect::<Vec<_>>();
 
-        let num_tracks = tracks.len();
+        let num_candidates = tracks.len();
         let (dists, errs) = self.store.foreign_track_distances(tracks.clone(), 0, false);
         assert!(errs.all().is_empty());
         let voting = SortVoting::new(
@@ -155,7 +155,7 @@ impl Sort {
                 PositionalMetricType::Mahalanobis => 0.1,
                 PositionalMetricType::IoU(t) => t,
             },
-            num_tracks,
+            num_candidates,
             self.store.shard_stats().iter().sum(),
         );
         let winners = voting.winners(dists);

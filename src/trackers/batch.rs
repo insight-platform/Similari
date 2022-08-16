@@ -49,11 +49,11 @@ impl PredictionBatchResult {
 }
 
 impl<T> PredictionBatchRequest<T> {
-    pub fn batch_size(&self) -> usize {
-        *self.batch_size.lock().unwrap()
+    pub fn get_sender(&self) -> Sender<SceneTracks> {
+        self.sender.clone()
     }
 
-    pub fn send(&self, res: SceneTracks) -> bool {
+    pub(crate) fn send(&self, res: SceneTracks) -> bool {
         let res = self.sender.send(res);
         if let Err(e) = res {
             debug!(
@@ -111,7 +111,6 @@ mod tests {
         request.add(1, Universal2DBox::new(0.0, 0.0, Some(1.0), 0.7, 5.1));
         let batch = request.get_batch();
         drop(batch);
-        assert_eq!(request.batch_size(), 3);
         assert_eq!(result.batch_size(), 3);
 
         assert!(request.send((0, vec![])));
