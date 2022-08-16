@@ -32,25 +32,37 @@ impl PredictionBatchResult {
         *self.batch_size.lock().unwrap()
     }
 
-    pub fn get(&self) -> SceneTracks {
+    #[pyo3(name = "get", text_signature = "($self)")]
+    fn get_py(&self) -> SceneTracks {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        py.allow_threads(|| {
-            self.receiver
-                .recv()
-                .expect("Receiver must always receive batch computation result")
-        })
+        py.allow_threads(|| self.get())
+    }
+}
+
+impl PredictionBatchResult {
+    pub fn get(&self) -> SceneTracks {
+        self.receiver
+            .recv()
+            .expect("Receiver must always receive batch computation result")
     }
 }
 
 impl<T> PredictionBatchRequest<T> {
-    pub fn send(&self, res: SceneTracks) {
+    pub fn batch_size(&self) -> usize {
+        *self.batch_size.lock().unwrap()
+    }
+
+    pub fn send(&self, res: SceneTracks) -> bool {
         let res = self.sender.send(res);
         if let Err(e) = res {
             debug!(
                 "Error occurred when sending results to the batch result object. Error is: {:?}",
                 e
             );
+            false
+        } else {
+            true
         }
     }
 
@@ -62,7 +74,7 @@ impl<T> PredictionBatchRequest<T> {
             self.batch.insert(scene_id, vec![elt]);
         }
         let mut batch_size = self.batch_size.lock().unwrap();
-        *batch_size = self.batch.len();
+        *batch_size += 1;
     }
 
     pub fn new() -> (Self, PredictionBatchResult) {
@@ -93,8 +105,21 @@ mod tests {
 
     #[test]
     fn test() {
-        let (request, result) = PredictionBatchRequest::<Universal2DBox>::new();
-        drop(request);
+        let (mut request, result) = PredictionBatchRequest::<Universal2DBox>::new();
+        request.add(0, Universal2DBox::new(0.0, 0.0, Some(0.5), 1.0, 5.0));
+        request.add(0, Universal2DBox::new(5.0, 5.0, Some(0.0), 1.5, 10.0));
+        request.add(1, Universal2DBox::new(0.0, 0.0, Some(1.0), 0.7, 5.1));
+        let batch = request.get_batch();
+        drop(batch);
+        assert_eq!(request.batch_size(), 3);
+        assert_eq!(result.batch_size(), 3);
+
+        assert!(request.send((0, vec![])));
+        assert_eq!(result.ready(), true);
+        let res = result.get();
+        assert_eq!(res.0, 0);
+        assert!(res.1.is_empty());
         drop(result);
+        assert!(!request.send((0, vec![])));
     }
 }
