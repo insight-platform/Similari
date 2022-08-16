@@ -21,7 +21,7 @@ impl PyVisualSortPredictionBatchRequest {
         }
     }
 
-    fn get_future_result(&mut self) -> Option<PredictionBatchResult> {
+    fn prediction(&mut self) -> Option<PredictionBatchResult> {
         self.result.take()
     }
 

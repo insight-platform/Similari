@@ -11,8 +11,8 @@ use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
-/// SORT implementation with IoU and Mahalanobis distances
-pub mod tracker;
+/// SORT metric implementation with IoU and Mahalanobis distances
+pub mod metric;
 
 /// SORT implementation with a very tiny interface
 pub mod simple_api;
@@ -24,6 +24,9 @@ pub mod voting;
 /// Python bindings for SORT objects
 ///
 pub mod sort_py;
+
+/// SORT tracker with Batch API
+pub mod batch_api;
 
 /// Default IoU threshold that is defined by SORT author in the original repo
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
@@ -227,7 +230,7 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
 #[cfg(test)]
 mod track_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
-    use crate::trackers::sort::tracker::SortMetric;
+    use crate::trackers::sort::metric::SortMetric;
     use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;

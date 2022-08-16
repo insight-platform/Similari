@@ -28,15 +28,15 @@ impl PredictionBatchResult {
         !self.receiver.is_empty()
     }
 
-    pub fn batch_size(&self) -> usize {
-        *self.batch_size.lock().unwrap()
-    }
-
     #[pyo3(name = "get", text_signature = "($self)")]
     fn get_py(&self) -> SceneTracks {
         let gil = Python::acquire_gil();
         let py = gil.python();
         py.allow_threads(|| self.get())
+    }
+
+    pub fn batch_size(&self) -> usize {
+        *self.batch_size.lock().unwrap()
     }
 }
 

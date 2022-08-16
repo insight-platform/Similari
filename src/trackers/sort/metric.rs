@@ -106,7 +106,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
 mod tests {
     use crate::prelude::{BoundingBox, PositionalMetricType};
     use crate::track::{MetricQuery, Observation, ObservationMetric};
-    use crate::trackers::sort::tracker::SortMetric;
+    use crate::trackers::sort::metric::SortMetric;
     use crate::trackers::sort::{
         SortAttributes, SortAttributesOptions, DEFAULT_SORT_IOU_THRESHOLD,
     };
