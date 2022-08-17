@@ -6,6 +6,7 @@ use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::VotingType::Positional;
 use crate::trackers::sort::{
     AutoWaste, PositionalMetricType, SortAttributesOptions, DEFAULT_AUTO_WASTE_PERIODICITY,
+    MAHALANOBIS_NEW_TRACK_THRESHOLD,
 };
 use crate::trackers::visual_sort::metric::{VisualMetric, VisualMetricOptions};
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
@@ -217,7 +218,7 @@ impl VisualSort {
         assert!(errs.all().is_empty());
         let voting = VisualVoting::new(
             match self.metric_opts.positional_kind {
-                PositionalMetricType::Mahalanobis => 1.0,
+                PositionalMetricType::Mahalanobis => MAHALANOBIS_NEW_TRACK_THRESHOLD,
                 PositionalMetricType::IoU(t) => t,
             },
             f32::MAX,
