@@ -4,7 +4,9 @@ use crate::track::utils::FromVec;
 use crate::track::{Feature, Track, TrackStatus};
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::VotingType::Positional;
-use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
+use crate::trackers::sort::{
+    AutoWaste, PositionalMetricType, SortAttributesOptions, DEFAULT_AUTO_WASTE_PERIODICITY,
+};
 use crate::trackers::visual_sort::metric::{VisualMetric, VisualMetricOptions};
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
@@ -30,8 +32,11 @@ pub mod simple_visual_py;
 #[pyclass(text_signature = "(shards, opts)")]
 pub struct VisualSort {
     store: TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes>,
+    wasted_store: TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes>,
     metric_opts: Arc<VisualMetricOptions>,
     track_opts: Arc<SortAttributesOptions>,
+    auto_waste: AutoWaste,
+    track_id: u64,
 }
 
 impl VisualSort {
@@ -47,14 +52,26 @@ impl VisualSort {
         let metric_opts = metric.opts.clone();
         let store = TrackStoreBuilder::new(shards)
             .default_attributes(VisualAttributes::new(track_opts.clone()))
+            .metric(metric.clone())
+            .notifier(NoopNotifier)
+            .build();
+
+        let wasted_store = TrackStoreBuilder::new(shards)
+            .default_attributes(VisualAttributes::new(track_opts.clone()))
             .metric(metric)
             .notifier(NoopNotifier)
             .build();
 
         Self {
             store,
+            wasted_store,
             track_opts,
+            track_id: 0,
             metric_opts,
+            auto_waste: AutoWaste {
+                periodicity: DEFAULT_AUTO_WASTE_PERIODICITY,
+                counter: DEFAULT_AUTO_WASTE_PERIODICITY,
+            },
         }
     }
 
@@ -107,6 +124,18 @@ impl VisualSort {
         self.predict_with_scene(0, observations)
     }
 
+    /// change auto waste job periodicity
+    ///
+    pub fn set_auto_waste(&mut self, periodicity: usize) {
+        self.auto_waste.periodicity = periodicity;
+        self.auto_waste.counter = 0;
+    }
+
+    fn gen_track_id(&mut self) -> u64 {
+        self.track_id += 1;
+        self.track_id
+    }
+
     /// Receive tracking information for observed bboxes of `scene_id`
     ///
     /// # Parameters
@@ -118,6 +147,13 @@ impl VisualSort {
         scene_id: u64,
         observations: &[VisualObservation],
     ) -> Vec<SortTrack> {
+        if self.auto_waste.counter == 0 {
+            self.auto_waste();
+            self.auto_waste.counter = self.auto_waste.periodicity;
+        } else {
+            self.auto_waste.counter -= 1;
+        }
+
         let mut percentages = Vec::default();
         let use_own_area_percentage = self.metric_opts.visual_minimal_own_area_percentage_collect
             + self.metric_opts.visual_minimal_own_area_percentage_use
@@ -194,8 +230,11 @@ impl VisualSort {
             let track_id: u64 = if let Some(dest) = winners.get(&source) {
                 let (dest, vt) = dest[0];
                 if dest == source {
-                    self.store.add_track(t.clone()).unwrap();
-                    source
+                    let mut t = t.clone();
+                    let track_id = self.gen_track_id();
+                    t.set_track_id(track_id);
+                    self.store.add_track(t).unwrap();
+                    track_id
                 } else {
                     t.add_observation(
                         0,
@@ -210,8 +249,11 @@ impl VisualSort {
                     dest
                 }
             } else {
-                self.store.add_track(t.clone()).unwrap();
-                source
+                let mut t = t.clone();
+                let track_id = self.gen_track_id();
+                t.set_track_id(track_id);
+                self.store.add_track(t).unwrap();
+                track_id
             };
 
             let store = self.store.get_store(track_id as usize);
@@ -223,19 +265,42 @@ impl VisualSort {
         res
     }
 
-    /// Receive all the tracks with expired life
+    /// Receive all the tracks with expired life from the main store
     ///
-    pub fn wasted(
+    fn get_main_store_wasted(
         &mut self,
     ) -> Vec<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>> {
-        let res = self.store.find_usable();
-        let wasted = res
+        let tracks = self.store.find_usable();
+        let wasted = tracks
             .into_iter()
             .filter(|(_, status)| matches!(status, Ok(TrackStatus::Wasted)))
             .map(|(track, _)| track)
             .collect::<Vec<_>>();
 
         self.store.fetch_tracks(&wasted)
+    }
+
+    pub fn auto_waste(&mut self) {
+        let tracks = self.get_main_store_wasted();
+        for t in tracks {
+            self.wasted_store
+                .add_track(t)
+                .expect("Cannot be a error, copying track to wasted store");
+        }
+    }
+
+    pub fn wasted(
+        &mut self,
+    ) -> Vec<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>> {
+        self.auto_waste();
+        let tracks = self.wasted_store.find_usable();
+        let wasted = tracks
+            .into_iter()
+            .filter(|(_, status)| matches!(status, Ok(TrackStatus::Wasted)))
+            .map(|(track, _)| track)
+            .collect::<Vec<_>>();
+
+        self.wasted_store.fetch_tracks(&wasted)
     }
 }
 

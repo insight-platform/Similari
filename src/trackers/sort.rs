@@ -467,3 +467,12 @@ impl PyPositionalMetricType {
         format!("{:#?}", self)
     }
 }
+
+pub(crate) struct AutoWaste {
+    pub(crate) periodicity: usize,
+    pub(crate) counter: usize,
+}
+
+pub(crate) const DEFAULT_AUTO_WASTE_PERIODICITY: usize = 100;
+
+pub(crate) const MAHALANOBIS_NEW_TRACK_THRESHOLD: f32 = 0.1;
