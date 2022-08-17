@@ -9,7 +9,7 @@ fn main() {
     let mut tracker = Sort::new(1, 10, 1, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
 
     let pos_drift = 1.0;
-    let box_drift = 0.2;
+    let box_drift = 0.02;
     let mut b1 = BoxGen2::new_monotonous(100.0, 100.0, 10.0, 15.0, pos_drift, box_drift);
     let mut b2 = BoxGen2::new_monotonous(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
 

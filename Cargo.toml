@@ -37,6 +37,9 @@ features = ["extension-module"]
 [dev-dependencies]
 wide = "0.7.4"
 
+[profile.dev]
+opt-level = 3
+
 [profile.release]
 opt-level = 3
 

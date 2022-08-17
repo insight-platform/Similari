@@ -26,7 +26,7 @@ fn sort_maha_oriented_00500(b: &mut Bencher) {
 
 fn bench_sort(objects: usize, b: &mut Bencher) {
     let pos_drift = 1.0;
-    let box_drift = 0.01;
+    let box_drift = 0.001;
     let mut iterators = Vec::default();
 
     for i in 0..objects {

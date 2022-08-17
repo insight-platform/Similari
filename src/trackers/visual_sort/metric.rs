@@ -12,7 +12,6 @@ use crate::trackers::visual_sort::observation_attributes::VisualObservationAttri
 use crate::trackers::visual_sort::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
-use crate::EPS;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::default::Default;
@@ -160,24 +159,24 @@ impl VisualMetric {
             if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
                 None
             } else {
+                let conf = if candidate_observation_bbox.confidence < 0.05 {
+                    0.1
+                } else {
+                    candidate_observation_bbox.confidence
+                };
                 match self.opts.positional_kind {
                     PositionalMetricType::Mahalanobis => {
                         let state = track_attributes.get_state().unwrap();
                         let f = KalmanFilter::default();
                         let dist = f.distance(state, candidate_observation_bbox);
-                        Some(
-                            KalmanFilter::calculate_cost(dist, true)
-                                / (candidate_observation_bbox.confidence + EPS),
-                        )
+                        Some(KalmanFilter::calculate_cost(dist, true) / conf)
                     }
                     PositionalMetricType::IoU(threshold) => {
                         let box_m_opt = Universal2DBox::calculate_metric_object(
                             &candidate_observation_bbox_opt.as_ref(),
                             &track_observation_bbox_opt.as_ref(),
                         );
-                        box_m_opt
-                            .map(|e| e * candidate_observation_bbox.confidence)
-                            .filter(|e| *e >= threshold)
+                        box_m_opt.map(|e| e * conf).filter(|e| *e >= threshold)
                     }
                 }
             }
@@ -792,7 +791,7 @@ mod metric_tests {
                 to: 2,
                 attribute_metric: Some(x),
                 feature_distance: Some(y)
-            } if (x - 99.999).abs() < EPS && y.abs() < EPS));
+            } if (x - 100.0).abs() < EPS && y.abs() < EPS));
     }
 
     #[test]

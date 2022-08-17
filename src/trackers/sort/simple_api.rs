@@ -146,10 +146,10 @@ impl Sort {
                     .unwrap()
             })
             .collect::<Vec<_>>();
-
         let num_candidates = tracks.len();
         let (dists, errs) = self.store.foreign_track_distances(tracks.clone(), 0, false);
         assert!(errs.all().is_empty());
+        let dists = dists.all();
         let voting = SortVoting::new(
             match self.method {
                 PositionalMetricType::Mahalanobis => 0.1,
@@ -160,6 +160,7 @@ impl Sort {
         );
         let winners = voting.winners(dists);
         let mut res = Vec::default();
+
         for t in tracks {
             let source = t.get_track_id();
             let track_id: u64 = if let Some(dest) = winners.get(&source) {

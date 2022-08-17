@@ -7,7 +7,6 @@ use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
-use crate::EPS;
 
 #[derive(Clone)]
 pub struct SortMetric {
@@ -32,6 +31,12 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
             mq.candidate_observation.attr().as_ref().unwrap(),
             mq.track_observation.attr().as_ref().unwrap(),
         );
+        let conf = if candidate_bbox.confidence < 0.05 {
+            0.1
+        } else {
+            candidate_bbox.confidence
+        };
+
         if Universal2DBox::too_far(candidate_bbox, track_bbox) {
             None
         } else {
@@ -40,13 +45,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
                     let state = mq.track_attrs.get_state().unwrap();
                     let f = KalmanFilter::default();
                     let dist = f.distance(state, candidate_bbox);
-                    (
-                        Some(
-                            KalmanFilter::calculate_cost(dist, true)
-                                / (candidate_bbox.confidence + EPS),
-                        ),
-                        None,
-                    )
+                    (Some(KalmanFilter::calculate_cost(dist, true) / conf), None)
                 }
                 PositionalMetricType::IoU(threshold) => {
                     let box_m_opt = Universal2DBox::calculate_metric_object(
@@ -54,9 +53,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
                         &Some(track_bbox),
                     );
                     (
-                        box_m_opt
-                            .map(|e| e * candidate_bbox.confidence)
-                            .filter(|e| *e >= threshold),
+                        box_m_opt.map(|e| e * conf).filter(|e| *e >= threshold),
                         None,
                     )
                 }
@@ -78,7 +75,6 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
         features.clear();
 
         let predicted_bbox = attrs.make_prediction(observation_bbox);
-
         attrs.update_history(observation_bbox, &predicted_bbox);
 
         *observation.attr_mut() = Some(match self.method {
@@ -87,7 +83,6 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
         });
 
         features.push(observation);
-
         Ok(())
     }
 

@@ -268,13 +268,14 @@ where
 
                     let res = match dest {
                         Some(dest) => {
-                            if dest_id == src.track_id {
+                            let res = if dest_id == src.track_id {
                                 Err(Errors::SameTrackCalculation(dest_id).into())
                             } else if !classes.is_empty() {
                                 dest.merge(&src, &classes, merge_history)
                             } else {
                                 dest.merge(&src, &src.get_feature_classes(), merge_history)
-                            }
+                            };
+                            res
                         }
 
                         None => Err(Errors::TrackNotFound(dest_id).into()),

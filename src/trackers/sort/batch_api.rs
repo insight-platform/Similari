@@ -17,27 +17,31 @@ use pyo3::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 use std::mem;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread::{spawn, JoinHandle};
 
 type VotingSenderChannel = Sender<VotingCommands>;
 type VotingReceiverChannel = Receiver<VotingCommands>;
-type SortTrackStore = TrackStore<SortAttributes, SortMetric, Universal2DBox>;
-type IntSortTrack = Track<SortAttributes, SortMetric, Universal2DBox>;
+
+type MiddlewareSortTrackStore = TrackStore<SortAttributes, SortMetric, Universal2DBox>;
+type MiddlewareSortTrack = Track<SortAttributes, SortMetric, Universal2DBox>;
+type BatchBusyMonitor = Arc<(Mutex<usize>, Condvar)>;
 
 enum VotingCommands {
     Distances {
         scene_id: u64,
         distances: TrackDistanceOkIterator<Universal2DBox>,
         channel: Sender<SceneTracks>,
-        tracks: Vec<IntSortTrack>,
+        tracks: Vec<MiddlewareSortTrack>,
+        monitor: BatchBusyMonitor,
     },
     Exit,
 }
 
 #[pyclass]
 pub struct BatchSort {
-    store: Arc<RwLock<SortTrackStore>>,
+    monitor: Option<BatchBusyMonitor>,
+    store: Arc<RwLock<MiddlewareSortTrackStore>>,
     opts: Arc<SortAttributesOptions>,
     voting_threads: Vec<(VotingSenderChannel, JoinHandle<()>)>,
 }
@@ -56,7 +60,7 @@ impl Drop for BatchSort {
 }
 
 fn voting_thread(
-    store: Arc<RwLock<SortTrackStore>>,
+    store: Arc<RwLock<MiddlewareSortTrackStore>>,
     rx: VotingReceiverChannel,
     method: PositionalMetricType,
 ) {
@@ -67,6 +71,7 @@ fn voting_thread(
                 distances,
                 channel,
                 tracks,
+                monitor,
             } => {
                 let candidates_num = tracks.len();
                 let tracks_num = {
@@ -125,6 +130,10 @@ fn voting_thread(
                 if let Err(e) = res {
                     warn!("Unable to send results to a caller, likely the caller already closed the channel. Error is: {:?}", e);
                 }
+                let (lock, cvar) = &*monitor;
+                let mut lock = lock.lock().unwrap();
+                *lock -= 1;
+                cvar.notify_one();
             }
             VotingCommands::Exit => break,
         }
@@ -167,6 +176,7 @@ impl BatchSort {
             .collect::<Vec<_>>();
 
         Self {
+            monitor: None,
             store,
             opts,
             voting_threads,
@@ -177,6 +187,16 @@ impl BatchSort {
         &mut self,
         batch_request: PredictionBatchRequest<(Universal2DBox, Option<i64>)>,
     ) {
+        if let Some(m) = &self.monitor {
+            let (lock, cvar) = &**m;
+            let _guard = cvar.wait_while(lock.lock().unwrap(), |v| *v > 0).unwrap();
+        }
+
+        self.monitor = Some(Arc::new((
+            Mutex::new(batch_request.batch_size()),
+            Condvar::new(),
+        )));
+
         for (i, (scene_id, bboxes)) in batch_request.get_batch().iter().enumerate() {
             let mut rng = rand::thread_rng();
             let epoch = self.opts.next_epoch(*scene_id).unwrap();
@@ -216,6 +236,7 @@ impl BatchSort {
             self.voting_threads[thread_id]
                 .0
                 .send(VotingCommands::Distances {
+                    monitor: self.monitor.as_ref().unwrap().clone(),
                     scene_id: *scene_id,
                     distances: dists.into_iter(),
                     channel: batch_request.get_sender(),

@@ -53,6 +53,7 @@ impl<T> PredictionBatchRequest<T> {
         self.sender.clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn send(&self, res: SceneTracks) -> bool {
         let res = self.sender.send(res);
         if let Err(e) = res {
@@ -66,6 +67,10 @@ impl<T> PredictionBatchRequest<T> {
         }
     }
 
+    pub fn batch_size(&self) -> usize {
+        *self.batch_size.lock().unwrap()
+    }
+
     pub fn add(&mut self, scene_id: u64, elt: T) {
         let vec = self.batch.get_mut(&scene_id);
         if let Some(vec) = vec {
@@ -74,7 +79,7 @@ impl<T> PredictionBatchRequest<T> {
             self.batch.insert(scene_id, vec![elt]);
         }
         let mut batch_size = self.batch_size.lock().unwrap();
-        *batch_size += 1;
+        *batch_size = self.batch.len();
     }
 
     pub fn new() -> (Self, PredictionBatchResult) {
@@ -111,7 +116,7 @@ mod tests {
         request.add(1, Universal2DBox::new(0.0, 0.0, Some(1.0), 0.7, 5.1));
         let batch = request.get_batch();
         drop(batch);
-        assert_eq!(result.batch_size(), 3);
+        assert_eq!(result.batch_size(), 2);
 
         assert!(request.send((0, vec![])));
         assert_eq!(result.ready(), true);
