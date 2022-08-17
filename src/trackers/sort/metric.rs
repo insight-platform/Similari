@@ -8,20 +8,29 @@ use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
 
+pub const DEFAULT_MINIMAL_SORT_CONFIDENCE: f32 = 0.05;
+
 #[derive(Clone)]
 pub struct SortMetric {
     method: PositionalMetricType,
+    min_confidence: f32,
 }
 
 impl Default for SortMetric {
     fn default() -> Self {
-        Self::new(PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD))
+        Self::new(
+            PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+        )
     }
 }
 
 impl SortMetric {
-    pub fn new(method: PositionalMetricType) -> Self {
-        Self { method }
+    pub fn new(method: PositionalMetricType, min_confidence: f32) -> Self {
+        Self {
+            method,
+            min_confidence,
+        }
     }
 }
 
@@ -31,8 +40,8 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
             mq.candidate_observation.attr().as_ref().unwrap(),
             mq.track_observation.attr().as_ref().unwrap(),
         );
-        let conf = if candidate_bbox.confidence < 0.05 {
-            0.1
+        let conf = if candidate_bbox.confidence < self.min_confidence {
+            self.min_confidence
         } else {
             candidate_bbox.confidence
         };
@@ -101,7 +110,7 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
 mod tests {
     use crate::prelude::{BoundingBox, PositionalMetricType};
     use crate::track::{MetricQuery, Observation, ObservationMetric};
-    use crate::trackers::sort::metric::SortMetric;
+    use crate::trackers::sort::metric::{SortMetric, DEFAULT_MINIMAL_SORT_CONFIDENCE};
     use crate::trackers::sort::{
         SortAttributes, SortAttributesOptions, DEFAULT_SORT_IOU_THRESHOLD,
     };
@@ -118,7 +127,10 @@ mod tests {
             SpatioTemporalConstraints::default(),
         )));
 
-        let mut metric = SortMetric::new(PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD));
+        let mut metric = SortMetric::new(
+            PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+        );
 
         let mut obs = vec![Observation::new(
             Some(BoundingBox::new_with_confidence(0.0, 0.0, 8.0, 10.0, 0.8).as_xyaah()),
@@ -148,7 +160,10 @@ mod tests {
         let candidate_attrs = SortAttributes::new(attr_opts.clone());
         let track_attrs = SortAttributes::new(attr_opts.clone());
 
-        let metric = SortMetric::new(PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD));
+        let metric = SortMetric::new(
+            PositionalMetricType::IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+        );
 
         let candidate_obs = Observation::new(
             Some(BoundingBox::new_with_confidence(0.0, 0.0, 8.0, 10.0, 0.8).as_xyaah()),

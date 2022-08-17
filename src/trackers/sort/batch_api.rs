@@ -147,6 +147,7 @@ impl BatchSort {
         bbox_history: usize,
         max_idle_epochs: usize,
         method: PositionalMetricType,
+        min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
         assert!(bbox_history > 0);
@@ -161,7 +162,7 @@ impl BatchSort {
         let store = Arc::new(RwLock::new(
             TrackStoreBuilder::new(distance_shards)
                 .default_attributes(SortAttributes::new(opts.clone()))
-                .metric(SortMetric::new(method))
+                .metric(SortMetric::new(method, min_confidence))
                 .notifier(NoopNotifier)
                 .build(),
         ));
@@ -251,10 +252,19 @@ impl BatchSort {
 mod tests {
     use crate::prelude::PositionalMetricType::Mahalanobis;
     use crate::trackers::sort::batch_api::BatchSort;
+    use crate::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 
     #[test]
     fn new_drop() {
-        let bs = BatchSort::new(1, 1, 1, 1, Mahalanobis, None);
+        let bs = BatchSort::new(
+            1,
+            1,
+            1,
+            1,
+            Mahalanobis,
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            None,
+        );
         drop(bs);
     }
 }

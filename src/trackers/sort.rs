@@ -230,7 +230,7 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
 #[cfg(test)]
 mod track_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
-    use crate::trackers::sort::metric::SortMetric;
+    use crate::trackers::sort::metric::{SortMetric, DEFAULT_MINIMAL_SORT_CONFIDENCE};
     use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;
@@ -247,7 +247,10 @@ mod track_tests {
 
         let mut t1 = TrackBuilder::new(1)
             .attributes(SortAttributes::default())
-            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
+            .metric(SortMetric::new(
+                IoU(DEFAULT_SORT_IOU_THRESHOLD),
+                DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            ))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
@@ -271,7 +274,10 @@ mod track_tests {
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
-            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
+            .metric(SortMetric::new(
+                IoU(DEFAULT_SORT_IOU_THRESHOLD),
+                DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            ))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)

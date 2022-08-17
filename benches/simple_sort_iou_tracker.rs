@@ -3,6 +3,7 @@
 extern crate test;
 
 use similari::examples::BoxGen2;
+use similari::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 use similari::trackers::sort::simple_api::Sort;
 use similari::trackers::sort::PositionalMetricType::IoU;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
@@ -52,6 +53,7 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         10,
         1,
         IoU(DEFAULT_SORT_IOU_THRESHOLD),
+        DEFAULT_MINIMAL_SORT_CONFIDENCE,
         Some(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)])),
     );
 

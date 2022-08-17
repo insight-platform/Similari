@@ -4,6 +4,7 @@ extern crate test;
 
 use similari::examples::BoxGen2;
 use similari::prelude::Sort;
+use similari::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 use similari::trackers::sort::PositionalMetricType::Mahalanobis;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use test::Bencher;
@@ -51,6 +52,7 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         10,
         1,
         Mahalanobis,
+        DEFAULT_MINIMAL_SORT_CONFIDENCE,
         Some(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)])),
     );
 

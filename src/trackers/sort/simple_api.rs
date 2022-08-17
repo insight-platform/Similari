@@ -41,6 +41,7 @@ impl Sort {
         bbox_history: usize,
         max_idle_epochs: usize,
         method: PositionalMetricType,
+        min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
         assert!(bbox_history > 0);
@@ -53,7 +54,7 @@ impl Sort {
         ));
         let store = TrackStoreBuilder::new(shards)
             .default_attributes(SortAttributes::new(opts.clone()))
-            .metric(SortMetric::new(method))
+            .metric(SortMetric::new(method, min_confidence))
             .notifier(NoopNotifier)
             .build();
 
@@ -236,6 +237,7 @@ impl From<Track<SortAttributes, SortMetric, Universal2DBox>> for PyWastedSortTra
 
 #[cfg(test)]
 mod tests {
+    use crate::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
     use crate::trackers::sort::simple_api::Sort;
     use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
@@ -244,7 +246,14 @@ mod tests {
 
     #[test]
     fn sort() {
-        let mut t = Sort::new(1, 10, 2, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
+        let mut t = Sort::new(
+            1,
+            10,
+            2,
+            IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            None,
+        );
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.predict(&[(bb.into(), None)]);
@@ -299,7 +308,14 @@ mod tests {
 
     #[test]
     fn sort_with_scenes() {
-        let mut t = Sort::new(1, 10, 2, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
+        let mut t = Sort::new(
+            1,
+            10,
+            2,
+            IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            None,
+        );
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);
@@ -320,12 +336,19 @@ mod tests {
 #[pymethods]
 impl Sort {
     #[new]
-    #[args(shards = "4", bbox_history = "1", max_idle_epochs = "5")]
+    #[args(
+        shards = "4",
+        bbox_history = "1",
+        max_idle_epochs = "5",
+        spatio_temporal_constraints = "None",
+        min_confidence = "0.05"
+    )]
     pub fn new_py(
         shards: i64,
         bbox_history: i64,
         max_idle_epochs: i64,
         method: PyPositionalMetricType,
+        min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
         assert!(shards > 0 && bbox_history > 0 && max_idle_epochs > 0);
@@ -334,6 +357,7 @@ impl Sort {
             bbox_history.try_into().unwrap(),
             max_idle_epochs.try_into().unwrap(),
             method.0,
+            min_confidence,
             spatio_temporal_constraints,
         )
     }
