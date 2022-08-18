@@ -384,11 +384,12 @@ impl Sort {
         min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
-        assert!(shards > 0 && bbox_history > 0 && max_idle_epochs > 0);
         Self::new(
-            shards.try_into().unwrap(),
-            bbox_history.try_into().unwrap(),
-            max_idle_epochs.try_into().unwrap(),
+            shards.try_into().expect("Positive number expected"),
+            bbox_history.try_into().expect("Positive number expected"),
+            max_idle_epochs
+                .try_into()
+                .expect("Positive number expected"),
             method.0,
             min_confidence,
             spatio_temporal_constraints,

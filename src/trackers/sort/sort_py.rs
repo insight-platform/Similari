@@ -2,11 +2,11 @@ use crate::prelude::Universal2DBox;
 use crate::trackers::batch::{PredictionBatchRequest, PredictionBatchResult};
 use pyo3::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[pyclass]
 #[pyo3(name = "SortPredictionBatchRequest")]
 pub(crate) struct PySortPredictionBatchRequest {
-    batch: PredictionBatchRequest<(Universal2DBox, Option<i64>)>,
+    pub(crate) batch: PredictionBatchRequest<(Universal2DBox, Option<i64>)>,
     result: Option<PredictionBatchResult>,
 }
 
