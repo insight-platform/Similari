@@ -15,11 +15,11 @@ pub struct SortVoting {
 }
 
 impl SortVoting {
-    pub fn new(threshold: f32, candidate_num: usize, track_num: usize) -> Self {
+    pub fn new(threshold: f32, candidates_num: usize, tracks_num: usize) -> Self {
         Self {
             threshold: (threshold * F32_U64_MULT) as i64,
-            candidate_num,
-            track_num,
+            candidate_num: candidates_num,
+            track_num: tracks_num,
         }
     }
 }

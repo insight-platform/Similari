@@ -4,18 +4,21 @@ use pyo3::prelude::*;
 /// Track metric implementation
 pub mod metric;
 
-/// Cascade voting engine for visual tracker. Combines TopN voting first for features and
+/// Cascade voting engine for visual_sort tracker. Combines TopN voting first for features and
 /// Hungarian voting for the rest of unmatched (objects, tracks)
 pub mod voting;
 
-/// Track attributes for visual tracker
+/// Track attributes for visual_sort tracker
 pub mod track_attributes;
 
-/// Observation attributes for visual tracker
+/// Observation attributes for visual_sort tracker
 pub mod observation_attributes;
 
 /// Implementation of Visual tracker with simple API
 pub mod simple_api;
+
+/// Python API implementation
+pub mod visual_sort_py;
 
 #[derive(Debug, Clone)]
 pub struct VisualObservation<'a> {

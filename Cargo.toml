@@ -7,7 +7,7 @@ repository = "https://github.com/insight-platform/Similari"
 readme = "README.md"
 keywords = ["machine-learning", "similarity", "tracking", "SORT", "DeepSORT"]
 categories = ["algorithms", "data-structures", "computer-vision", "science"]
-version = "0.22.0"
+version = "0.22.1"
 edition = "2021"
 license="Apache-2.0"
 rust-version = "1.62"
@@ -37,8 +37,13 @@ features = ["extension-module"]
 [dev-dependencies]
 wide = "0.7.4"
 
+[profile.dev]
+opt-level = 3
+
 [profile.release]
 opt-level = 3
 
 [profile.bench]
 opt-level = 3
+
+
