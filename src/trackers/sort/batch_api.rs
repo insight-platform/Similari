@@ -8,8 +8,12 @@ use crate::trackers::batch::{PredictionBatchRequest, SceneTracks};
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::metric::SortMetric;
 use crate::trackers::sort::voting::SortVoting;
-use crate::trackers::sort::{SortAttributes, SortAttributesOptions, SortAttributesUpdate};
+use crate::trackers::sort::{
+    AutoWaste, SortAttributes, SortAttributesOptions, SortAttributesUpdate,
+    DEFAULT_AUTO_WASTE_PERIODICITY, MAHALANOBIS_NEW_TRACK_THRESHOLD,
+};
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
+use crate::trackers::tracker_api::TrackerAPI;
 use crate::voting::Voting;
 use crossbeam::channel::{Receiver, Sender};
 use log::warn;
@@ -17,7 +21,7 @@ use pyo3::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 use std::mem;
-use std::sync::{Arc, Condvar, Mutex, RwLock};
+use std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread::{spawn, JoinHandle};
 
 type VotingSenderChannel = Sender<VotingCommands>;
@@ -42,8 +46,10 @@ enum VotingCommands {
 pub struct BatchSort {
     monitor: Option<BatchBusyMonitor>,
     store: Arc<RwLock<MiddlewareSortTrackStore>>,
+    wasted_store: RwLock<MiddlewareSortTrackStore>,
     opts: Arc<SortAttributesOptions>,
     voting_threads: Vec<(VotingSenderChannel, JoinHandle<()>)>,
+    auto_waste: AutoWaste,
 }
 
 impl Drop for BatchSort {
@@ -63,6 +69,7 @@ fn voting_thread(
     store: Arc<RwLock<MiddlewareSortTrackStore>>,
     rx: VotingReceiverChannel,
     method: PositionalMetricType,
+    track_id: Arc<RwLock<u64>>,
 ) {
     while let Ok(command) = rx.recv() {
         match command {
@@ -81,7 +88,7 @@ fn voting_thread(
 
                 let voting = SortVoting::new(
                     match method {
-                        PositionalMetricType::Mahalanobis => 0.1,
+                        PositionalMetricType::Mahalanobis => MAHALANOBIS_NEW_TRACK_THRESHOLD,
                         PositionalMetricType::IoU(t) => t,
                     },
                     candidates_num,
@@ -90,17 +97,23 @@ fn voting_thread(
 
                 let winners = voting.winners(distances);
                 let mut res = Vec::default();
-                for t in tracks {
+                for mut t in tracks {
                     let source = t.get_track_id();
                     let track_id: u64 = if let Some(dest) = winners.get(&source) {
                         let dest = dest[0];
                         if dest == source {
+                            let tid = {
+                                let mut track_id = track_id.write().unwrap();
+                                *track_id += 1;
+                                *track_id
+                            };
+                            t.set_track_id(tid);
                             store
                                 .write()
                                 .expect("Access to store must always succeed")
                                 .add_track(t)
                                 .unwrap();
-                            source
+                            tid
                         } else {
                             store
                                 .write()
@@ -110,12 +123,19 @@ fn voting_thread(
                             dest
                         }
                     } else {
+                        let tid = {
+                            let mut track_id = track_id.write().unwrap();
+                            *track_id += 1;
+                            *track_id
+                        };
+                        t.set_track_id(tid);
+
                         store
                             .write()
                             .expect("Access to store must always succeed")
                             .add_track(t)
                             .unwrap();
-                        source
+                        tid
                     };
 
                     let track = {
@@ -167,20 +187,39 @@ impl BatchSort {
                 .build(),
         ));
 
+        let wasted_store = RwLock::new(
+            TrackStoreBuilder::new(distance_shards)
+                .default_attributes(SortAttributes::new(opts.clone()))
+                .metric(SortMetric::new(method, min_confidence))
+                .notifier(NoopNotifier)
+                .build(),
+        );
+
+        let track_id = Arc::new(RwLock::new(0));
+
         let voting_threads = (0..voting_shards)
             .into_iter()
             .map(|_e| {
                 let (tx, rx) = crossbeam::channel::unbounded();
                 let thread_store = store.clone();
-                (tx, spawn(move || voting_thread(thread_store, rx, method)))
+                let thread_track_id = track_id.clone();
+                (
+                    tx,
+                    spawn(move || voting_thread(thread_store, rx, method, thread_track_id)),
+                )
             })
             .collect::<Vec<_>>();
 
         Self {
             monitor: None,
             store,
+            wasted_store,
             opts,
             voting_threads,
+            auto_waste: AutoWaste {
+                periodicity: DEFAULT_AUTO_WASTE_PERIODICITY,
+                counter: DEFAULT_AUTO_WASTE_PERIODICITY,
+            },
         }
     }
 
@@ -248,15 +287,55 @@ impl BatchSort {
     }
 }
 
+impl TrackerAPI<SortAttributes, SortMetric, Universal2DBox, SortAttributesOptions, NoopNotifier>
+    for BatchSort
+{
+    fn get_auto_waste_obj_mut(&mut self) -> &mut AutoWaste {
+        &mut self.auto_waste
+    }
+
+    fn get_opts(&self) -> &SortAttributesOptions {
+        &self.opts
+    }
+
+    fn get_main_store_mut(
+        &mut self,
+    ) -> RwLockWriteGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>>
+    {
+        self.store.write().unwrap()
+    }
+
+    fn get_wasted_store_mut(
+        &mut self,
+    ) -> RwLockWriteGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>>
+    {
+        self.wasted_store.write().unwrap()
+    }
+
+    fn get_main_store(
+        &self,
+    ) -> RwLockReadGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>> {
+        self.store.read().unwrap()
+    }
+
+    fn get_wasted_store(
+        &self,
+    ) -> RwLockReadGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>> {
+        self.wasted_store.read().unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::prelude::BoundingBox;
     use crate::prelude::PositionalMetricType::Mahalanobis;
+    use crate::trackers::batch::PredictionBatchRequest;
     use crate::trackers::sort::batch_api::BatchSort;
     use crate::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 
     #[test]
     fn new_drop() {
-        let bs = BatchSort::new(
+        let mut bs = BatchSort::new(
             1,
             1,
             1,
@@ -265,6 +344,15 @@ mod tests {
             DEFAULT_MINIMAL_SORT_CONFIDENCE,
             None,
         );
-        drop(bs);
+        let (mut batch, res) = PredictionBatchRequest::new();
+        batch.add(0, (BoundingBox::new(0.0, 0.0, 5.0, 10.0).into(), Some(1)));
+        batch.add(1, (BoundingBox::new(0.0, 0.0, 5.0, 10.0).into(), Some(2)));
+
+        bs.predict(batch);
+
+        for _ in 0..res.batch_size() {
+            let data = res.get();
+            dbg!(data);
+        }
     }
 }

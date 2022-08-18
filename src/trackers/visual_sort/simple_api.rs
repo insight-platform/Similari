@@ -91,6 +91,11 @@ impl VisualSort {
         self.predict_with_scene(0, observations)
     }
 
+    fn gen_track_id(&mut self) -> u64 {
+        self.track_id += 1;
+        self.track_id
+    }
+
     /// Receive tracking information for observed bboxes of `scene_id`
     ///
     /// # Parameters
@@ -239,10 +244,6 @@ impl
         NoopNotifier,
     > for VisualSort
 {
-    fn get_track_counter(&mut self) -> &mut u64 {
-        &mut self.track_id
-    }
-
     fn get_auto_waste_obj_mut(&mut self) -> &mut AutoWaste {
         &mut self.auto_waste
     }

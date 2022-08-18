@@ -14,7 +14,6 @@ where
     N: ChangeNotifier,
     E: EpochDb,
 {
-    fn get_track_counter(&mut self) -> &mut u64;
     fn get_auto_waste_obj_mut(&mut self) -> &mut AutoWaste;
     fn get_opts(&self) -> &E;
     fn get_main_store_mut(&mut self) -> RwLockWriteGuard<TrackStore<TA, M, OA, N>>;
@@ -22,12 +21,6 @@ where
 
     fn get_main_store(&self) -> RwLockReadGuard<TrackStore<TA, M, OA, N>>;
     fn get_wasted_store(&self) -> RwLockReadGuard<TrackStore<TA, M, OA, N>>;
-
-    fn gen_track_id(&mut self) -> u64 {
-        let counter = self.get_track_counter();
-        *counter += 1;
-        *counter
-    }
 
     /// change auto waste job periodicity
     ///
