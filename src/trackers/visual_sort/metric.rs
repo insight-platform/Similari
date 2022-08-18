@@ -5,7 +5,6 @@ use crate::distance::{cosine, euclidean};
 use crate::track::{Feature, MetricQuery, ObservationAttributes, ObservationMetricOk};
 use crate::track::{MetricOutput, Observation, ObservationMetric};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
-use crate::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::visual_sort::metric::builder::VisualMetricBuilder;
 use crate::trackers::visual_sort::metric::VisualSortMetricType::{Cosine, Euclidean};
@@ -107,6 +106,7 @@ pub struct VisualMetricOptions {
     pub visual_minimal_quality_collect: f32,
     pub visual_minimal_own_area_percentage_use: f32,
     pub visual_minimal_own_area_percentage_collect: f32,
+    pub positional_min_confidence: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -160,12 +160,14 @@ impl VisualMetric {
             if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
                 None
             } else {
-                let conf =
-                    if candidate_observation_bbox.confidence < DEFAULT_MINIMAL_SORT_CONFIDENCE {
-                        DEFAULT_MINIMAL_SORT_CONFIDENCE
-                    } else {
-                        candidate_observation_bbox.confidence
-                    };
+                let conf = if candidate_observation_bbox.confidence
+                    < self.opts.positional_min_confidence
+                {
+                    self.opts.positional_min_confidence
+                } else {
+                    candidate_observation_bbox.confidence
+                };
+
                 match self.opts.positional_kind {
                     PositionalMetricType::Mahalanobis => {
                         let state = track_attributes.get_state().unwrap();

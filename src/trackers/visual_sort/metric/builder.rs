@@ -16,6 +16,7 @@ pub struct VisualMetricBuilder {
     visual_min_votes: usize,
     visual_minimal_own_area_percentage_use: f32,
     visual_minimal_own_area_percentage_collect: f32,
+    positional_min_confidence: f32,
 }
 
 /// By default the metric object is constructed with: Euclidean visual_sort metric, IoU(0.3) positional metric
@@ -34,6 +35,7 @@ impl Default for VisualMetricBuilder {
             visual_min_votes: 1,
             visual_minimal_own_area_percentage_use: 0.0,
             visual_minimal_own_area_percentage_collect: 0.0,
+            positional_min_confidence: 0.1,
         }
     }
 }
@@ -41,6 +43,14 @@ impl Default for VisualMetricBuilder {
 impl VisualMetricBuilder {
     pub(crate) fn visual_metric_py(&mut self, metric: PyVisualSortMetricType) {
         self.visual_kind = metric.0;
+    }
+
+    pub(crate) fn positional_min_confidence_py(&mut self, conf: f32) {
+        assert!(
+            (0.01..=1.0).contains(&conf),
+            "Confidence must lay between (0.01 and 1.0)"
+        );
+        self.positional_min_confidence = conf;
     }
 
     pub(crate) fn visual_min_votes_py(&mut self, n: i64) {
@@ -127,6 +137,15 @@ impl VisualMetricBuilder {
         self
     }
 
+    pub fn positional_min_confidence(mut self, conf: f32) -> Self {
+        assert!(
+            (0.01..=1.0).contains(&conf),
+            "Confidence must lay between (0.01 and 1.0)"
+        );
+        self.positional_min_confidence = conf;
+        self
+    }
+
     pub fn visual_metric(mut self, metric: VisualSortMetricType) -> Self {
         self.visual_kind = metric;
         self
@@ -193,6 +212,7 @@ impl VisualMetricBuilder {
         );
         VisualMetric {
             opts: Arc::new(VisualMetricOptions {
+                positional_min_confidence: self.positional_min_confidence,
                 visual_kind: self.visual_kind,
                 positional_kind: self.positional_kind,
                 visual_minimal_track_length: self.visual_minimal_track_length,
