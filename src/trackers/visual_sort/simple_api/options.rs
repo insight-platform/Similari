@@ -97,6 +97,14 @@ impl VisualSortOptions {
         self
     }
 
+    /// Minimal allowed confidence for bounding boxes. If the confidence is less than specified it is
+    /// corrected to be the minimal
+    ///
+    pub fn positional_min_confidence(mut self, conf: f32) -> Self {
+        self.metric_builder = self.metric_builder.positional_min_confidence(conf);
+        self
+    }
+
     /// The constraints define how far the candidate is allowed to be from a track’s last box to
     /// participate in the selection for the track. If the track candidate is too far from the
     /// track kept in the store, it is skipped from the comparison.
@@ -246,6 +254,11 @@ impl VisualSortOptions {
         self.metric_builder.visual_minimal_quality_use_py(q);
     }
 
+    #[pyo3(name = "positional_min_confidence", text_signature = "($self, conf)")]
+    fn positional_min_confidence_py(&mut self, conf: f32) {
+        self.metric_builder.positional_min_confidence_py(conf);
+    }
+
     #[pyo3(name = "visual_max_observations", text_signature = "($self, n)")]
     fn visual_max_observations_py(&mut self, n: i64) {
         self.metric_builder
@@ -307,6 +320,7 @@ mod tests {
             .visual_minimal_quality_collect(0.5)
             .visual_max_observations(25)
             .visual_min_votes(5)
+            .positional_min_confidence(0.13)
             .visual_minimal_own_area_percentage_use(0.1)
             .visual_minimal_own_area_percentage_collect(0.2)
             .spatio_temporal_constraints(
@@ -324,6 +338,7 @@ mod tests {
         opts_builder.visual_minimal_quality_use_py(0.45);
         opts_builder.visual_minimal_quality_collect_py(0.5);
         opts_builder.visual_max_observations_py(25);
+        opts_builder.positional_min_confidence_py(0.13);
         opts_builder.visual_minimal_own_area_percentage_use_py(0.1);
         opts_builder.visual_minimal_own_area_percentage_collect_py(0.2);
         opts_builder.visual_min_votes_py(5);
