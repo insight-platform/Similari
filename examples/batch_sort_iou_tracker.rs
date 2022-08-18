@@ -24,7 +24,7 @@ fn main() {
     let mut b1 = BoxGen2::new_monotonous(100.0, 100.0, 10.0, 15.0, pos_drift, box_drift);
     let mut b2 = BoxGen2::new_monotonous(10.0, 10.0, 12.0, 18.0, pos_drift, box_drift);
 
-    for _ in 0..1000000 {
+    for _ in 0..10 {
         let obj1b = b1.next().unwrap();
         let obj2b = b2.next().unwrap();
         let (mut batch, res) = PredictionBatchRequest::new();

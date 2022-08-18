@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 pub type BatchRecords<T> = HashMap<u64, Vec<T>>;
 pub type SceneTracks = (u64, Vec<SortTrack>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PredictionBatchRequest<T> {
     batch: BatchRecords<T>,
     sender: Sender<SceneTracks>,

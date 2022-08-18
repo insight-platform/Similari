@@ -39,6 +39,10 @@ bounding boxes.
 **SORT tracking** algorithm (axis-aligned and oriented boxes are supported) - IoU and Mahalanobis distances are 
   supported.
 
+**Batch SORT tracking** algorithm (axis-aligned and oriented boxes are supported) - IoU and Mahalanobis distances are 
+supported. Batch tracker allows passing multiple scenes to tracker in a single batch and get them back. If the platform
+supports batching (like Nvidia DeepStream or Intel DL Streamer) the batch tracker is more beneficial to use.
+
 **VisualSORT tracking** - a DeepSORT-like algorithm (axis-aligned and oriented boxes are supported) - IoU and 
 Mahalanobis distances are supported for positional tracking, euclidean, cosine distances are used for visual tracking on 
 feature vectors.

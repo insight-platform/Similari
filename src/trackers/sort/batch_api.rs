@@ -7,10 +7,11 @@ use crate::track::Track;
 use crate::trackers::batch::{PredictionBatchRequest, SceneTracks};
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::metric::SortMetric;
+use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
 use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::{
-    AutoWaste, SortAttributes, SortAttributesOptions, SortAttributesUpdate,
-    DEFAULT_AUTO_WASTE_PERIODICITY, MAHALANOBIS_NEW_TRACK_THRESHOLD,
+    AutoWaste, PyPositionalMetricType, PyWastedSortTrack, SortAttributes, SortAttributesOptions,
+    SortAttributesUpdate, DEFAULT_AUTO_WASTE_PERIODICITY, MAHALANOBIS_NEW_TRACK_THRESHOLD,
 };
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::trackers::tracker_api::TrackerAPI;
@@ -354,5 +355,122 @@ mod tests {
             let data = res.get();
             dbg!(data);
         }
+    }
+}
+
+#[pymethods]
+impl BatchSort {
+    #[new]
+    #[args(
+        distance_shards = "4",
+        voting_shards = "4",
+        bbox_history = "1",
+        max_idle_epochs = "5",
+        spatio_temporal_constraints = "None",
+        min_confidence = "0.05"
+    )]
+    pub fn new_py(
+        distance_shards: i64,
+        voting_shards: i64,
+        bbox_history: i64,
+        max_idle_epochs: i64,
+        method: PyPositionalMetricType,
+        min_confidence: f32,
+        spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
+    ) -> Self {
+        Self::new(
+            distance_shards
+                .try_into()
+                .expect("Positive number expected"),
+            voting_shards.try_into().expect("Positive number expected"),
+            bbox_history.try_into().expect("Positive number expected"),
+            max_idle_epochs
+                .try_into()
+                .expect("Positive number expected"),
+            method.0,
+            min_confidence,
+            spatio_temporal_constraints,
+        )
+    }
+
+    #[pyo3(name = "skip_epochs", text_signature = "($self, n)")]
+    fn skip_epochs_py(&mut self, n: i64) {
+        assert!(n > 0);
+        self.skip_epochs(n.try_into().unwrap())
+    }
+
+    #[pyo3(
+        name = "skip_epochs_for_scene",
+        text_signature = "($self, scene_id, n)"
+    )]
+    fn skip_epochs_for_scene_py(&mut self, scene_id: i64, n: i64) {
+        assert!(n > 0 && scene_id >= 0);
+        self.skip_epochs_for_scene(scene_id.try_into().unwrap(), n.try_into().unwrap())
+    }
+
+    /// Get the amount of stored tracks per shard
+    ///
+    #[pyo3(name = "shard_stats", text_signature = "($self)")]
+    fn shard_stats_py(&self) -> Vec<i64> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.store
+                .read()
+                .unwrap()
+                .shard_stats()
+                .into_iter()
+                .map(|e| i64::try_from(e).unwrap())
+                .collect()
+        })
+    }
+
+    /// Get the current epoch for `scene_id` == 0
+    ///
+    #[pyo3(name = "current_epoch", text_signature = "($self)")]
+    fn current_epoch_py(&self) -> i64 {
+        self.current_epoch_with_scene(0).try_into().unwrap()
+    }
+
+    /// Get the current epoch for `scene_id`
+    ///
+    /// # Parameters
+    /// * `scene_id` - scene id
+    ///
+    #[pyo3(
+        name = "current_epoch_with_scene",
+        text_signature = "($self, scene_id)"
+    )]
+    fn current_epoch_with_scene_py(&self, scene_id: i64) -> isize {
+        assert!(scene_id >= 0);
+        self.current_epoch_with_scene(scene_id.try_into().unwrap())
+            .try_into()
+            .unwrap()
+    }
+
+    /// Receive tracking information for observed bboxes of `scene_id` == 0
+    ///
+    /// # Parameters
+    /// * `bboxes` - bounding boxes received from a detector
+    ///
+    #[pyo3(name = "predict", text_signature = "($self, batch)")]
+    fn predict_py(&mut self, batch: PySortPredictionBatchRequest) {
+        self.predict(batch.batch);
+    }
+
+    /// Remove all the tracks with expired life
+    ///
+    #[pyo3(name = "wasted", text_signature = "($self)")]
+    fn wasted_py(&mut self) -> Vec<PyWastedSortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.wasted()
+                .into_iter()
+                .map(PyWastedSortTrack::from)
+                .collect()
+        })
     }
 }

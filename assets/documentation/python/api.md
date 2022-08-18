@@ -139,7 +139,8 @@ is returned for each track in the form of the structure `SortTrack`. Fields are 
 
 ```python
 ...
-tracks = sort.predict([box])
+custom_object_id = 13 # None is also a valid value
+tracks = sort.predict([(box, custom_object_id)])
 for t in tracks:
     print(t)
 ```
