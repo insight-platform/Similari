@@ -8,6 +8,7 @@ import sys
 
 from .config import load_config, OriginalSortParams
 from .trackers import OriginalSort, SimilariTracker
+from .evaluator import evaluate
 from .utils import read_detections, write_result
 
 
@@ -20,10 +21,9 @@ def main(config_file_path: str):
 
     tracker_name = config.name
 
-    # data_path = Path('../TrackEval/data/gt/mot_challenge/MOT20-train')
-    data_path = Path('/data/gt/mot_challenge/MOT20-train')
-    # res_path = Path(f'../TrackEval/data/trackers/mot_challenge/MOT20-train/{tracker_name}/data')
-    res_path = Path(f'/data/trackers/mot_challenge/MOT20-train/{tracker_name}/data')
+    data_path = Path(config.data_path)
+    output_path = Path(config.output_path)
+    res_path = output_path / tracker_name / 'data'
     res_path.mkdir(parents=True, exist_ok=True)
 
     for folder in data_path.iterdir():
@@ -71,6 +71,8 @@ def main(config_file_path: str):
 
         write_result(res_file_path, result_rows)
         print(f"Resulting file {res_file_path} was successfully written.\n")
+
+    evaluate(tracker_name, data_path, output_path)
 
 
 if __name__ == '__main__':

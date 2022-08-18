@@ -33,10 +33,15 @@ RUN git clone https://github.com/abewley/sort.git /tmp/sort \
     && cp /tmp/sort/sort.py /opt/python/motchallenge/original_sort.py \
     && rm -r /tmp/sort
 
-# MOTChallenge Official Evaluation Kit
+# install package with MOTChallenge Official Evaluation Kit
 # https://github.com/JonathonLuiten/TrackEval/tree/master/docs/MOTChallenge-Official
-RUN git clone https://github.com/JonathonLuiten/TrackEval.git /opt/TrackEval
-WORKDIR /opt/TrackEval
-VOLUME /opt/TrackEval/data
-#ENTRYPOINT ['python3', 'run.py']
-#CMD ['det_path', 'res_path', 'IoUSort', '...']
+RUN git clone https://github.com/JonathonLuiten/TrackEval.git /tmp/TrackEval \
+    && cd /tmp/TrackEval \
+    && python3 setup.py install \
+    && rm -rf /tmp/TrackEval
+
+WORKDIR /opt/python
+VOLUME /data
+
+CMD ["/opt/python/motchallenge/config.yml"]
+ENTRYPOINT ["python3", "-m", "motchallenge"]

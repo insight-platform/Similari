@@ -101,8 +101,10 @@ class Evaluator:
 class ConfigSchema:
     """Configuration schema."""
 
-    name: str = MISSING
-    tracker: Tracker = MISSING
+    name: str
+    data_path: str
+    output_path: str
+    tracker: Tracker
     evaluator: Optional[Evaluator] = None
 
 
@@ -132,6 +134,12 @@ def load_config(config_file_path: str) -> Config:
         )
     )
 
-    print('Configuration:\n', OmegaConf.to_yaml(config))
+    print(f'Configuration:\n{OmegaConf.to_yaml(config)}')
 
-    return Config(name=config.name, tracker=tracker_params, evaluator=config.evaluator)
+    return Config(
+        name=config.name,
+        data_path=config.data_path,
+        output_path=config.output_path,
+        tracker=tracker_params,
+        evaluator=config.evaluator
+    )

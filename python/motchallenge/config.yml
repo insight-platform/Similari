@@ -4,6 +4,16 @@
 # unique run name (used to build resulting folder)
 name: test0
 
+# data location configuration, mot challenge format
+# detection and ground truth files location
+# ground truth file: {data_path}/{sample}/gt/gt.txt
+# detection file: {data_path}/{sample}/det/det.txt
+data_path: /data/MOT20/train
+# tracker and evaluation output path
+# tracker predicted detections file: {output_path}/{name}/{sample}.txt
+# tracker evaluation output folder: {output_path}/{name}/data
+output_path: /data/MOT20/output
+
 # tracker configuration
 tracker:
   # supported tracker types: Sort, VisualSort, OriginalSort (https://github.com/abewley/sort)
