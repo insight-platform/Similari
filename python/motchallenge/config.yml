@@ -1,0 +1,41 @@
+# Default tracker and evaluator configuration.
+# Use as a template to configure
+
+# unique run name (used to build resulting folder)
+name: test0
+
+# tracker configuration
+tracker:
+  # supported tracker types: Sort, VisualSort, OriginalSort (https://github.com/abewley/sort)
+  type: Sort
+  # tracker initialization parameters
+  params:
+    # amount of cpu threads to process the data, default 4
+    shards: 4
+    # how many last bboxes are kept within stored track, default 10
+    bbox_history: 10
+    # how long track survives without being updated, default 10
+    max_idle_epochs: 100
+    # tracker positional metric configuration, default IoU
+    positional_metric:
+      # supported types: IoU, Maha (Mahalanobis)
+      type: IoU
+      # IoU threshold, required for IoU positional metric type, default 0.3
+      threshold: 0.3
+    # constraints for objects compared across different epochs (epoch_delta, max_allowed_distance)
+    spatio_temporal_constraints:
+      - [1, 1.0]
+    # whether to use bounding box confidences
+    use_confidence: false
+
+#  type: OriginalSort
+#  params:
+#    ...
+
+#  type: VisualSort
+#  params:
+#    ...
+
+# evaluator configuration
+evaluator:
+  #
