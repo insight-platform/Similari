@@ -10,8 +10,8 @@ if __name__ == '__main__':
     box1 = BoundingBox(10., 5., 7., 7.).as_xyaah()
     box2 = BoundingBox(5., 5., 3., 7.).as_xyaah()
     batch = SortPredictionBatchRequest()
-    batch.add(0, (box1, 11111))
-    batch.add(1, (box2, 11111))
+    batch.add(0, box1, 11111)
+    batch.add(1, box2, 22222)
     prediction_result = batch.prediction()
     sort.predict(batch)
     for _ in range(prediction_result.batch_size()):

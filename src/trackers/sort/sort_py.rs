@@ -25,7 +25,7 @@ impl PySortPredictionBatchRequest {
         self.result.take()
     }
 
-    fn add(&mut self, scene_id: u64, elt: (Universal2DBox, Option<i64>)) {
-        self.batch.add(scene_id, elt)
+    fn add(&mut self, scene_id: u64, bbox: Universal2DBox, custom_object_id: Option<i64>) {
+        self.batch.add(scene_id, (bbox, custom_object_id))
     }
 }
