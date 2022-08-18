@@ -1,4 +1,5 @@
 use crate::prelude::SortTrack;
+use crate::trackers::tracker_api::TrackerAPI;
 use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
 use crate::trackers::visual_sort::simple_api::VisualSort;
 use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
@@ -112,8 +113,7 @@ impl VisualSort {
         let py = gil.python();
 
         py.allow_threads(|| {
-            self.store
-                .shard_stats()
+            self.active_shard_stats()
                 .into_iter()
                 .map(|e| i64::try_from(e).unwrap())
                 .collect()

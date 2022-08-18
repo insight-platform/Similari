@@ -8,6 +8,7 @@ use similari::examples::BoxGen2;
 use similari::prelude::{VisualObservation, VisualSort, VisualSortOptions};
 use similari::trackers::sort::PositionalMetricType;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
+use similari::trackers::tracker_api::TrackerAPI;
 use similari::trackers::visual_sort::metric::VisualSortMetricType;
 use test::Bencher;
 
@@ -152,8 +153,11 @@ fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
         let tracks = tracker.predict(&observations);
         assert_eq!(tracks.len(), objects);
     });
-    eprintln!("Store stats: {:?}", tracker.shard_stats());
-    assert_eq!(tracker.shard_stats().into_iter().sum::<usize>(), objects);
+    eprintln!("Store stats: {:?}", tracker.active_shard_stats());
+    assert_eq!(
+        tracker.active_shard_stats().into_iter().sum::<usize>(),
+        objects
+    );
 
     let wasted = tracker.wasted();
     assert!(wasted.is_empty());

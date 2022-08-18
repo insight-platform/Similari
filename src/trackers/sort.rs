@@ -468,9 +468,9 @@ impl PyPositionalMetricType {
     }
 }
 
-pub(crate) struct AutoWaste {
-    pub(crate) periodicity: usize,
-    pub(crate) counter: usize,
+pub struct AutoWaste {
+    pub periodicity: usize,
+    pub counter: usize,
 }
 
 pub(crate) const DEFAULT_AUTO_WASTE_PERIODICITY: usize = 100;

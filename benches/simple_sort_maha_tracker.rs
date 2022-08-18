@@ -7,6 +7,7 @@ use similari::prelude::Sort;
 use similari::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 use similari::trackers::sort::PositionalMetricType::Mahalanobis;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
+use similari::trackers::tracker_api::TrackerAPI;
 use test::Bencher;
 
 #[bench]
@@ -68,8 +69,11 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         let tracks = tracker.predict(&observations);
         assert_eq!(tracks.len(), objects);
     });
-    eprintln!("Store stats: {:?}", tracker.shard_stats());
-    assert_eq!(tracker.shard_stats().into_iter().sum::<usize>(), objects);
+    eprintln!("Store stats: {:?}", tracker.active_shard_stats());
+    assert_eq!(
+        tracker.active_shard_stats().into_iter().sum::<usize>(),
+        objects
+    );
 
     let wasted = tracker.wasted();
     assert!(wasted.is_empty());

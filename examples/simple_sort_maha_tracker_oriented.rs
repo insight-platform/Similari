@@ -2,6 +2,7 @@ use similari::examples::BoxGen2;
 use similari::prelude::Sort;
 use similari::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 use similari::trackers::sort::PositionalMetricType::Mahalanobis;
+use similari::trackers::tracker_api::TrackerAPI;
 use similari::utils::bbox::Universal2DBox;
 
 fn main() {

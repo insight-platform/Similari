@@ -4,6 +4,7 @@ use similari::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
 use similari::trackers::sort::simple_api::Sort;
 use similari::trackers::sort::PositionalMetricType::IoU;
 use similari::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
+use similari::trackers::tracker_api::TrackerAPI;
 use similari::utils::bbox::BoundingBox;
 
 fn main() {

@@ -19,3 +19,6 @@ pub mod spatio_temporal_constraints;
 /// Prediction batch request implementation
 ///
 pub mod batch;
+
+/// Trait to implement tracker API
+pub mod tracker_api;
