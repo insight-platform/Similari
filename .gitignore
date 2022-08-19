@@ -2,3 +2,5 @@
 /Cargo.lock
 .idea
 dist
+data
+__pycache__

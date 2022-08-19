@@ -3,3 +3,5 @@ dist
 target
 **/Dockerfile
 */Dockerfile
+data
+__pycache__

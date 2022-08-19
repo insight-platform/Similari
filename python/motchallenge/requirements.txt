@@ -1,0 +1,3 @@
+scipy
+omegaconf~=2.2
+tqdm
