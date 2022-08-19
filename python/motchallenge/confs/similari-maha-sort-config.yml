@@ -2,7 +2,7 @@
 # Use as a template to configure
 
 # unique run name (used to build resulting folder)
-name: original_sort
+name: maha_sort
 
 # data location configuration, mot challenge format
 # detection and ground truth files location
