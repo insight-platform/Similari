@@ -137,7 +137,11 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 * VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
   for positional tracking (VisualSort).
 
-Python API classes and functions can be explored [here](assets/documentation/python/api.md). 
+Python API classes and functions can be explored in the python 
+[documentation](assets/documentation/python/api.md) and tiny [examples](python) provided.
+
+There is also [MOTChallenge](python/motchallenge) evaluation kit provided which you can use to simply evaluate trackers 
+performance and metrics.
 
 ### Build Python API in Docker
 
