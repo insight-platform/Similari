@@ -2,7 +2,7 @@
 # Use as a template to configure
 
 # unique run name (used to build resulting folder)
-name: test0
+name: sort_maha
 
 # data location configuration, mot challenge format
 # detection and ground truth files location
@@ -29,9 +29,9 @@ tracker:
     # tracker positional metric configuration, default IoU
     positional_metric:
       # supported types: IoU, Maha (Mahalanobis)
-      type: IoU
+      type: Maha
       # IoU threshold, required for IoU positional metric type, default 0.3
-      threshold: 0.3
+#      threshold: 0.3
     # constraints for objects compared across different epochs (epoch_delta, max_allowed_distance)
     spatio_temporal_constraints:
       - [1, 1.0]
@@ -40,7 +40,12 @@ tracker:
 
 #  type: OriginalSort
 #  params:
-#    ...
+#    # maximum number of frames to keep alive a track without associated detections
+#    max_age: 100
+#    # minimum number of associated detections before track is initialised
+#    min_hits: 1
+#    # minimum IOU for match
+#    iou_threshold: 0.3
 
 #  type: VisualSort
 #  params:

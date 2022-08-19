@@ -22,8 +22,8 @@ def read_detections(
     return frame_detections
 
 
-def write_result(file_path: Union[str, Path], rows: List[Tuple]):
-    """Writes resulting csv file."""
+def write_csv(file_path: Union[str, Path], rows: List[Tuple]):
+    """Writes csv file."""
     with open(file_path, mode="w", newline="") as res_file:
         csv_writer = csv.writer(res_file, lineterminator="\n")
         csv_writer.writerows(rows)
