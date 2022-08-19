@@ -5,7 +5,7 @@ An easy way to run Similari trackers and measure their performance on real data 
 
 ## Download The Data
 
-E.g. for [MOT20](https://motchallenge.net/data/MOT20/) use one of the links:
+For the [MOT20](https://motchallenge.net/data/MOT20/) use one of the links:
 
 * [Get files (no img) only](https://motchallenge.net/data/MOT20Labels.zip) (13.9 MB);
 * [Get all data](https://motchallenge.net/data/MOT20.zip) (5.0 GB).
