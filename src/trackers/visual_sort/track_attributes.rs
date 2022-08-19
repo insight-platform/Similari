@@ -4,14 +4,14 @@ use crate::track::{
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::{SortAttributesOptions, VotingType};
-use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
+use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanState;
 use anyhow::Result;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-/// Universal visual attributes for visual trackers
+/// Universal visual_sort attributes for visual_sort trackers
 ///
 #[derive(Debug, Clone)]
 pub struct VisualAttributes {
@@ -192,7 +192,7 @@ impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAt
 mod tests {
     use crate::trackers::sort::SortAttributesOptions;
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-    use crate::trackers::visual::track_attributes::VisualAttributes;
+    use crate::trackers::visual_sort::track_attributes::VisualAttributes;
     use crate::utils::bbox::BoundingBox;
     use std::collections::HashMap;
     use std::sync::{Arc, RwLock};

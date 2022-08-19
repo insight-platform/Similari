@@ -12,6 +12,9 @@ if __name__ == '__main__':
     tracks = sort.predict([(box, 1111)])
     for t in tracks:
         print(t)
+
+    # you have to call wasted from time to time to purge wasted tracks
+    # out of the waste bin. Without doing that the memory utilization will grow.
     sort.skip_epochs(10)
     wasted = sort.wasted()
     print(wasted[0])

@@ -11,14 +11,22 @@ use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
-/// SORT implementation with IoU and Mahalanobis distances
-pub mod tracker;
+/// SORT metric implementation with IoU and Mahalanobis distances
+pub mod metric;
 
 /// SORT implementation with a very tiny interface
 pub mod simple_api;
 
 /// Voting engine with Hungarian algorithm
+///
 pub mod voting;
+
+/// Python bindings for SORT objects
+///
+pub mod sort_py;
+
+/// SORT tracker with Batch API
+pub mod batch_api;
 
 /// Default IoU threshold that is defined by SORT author in the original repo
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
@@ -222,7 +230,7 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
 #[cfg(test)]
 mod track_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
-    use crate::trackers::sort::tracker::SortMetric;
+    use crate::trackers::sort::metric::{SortMetric, DEFAULT_MINIMAL_SORT_CONFIDENCE};
     use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;
@@ -239,7 +247,10 @@ mod track_tests {
 
         let mut t1 = TrackBuilder::new(1)
             .attributes(SortAttributes::default())
-            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
+            .metric(SortMetric::new(
+                IoU(DEFAULT_SORT_IOU_THRESHOLD),
+                DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            ))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
@@ -263,7 +274,10 @@ mod track_tests {
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
-            .metric(SortMetric::new(IoU(DEFAULT_SORT_IOU_THRESHOLD)))
+            .metric(SortMetric::new(
+                IoU(DEFAULT_SORT_IOU_THRESHOLD),
+                DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            ))
             .notifier(NoopNotifier)
             .observation(
                 ObservationBuilder::new(0)
@@ -453,3 +467,12 @@ impl PyPositionalMetricType {
         format!("{:#?}", self)
     }
 }
+
+pub struct AutoWaste {
+    pub periodicity: usize,
+    pub counter: usize,
+}
+
+pub(crate) const DEFAULT_AUTO_WASTE_PERIODICITY: usize = 100;
+
+pub(crate) const MAHALANOBIS_NEW_TRACK_THRESHOLD: f32 = 1.0;

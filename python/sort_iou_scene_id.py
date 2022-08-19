@@ -20,5 +20,7 @@ if __name__ == '__main__':
     sort.skip_epochs_for_scene(1, 10)
     sort.skip_epochs_for_scene(2, 10)
 
+    # you have to call wasted from time to time to purge wasted tracks
+    # out of the waste bin. Without doing that the memory utilization will grow.
     wasted = sort.wasted()
     print(wasted[0])

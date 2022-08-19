@@ -1,32 +1,36 @@
-pub mod simple_iou_py;
-
 use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
-use crate::track::{Track, TrackStatus};
+use crate::track::Track;
 use crate::trackers::epoch_db::EpochDb;
-use crate::trackers::sort::tracker::SortMetric;
+use crate::trackers::sort::metric::SortMetric;
 use crate::trackers::sort::voting::SortVoting;
-use crate::trackers::sort::PositionalMetricType;
+use crate::trackers::sort::{
+    AutoWaste, PositionalMetricType, PyPositionalMetricType, DEFAULT_AUTO_WASTE_PERIODICITY,
+    MAHALANOBIS_NEW_TRACK_THRESHOLD,
+};
 use crate::trackers::sort::{
     PyWastedSortTrack, SortAttributes, SortAttributesOptions, SortAttributesUpdate, SortTrack,
     VotingType,
 };
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
+use crate::trackers::tracker_api::TrackerAPI;
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
 use pyo3::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// Easy to use SORT tracker implementation
 ///
-
 #[pyclass(text_signature = "(shards, bbox_history, max_idle_epochs, threshold)")]
 pub struct Sort {
-    store: TrackStore<SortAttributes, SortMetric, Universal2DBox>,
+    store: RwLock<TrackStore<SortAttributes, SortMetric, Universal2DBox>>,
+    wasted_store: RwLock<TrackStore<SortAttributes, SortMetric, Universal2DBox>>,
     method: PositionalMetricType,
     opts: Arc<SortAttributesOptions>,
+    auto_waste: AutoWaste,
+    track_id: u64,
 }
 
 impl Sort {
@@ -43,6 +47,7 @@ impl Sort {
         bbox_history: usize,
         max_idle_epochs: usize,
         method: PositionalMetricType,
+        min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
         assert!(bbox_history > 0);
@@ -53,57 +58,33 @@ impl Sort {
             bbox_history,
             spatio_temporal_constraints.unwrap_or_default(),
         ));
-        let store = TrackStoreBuilder::new(shards)
-            .default_attributes(SortAttributes::new(opts.clone()))
-            .metric(SortMetric::new(method))
-            .notifier(NoopNotifier)
-            .build();
+        let store = RwLock::new(
+            TrackStoreBuilder::new(shards)
+                .default_attributes(SortAttributes::new(opts.clone()))
+                .metric(SortMetric::new(method, min_confidence))
+                .notifier(NoopNotifier)
+                .build(),
+        );
+
+        let wasted_store = RwLock::new(
+            TrackStoreBuilder::new(shards)
+                .default_attributes(SortAttributes::new(opts.clone()))
+                .metric(SortMetric::new(method, min_confidence))
+                .notifier(NoopNotifier)
+                .build(),
+        );
 
         Self {
             store,
+            track_id: 0,
+            wasted_store,
             method,
             opts,
+            auto_waste: AutoWaste {
+                periodicity: DEFAULT_AUTO_WASTE_PERIODICITY,
+                counter: DEFAULT_AUTO_WASTE_PERIODICITY,
+            },
         }
-    }
-
-    /// Skip number of epochs to force tracks to turn to terminal state
-    ///
-    /// # Parameters
-    /// * `n` - number of epochs to skip for `scene_id` == 0
-    ///
-    pub fn skip_epochs(&mut self, n: usize) {
-        self.skip_epochs_for_scene(0, n)
-    }
-
-    /// Skip number of epochs to force tracks to turn to terminal state
-    ///
-    /// # Parameters
-    /// * `n` - number of epochs to skip for `scene_id`
-    /// * `scene_id` - scene to skip epochs
-    ///
-    pub fn skip_epochs_for_scene(&mut self, scene_id: u64, n: usize) {
-        self.opts.skip_epochs_for_scene(scene_id, n)
-    }
-
-    /// Get the amount of stored tracks per shard
-    ///
-    pub fn shard_stats(&self) -> Vec<usize> {
-        self.store.shard_stats()
-    }
-
-    /// Get the current epoch for `scene_id` == 0
-    ///
-    pub fn current_epoch(&self) -> usize {
-        self.current_epoch_with_scene(0)
-    }
-
-    /// Get the current epoch for `scene_id`
-    ///
-    /// # Parameters
-    /// * `scene_id` - scene id
-    ///
-    pub fn current_epoch_with_scene(&self, scene_id: u64) -> usize {
-        self.opts.current_epoch_with_scene(scene_id).unwrap()
     }
 
     /// Receive tracking information for observed bboxes of `scene_id` == 0
@@ -113,6 +94,11 @@ impl Sort {
     ///
     pub fn predict(&mut self, bboxes: &[(Universal2DBox, Option<i64>)]) -> Vec<SortTrack> {
         self.predict_with_scene(0, bboxes)
+    }
+
+    fn gen_track_id(&mut self) -> u64 {
+        self.track_id += 1;
+        self.track_id
     }
 
     /// Receive tracking information for observed bboxes of `scene_id`
@@ -126,6 +112,13 @@ impl Sort {
         scene_id: u64,
         bboxes: &[(Universal2DBox, Option<i64>)],
     ) -> Vec<SortTrack> {
+        if self.auto_waste.counter == 0 {
+            self.auto_waste();
+            self.auto_waste.counter = self.auto_waste.periodicity;
+        } else {
+            self.auto_waste.counter -= 1;
+        }
+
         let mut rng = rand::thread_rng();
         let epoch = self.opts.next_epoch(scene_id).unwrap();
 
@@ -133,6 +126,8 @@ impl Sort {
             .iter()
             .map(|(bb, custom_object_id)| {
                 self.store
+                    .read()
+                    .unwrap()
                     .new_track(rng.gen())
                     .observation(
                         ObservationBuilder::new(0)
@@ -148,39 +143,51 @@ impl Sort {
                     .unwrap()
             })
             .collect::<Vec<_>>();
-
-        let num_tracks = tracks.len();
-        let (dists, errs) = self.store.foreign_track_distances(tracks.clone(), 0, false);
+        let num_candidates = tracks.len();
+        let (dists, errs) =
+            self.store
+                .write()
+                .unwrap()
+                .foreign_track_distances(tracks.clone(), 0, false);
         assert!(errs.all().is_empty());
+        let dists = dists.all();
         let voting = SortVoting::new(
             match self.method {
-                PositionalMetricType::Mahalanobis => 0.1,
+                PositionalMetricType::Mahalanobis => MAHALANOBIS_NEW_TRACK_THRESHOLD,
                 PositionalMetricType::IoU(t) => t,
             },
-            num_tracks,
-            self.store.shard_stats().iter().sum(),
+            num_candidates,
+            self.store.read().unwrap().shard_stats().iter().sum(),
         );
         let winners = voting.winners(dists);
         let mut res = Vec::default();
-        for t in tracks {
+
+        for mut t in tracks {
             let source = t.get_track_id();
             let track_id: u64 = if let Some(dest) = winners.get(&source) {
                 let dest = dest[0];
                 if dest == source {
-                    self.store.add_track(t).unwrap();
-                    source
+                    let track_id = self.gen_track_id();
+                    t.set_track_id(track_id);
+                    self.store.write().unwrap().add_track(t).unwrap();
+                    track_id
                 } else {
                     self.store
+                        .write()
+                        .unwrap()
                         .merge_external(dest, &t, Some(&[0]), false)
                         .unwrap();
                     dest
                 }
             } else {
-                self.store.add_track(t).unwrap();
-                source
+                let track_id = self.gen_track_id();
+                t.set_track_id(track_id);
+                self.store.write().unwrap().add_track(t).unwrap();
+                track_id
             };
 
-            let store = self.store.get_store(track_id as usize);
+            let lock = self.store.read().unwrap();
+            let store = lock.get_store(track_id as usize);
             let track = store.get(&track_id).unwrap().clone();
 
             res.push(track.into())
@@ -188,18 +195,43 @@ impl Sort {
 
         res
     }
+}
 
-    /// Receive all the tracks with expired life
-    ///
-    pub fn wasted(&mut self) -> Vec<Track<SortAttributes, SortMetric, Universal2DBox>> {
-        let res = self.store.find_usable();
-        let wasted = res
-            .into_iter()
-            .filter(|(_, status)| matches!(status, Ok(TrackStatus::Wasted)))
-            .map(|(track, _)| track)
-            .collect::<Vec<_>>();
+impl TrackerAPI<SortAttributes, SortMetric, Universal2DBox, SortAttributesOptions, NoopNotifier>
+    for Sort
+{
+    fn get_auto_waste_obj_mut(&mut self) -> &mut AutoWaste {
+        &mut self.auto_waste
+    }
 
-        self.store.fetch_tracks(&wasted)
+    fn get_opts(&self) -> &SortAttributesOptions {
+        &self.opts
+    }
+
+    fn get_main_store_mut(
+        &mut self,
+    ) -> RwLockWriteGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>>
+    {
+        self.store.write().unwrap()
+    }
+
+    fn get_wasted_store_mut(
+        &mut self,
+    ) -> RwLockWriteGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>>
+    {
+        self.wasted_store.write().unwrap()
+    }
+
+    fn get_main_store(
+        &self,
+    ) -> RwLockReadGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>> {
+        self.store.read().unwrap()
+    }
+
+    fn get_wasted_store(
+        &self,
+    ) -> RwLockReadGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>> {
+        self.wasted_store.read().unwrap()
     }
 }
 
@@ -237,15 +269,24 @@ impl From<Track<SortAttributes, SortMetric, Universal2DBox>> for PyWastedSortTra
 
 #[cfg(test)]
 mod tests {
+    use crate::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
     use crate::trackers::sort::simple_api::Sort;
     use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
+    use crate::trackers::tracker_api::TrackerAPI;
     use crate::utils::bbox::BoundingBox;
     use crate::{EstimateClose, EPS};
 
     #[test]
     fn sort() {
-        let mut t = Sort::new(1, 10, 2, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
+        let mut t = Sort::new(
+            1,
+            10,
+            2,
+            IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            None,
+        );
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         let v = t.predict(&[(bb.into(), None)]);
@@ -300,7 +341,14 @@ mod tests {
 
     #[test]
     fn sort_with_scenes() {
-        let mut t = Sort::new(1, 10, 2, IoU(DEFAULT_SORT_IOU_THRESHOLD), None);
+        let mut t = Sort::new(
+            1,
+            10,
+            2,
+            IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            None,
+        );
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
         assert_eq!(t.current_epoch_with_scene(2), 0);
@@ -315,5 +363,139 @@ mod tests {
 
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 1);
+    }
+}
+
+#[pymethods]
+impl Sort {
+    #[new]
+    #[args(
+        shards = "4",
+        bbox_history = "1",
+        max_idle_epochs = "5",
+        spatio_temporal_constraints = "None",
+        min_confidence = "0.05"
+    )]
+    pub fn new_py(
+        shards: i64,
+        bbox_history: i64,
+        max_idle_epochs: i64,
+        method: PyPositionalMetricType,
+        min_confidence: f32,
+        spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
+    ) -> Self {
+        Self::new(
+            shards.try_into().expect("Positive number expected"),
+            bbox_history.try_into().expect("Positive number expected"),
+            max_idle_epochs
+                .try_into()
+                .expect("Positive number expected"),
+            method.0,
+            min_confidence,
+            spatio_temporal_constraints,
+        )
+    }
+
+    #[pyo3(name = "skip_epochs", text_signature = "($self, n)")]
+    pub fn skip_epochs_py(&mut self, n: i64) {
+        assert!(n > 0);
+        self.skip_epochs(n.try_into().unwrap())
+    }
+
+    #[pyo3(
+        name = "skip_epochs_for_scene",
+        text_signature = "($self, scene_id, n)"
+    )]
+    pub fn skip_epochs_for_scene_py(&mut self, scene_id: i64, n: i64) {
+        assert!(n > 0 && scene_id >= 0);
+        self.skip_epochs_for_scene(scene_id.try_into().unwrap(), n.try_into().unwrap())
+    }
+
+    /// Get the amount of stored tracks per shard
+    ///
+    #[pyo3(name = "shard_stats", text_signature = "($self)")]
+    pub fn shard_stats_py(&self) -> Vec<i64> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.store
+                .read()
+                .unwrap()
+                .shard_stats()
+                .into_iter()
+                .map(|e| i64::try_from(e).unwrap())
+                .collect()
+        })
+    }
+
+    /// Get the current epoch for `scene_id` == 0
+    ///
+    #[pyo3(name = "current_epoch", text_signature = "($self)")]
+    pub fn current_epoch_py(&self) -> i64 {
+        self.current_epoch_with_scene(0).try_into().unwrap()
+    }
+
+    /// Get the current epoch for `scene_id`
+    ///
+    /// # Parameters
+    /// * `scene_id` - scene id
+    ///
+    #[pyo3(
+        name = "current_epoch_with_scene",
+        text_signature = "($self, scene_id)"
+    )]
+    pub fn current_epoch_with_scene_py(&self, scene_id: i64) -> isize {
+        assert!(scene_id >= 0);
+        self.current_epoch_with_scene(scene_id.try_into().unwrap())
+            .try_into()
+            .unwrap()
+    }
+
+    /// Receive tracking information for observed bboxes of `scene_id` == 0
+    ///
+    /// # Parameters
+    /// * `bboxes` - bounding boxes received from a detector
+    ///
+    #[pyo3(name = "predict", text_signature = "($self, bboxes)")]
+    pub fn predict_py(&mut self, bboxes: Vec<(Universal2DBox, Option<i64>)>) -> Vec<SortTrack> {
+        self.predict_with_scene_py(0, bboxes)
+    }
+
+    /// Receive tracking information for observed bboxes of `scene_id`
+    ///
+    /// # Parameters
+    /// * `scene_id` - scene id provided by a user (class, camera id, etc...)
+    /// * `bboxes` - bounding boxes received from a detector
+    ///
+    #[pyo3(
+        name = "predict_with_scene",
+        text_signature = "($self, scene_id, bboxes)"
+    )]
+    pub fn predict_with_scene_py(
+        &mut self,
+        scene_id: i64,
+        bboxes: Vec<(Universal2DBox, Option<i64>)>,
+    ) -> Vec<SortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        assert!(scene_id >= 0);
+        py.allow_threads(|| self.predict_with_scene(scene_id.try_into().unwrap(), &bboxes))
+    }
+
+    /// Remove all the tracks with expired life
+    ///
+    #[pyo3(name = "wasted", text_signature = "($self)")]
+    pub fn wasted_py(&mut self) -> Vec<PyWastedSortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.wasted()
+                .into_iter()
+                .map(PyWastedSortTrack::from)
+                .collect()
+        })
     }
 }

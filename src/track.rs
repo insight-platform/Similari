@@ -515,11 +515,11 @@ where
 
                 _ => None,
             };
-
             let merge_history = if merge_history {
-                vec![self.merge_history.clone(), other.merge_history.clone()]
+                vec![&self.merge_history, &other.merge_history]
                     .into_iter()
                     .flatten()
+                    .cloned()
                     .collect::<Vec<_>>()
             } else {
                 take(&mut self.merge_history)

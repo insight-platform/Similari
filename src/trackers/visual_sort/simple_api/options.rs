@@ -1,7 +1,9 @@
 use crate::trackers::sort::{PositionalMetricType, PyPositionalMetricType, SortAttributesOptions};
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-use crate::trackers::visual::metric::{PyVisualMetricType, VisualMetric, VisualMetricType};
+use crate::trackers::visual_sort::metric::builder::VisualMetricBuilder;
+use crate::trackers::visual_sort::metric::{
+    PyVisualSortMetricType, VisualMetric, VisualSortMetricType,
+};
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -57,18 +59,18 @@ impl VisualSortOptions {
         self
     }
 
-    /// The method is used to calculate the distance for visual feature vectors.
+    /// The method is used to calculate the distance for visual_sort feature vectors.
     ///
     /// Currently, cosine and euclidean metrics are supported. The one you choose
     /// is defined by the ReID model used.
     ///    
-    pub fn visual_metric(mut self, metric: VisualMetricType) -> Self {
+    pub fn visual_metric(mut self, metric: VisualSortMetricType) -> Self {
         self.metric_builder = self.metric_builder.visual_metric(metric);
         self
     }
 
     /// The minimal number of votes that is required to allow a track candidate to surpass the enabling
-    /// threshold of the visual voting. The maximum allowed number of visual features kept for the track
+    /// threshold of the visual_sort voting. The maximum allowed number of visual_sort features kept for the track
     /// is defined by `visual_max_observations`.
     ///
     /// _Don't confuse `visual_max_observations` with `kept_history_length` - they have no relation.
@@ -86,12 +88,20 @@ impl VisualSortOptions {
         self
     }
 
-    /// The maximum number of visual observations kept in the track for visual estimations. The features
+    /// The maximum number of visual_sort observations kept in the track for visual_sort estimations. The features
     /// are collected in the track from the candidates, and when the `visual_max_observations` is
     /// reached, the features with lower quality are wiped from the track.
     ///
     pub fn visual_max_observations(mut self, n: usize) -> Self {
         self.metric_builder = self.metric_builder.visual_max_observations(n);
+        self
+    }
+
+    /// Minimal allowed confidence for bounding boxes. If the confidence is less than specified it is
+    /// corrected to be the minimal
+    ///
+    pub fn positional_min_confidence(mut self, conf: f32) -> Self {
+        self.metric_builder = self.metric_builder.positional_min_confidence(conf);
         self
     }
 
@@ -113,7 +123,7 @@ impl VisualSortOptions {
         self
     }
 
-    /// The minimally required number of visual features in the track that enables their usage in
+    /// The minimally required number of visual_sort features in the track that enables their usage in
     /// candidates estimation. If the track is short and there are fewer features collected than
     /// `visual_minimal_track_length` then candidates are estimated against it only by positional
     /// distance. Keep in mind that this parameter must be less than or equal
@@ -124,7 +134,7 @@ impl VisualSortOptions {
         self
     }
 
-    /// The minimal required area of track candidate's bounding box to use the visual feature in estimation.
+    /// The minimal required area of track candidate's bounding box to use the visual_sort feature in estimation.
     /// This parameter protects from the low-quality features received from the smallish boxes.
     ///
     pub fn visual_minimal_area(mut self, area: f32) -> Self {
@@ -132,7 +142,7 @@ impl VisualSortOptions {
         self
     }
 
-    /// The visual quality threshold of a feature that activates the visual estimation of a candidate
+    /// The visual_sort quality threshold of a feature that activates the visual_sort estimation of a candidate
     /// versus the tracks kept in the store.
     ///
     pub fn visual_minimal_quality_use(mut self, q: f32) -> Self {
@@ -140,8 +150,8 @@ impl VisualSortOptions {
         self
     }
 
-    /// The visual quality threshold of a feature that activates the adding of the visual feature
-    /// to the track's visual features.
+    /// The visual_sort quality threshold of a feature that activates the adding of the visual_sort feature
+    /// to the track's visual_sort features.
     ///
     pub fn visual_minimal_quality_collect(mut self, q: f32) -> Self {
         self.metric_builder = self.metric_builder.visual_minimal_quality_collect(q);
@@ -149,8 +159,8 @@ impl VisualSortOptions {
     }
 
     /// The threshold is calculated as `solely_owned_area / all_area` of the bounding box that
-    /// prevents low-quality visual features received in a messy environment from being used in
-    /// visual predictions.
+    /// prevents low-quality visual_sort features received in a messy environment from being used in
+    /// visual_sort predictions.
     ///
     pub fn visual_minimal_own_area_percentage_use(mut self, area: f32) -> Self {
         self.metric_builder = self
@@ -160,8 +170,8 @@ impl VisualSortOptions {
     }
 
     /// The threshold is calculated as `solely_owned_area / all_area` of the bounding box that prevents
-    /// low-quality visual features received in a messy environment from being collected to a track
-    /// for making visual predictions.
+    /// low-quality visual_sort features received in a messy environment from being collected to a track
+    /// for making visual_sort predictions.
     ///
     pub fn visual_minimal_own_area_percentage_collect(mut self, area: f32) -> Self {
         self.metric_builder = self
@@ -205,7 +215,7 @@ impl VisualSortOptions {
     }
 
     #[pyo3(name = "visual_metric", text_signature = "($self, metric)")]
-    fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
+    fn visual_metric_py(&mut self, metric: PyVisualSortMetricType) {
         self.metric_builder.visual_metric_py(metric);
     }
 
@@ -242,6 +252,11 @@ impl VisualSortOptions {
     #[pyo3(name = "visual_minimal_quality_use", text_signature = "($self, q)")]
     fn visual_minimal_quality_use_py(&mut self, q: f32) {
         self.metric_builder.visual_minimal_quality_use_py(q);
+    }
+
+    #[pyo3(name = "positional_min_confidence", text_signature = "($self, conf)")]
+    fn positional_min_confidence_py(&mut self, conf: f32) {
+        self.metric_builder.positional_min_confidence_py(conf);
     }
 
     #[pyo3(name = "visual_max_observations", text_signature = "($self, n)")]
@@ -289,15 +304,15 @@ impl VisualSortOptions {
 mod tests {
     use crate::trackers::sort::{PositionalMetricType, PyPositionalMetricType};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-    use crate::trackers::visual::metric::{PyVisualMetricType, VisualMetricType};
-    use crate::trackers::visual::simple_api::options::VisualSortOptions;
+    use crate::trackers::visual_sort::metric::{PyVisualSortMetricType, VisualSortMetricType};
+    use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
 
     #[test]
     fn visual_sort_options_builder() {
         let (opts, metric) = dbg!(VisualSortOptions::new()
             .max_idle_epochs(3)
             .kept_history_length(10)
-            .visual_metric(VisualMetricType::Euclidean(100.0))
+            .visual_metric(VisualSortMetricType::Euclidean(100.0))
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(3)
             .visual_minimal_area(5.0)
@@ -305,6 +320,7 @@ mod tests {
             .visual_minimal_quality_collect(0.5)
             .visual_max_observations(25)
             .visual_min_votes(5)
+            .positional_min_confidence(0.13)
             .visual_minimal_own_area_percentage_use(0.1)
             .visual_minimal_own_area_percentage_collect(0.2)
             .spatio_temporal_constraints(
@@ -315,13 +331,14 @@ mod tests {
         let mut opts_builder = VisualSortOptions::new();
         opts_builder.max_idle_epochs_py(3);
         opts_builder.kept_history_length_py(10);
-        opts_builder.visual_metric_py(PyVisualMetricType::euclidean(100.0));
+        opts_builder.visual_metric_py(PyVisualSortMetricType::euclidean(100.0));
         opts_builder.positional_metric_py(PyPositionalMetricType::maha());
         opts_builder.visual_minimal_track_length_py(3);
         opts_builder.visual_minimal_area_py(5.0);
         opts_builder.visual_minimal_quality_use_py(0.45);
         opts_builder.visual_minimal_quality_collect_py(0.5);
         opts_builder.visual_max_observations_py(25);
+        opts_builder.positional_min_confidence_py(0.13);
         opts_builder.visual_minimal_own_area_percentage_use_py(0.1);
         opts_builder.visual_minimal_own_area_percentage_collect_py(0.2);
         opts_builder.visual_min_votes_py(5);

@@ -1,23 +1,27 @@
 use crate::prelude::{NoopNotifier, ObservationBuilder, SortTrack, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::utils::FromVec;
-use crate::track::{Feature, Track, TrackStatus};
+use crate::track::{Feature, Track};
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::VotingType::Positional;
-use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
-use crate::trackers::visual::metric::{VisualMetric, VisualMetricOptions};
-use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-use crate::trackers::visual::simple_api::options::VisualSortOptions;
-use crate::trackers::visual::track_attributes::{VisualAttributes, VisualAttributesUpdate};
-use crate::trackers::visual::voting::VisualVoting;
-use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
+use crate::trackers::sort::{
+    AutoWaste, PositionalMetricType, SortAttributesOptions, DEFAULT_AUTO_WASTE_PERIODICITY,
+    MAHALANOBIS_NEW_TRACK_THRESHOLD,
+};
+use crate::trackers::tracker_api::TrackerAPI;
+use crate::trackers::visual_sort::metric::{VisualMetric, VisualMetricOptions};
+use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
+use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
+use crate::trackers::visual_sort::track_attributes::{VisualAttributes, VisualAttributesUpdate};
+use crate::trackers::visual_sort::voting::VisualVoting;
+use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
 use crate::utils::clipping::bbox_own_areas::{
     exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
 };
 use crate::voting::Voting;
 use pyo3::prelude::*;
 use rand::Rng;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// Options object to configure the tracker
 pub mod options;
@@ -29,9 +33,12 @@ pub mod simple_visual_py;
 // ///
 #[pyclass(text_signature = "(shards, opts)")]
 pub struct VisualSort {
-    store: TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes>,
+    store: RwLock<TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes>>,
+    wasted_store: RwLock<TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes>>,
     metric_opts: Arc<VisualMetricOptions>,
     track_opts: Arc<SortAttributesOptions>,
+    auto_waste: AutoWaste,
+    track_id: u64,
 }
 
 impl VisualSort {
@@ -45,66 +52,48 @@ impl VisualSort {
         let (track_opts, metric) = opts.clone().build();
         let track_opts = Arc::new(track_opts);
         let metric_opts = metric.opts.clone();
-        let store = TrackStoreBuilder::new(shards)
-            .default_attributes(VisualAttributes::new(track_opts.clone()))
-            .metric(metric)
-            .notifier(NoopNotifier)
-            .build();
+        let store = RwLock::new(
+            TrackStoreBuilder::new(shards)
+                .default_attributes(VisualAttributes::new(track_opts.clone()))
+                .metric(metric.clone())
+                .notifier(NoopNotifier)
+                .build(),
+        );
+
+        let wasted_store = RwLock::new(
+            TrackStoreBuilder::new(shards)
+                .default_attributes(VisualAttributes::new(track_opts.clone()))
+                .metric(metric)
+                .notifier(NoopNotifier)
+                .build(),
+        );
 
         Self {
             store,
+            wasted_store,
             track_opts,
+            track_id: 0,
             metric_opts,
+            auto_waste: AutoWaste {
+                periodicity: DEFAULT_AUTO_WASTE_PERIODICITY,
+                counter: DEFAULT_AUTO_WASTE_PERIODICITY,
+            },
         }
     }
 
-    /// Skip number of epochs to force tracks to turn to terminal state
+    /// Receive tracking information for observed bboxes of `scene_id == 0`
     ///
     /// # Parameters
-    /// * `n` - number of epochs to skip for `scene_id` == 0
-    ///
-    pub fn skip_epochs(&mut self, n: usize) {
-        self.skip_epochs_for_scene(0, n)
-    }
-
-    /// Skip number of epochs to force tracks to turn to terminal state
-    ///
-    /// # Parameters
-    /// * `n` - number of epochs to skip for `scene_id`
-    /// * `scene_id` - scene to skip epochs
-    ///
-    pub fn skip_epochs_for_scene(&mut self, scene_id: u64, n: usize) {
-        self.track_opts.skip_epochs_for_scene(scene_id, n)
-    }
-
-    /// Get the amount of stored tracks per shard
-    ///
-    pub fn shard_stats(&self) -> Vec<usize> {
-        self.store.shard_stats()
-    }
-
-    /// Get the current epoch for `scene_id` == 0
-    ///
-    pub fn current_epoch(&self) -> usize {
-        self.current_epoch_with_scene(0)
-    }
-
-    /// Get the current epoch for `scene_id`
-    ///
-    /// # Parameters
-    /// * `scene_id` - scene id
-    ///
-    pub fn current_epoch_with_scene(&self, scene_id: u64) -> usize {
-        self.track_opts.current_epoch_with_scene(scene_id).unwrap()
-    }
-
-    /// Receive tracking information for observed bboxes of `scene_id` == 0
-    ///
-    /// # Parameters
+    /// * `scene_id` - custom identifier for the group of observed objects;
     /// * `observations` - object observations with (feature, feature_quality and bounding box).
     ///
     pub fn predict(&mut self, observations: &[VisualObservation]) -> Vec<SortTrack> {
         self.predict_with_scene(0, observations)
+    }
+
+    fn gen_track_id(&mut self) -> u64 {
+        self.track_id += 1;
+        self.track_id
     }
 
     /// Receive tracking information for observed bboxes of `scene_id`
@@ -118,6 +107,13 @@ impl VisualSort {
         scene_id: u64,
         observations: &[VisualObservation],
     ) -> Vec<SortTrack> {
+        if self.auto_waste.counter == 0 {
+            self.auto_waste();
+            self.auto_waste.counter = self.auto_waste.periodicity;
+        } else {
+            self.auto_waste.counter -= 1;
+        }
+
         let mut percentages = Vec::default();
         let use_own_area_percentage = self.metric_opts.visual_minimal_own_area_percentage_collect
             + self.metric_opts.visual_minimal_own_area_percentage_use
@@ -144,6 +140,8 @@ impl VisualSort {
             .enumerate()
             .map(|(i, o)| {
                 self.store
+                    .read()
+                    .unwrap()
                     .new_track(rng.gen())
                     .observation({
                         let mut obs = ObservationBuilder::new(0).observation_attributes(
@@ -177,11 +175,15 @@ impl VisualSort {
             })
             .collect::<Vec<_>>();
 
-        let (dists, errs) = self.store.foreign_track_distances(tracks.clone(), 0, false);
+        let (dists, errs) =
+            self.store
+                .write()
+                .unwrap()
+                .foreign_track_distances(tracks.clone(), 0, false);
         assert!(errs.all().is_empty());
         let voting = VisualVoting::new(
             match self.metric_opts.positional_kind {
-                PositionalMetricType::Mahalanobis => 1.0,
+                PositionalMetricType::Mahalanobis => MAHALANOBIS_NEW_TRACK_THRESHOLD,
                 PositionalMetricType::IoU(t) => t,
             },
             f32::MAX,
@@ -194,8 +196,11 @@ impl VisualSort {
             let track_id: u64 = if let Some(dest) = winners.get(&source) {
                 let (dest, vt) = dest[0];
                 if dest == source {
-                    self.store.add_track(t.clone()).unwrap();
-                    source
+                    let mut t = t.clone();
+                    let track_id = self.gen_track_id();
+                    t.set_track_id(track_id);
+                    self.store.write().unwrap().add_track(t).unwrap();
+                    track_id
                 } else {
                     t.add_observation(
                         0,
@@ -205,16 +210,22 @@ impl VisualSort {
                     )
                     .unwrap();
                     self.store
+                        .write()
+                        .unwrap()
                         .merge_external(dest, t, Some(&[0]), false)
                         .unwrap();
                     dest
                 }
             } else {
-                self.store.add_track(t.clone()).unwrap();
-                source
+                let mut t = t.clone();
+                let track_id = self.gen_track_id();
+                t.set_track_id(track_id);
+                self.store.write().unwrap().add_track(t).unwrap();
+                track_id
             };
 
-            let store = self.store.get_store(track_id as usize);
+            let lock = self.store.read().unwrap();
+            let store = lock.get_store(track_id as usize);
             let track = store.get(&track_id).unwrap().clone();
 
             res.push(track.into())
@@ -222,20 +233,55 @@ impl VisualSort {
 
         res
     }
+}
 
-    /// Receive all the tracks with expired life
-    ///
-    pub fn wasted(
+impl
+    TrackerAPI<
+        VisualAttributes,
+        VisualMetric,
+        VisualObservationAttributes,
+        SortAttributesOptions,
+        NoopNotifier,
+    > for VisualSort
+{
+    fn get_auto_waste_obj_mut(&mut self) -> &mut AutoWaste {
+        &mut self.auto_waste
+    }
+
+    fn get_opts(&self) -> &SortAttributesOptions {
+        &self.track_opts
+    }
+
+    fn get_main_store_mut(
         &mut self,
-    ) -> Vec<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>> {
-        let res = self.store.find_usable();
-        let wasted = res
-            .into_iter()
-            .filter(|(_, status)| matches!(status, Ok(TrackStatus::Wasted)))
-            .map(|(track, _)| track)
-            .collect::<Vec<_>>();
+    ) -> RwLockWriteGuard<
+        TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes, NoopNotifier>,
+    > {
+        self.store.write().unwrap()
+    }
 
-        self.store.fetch_tracks(&wasted)
+    fn get_wasted_store_mut(
+        &mut self,
+    ) -> RwLockWriteGuard<
+        TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes, NoopNotifier>,
+    > {
+        self.wasted_store.write().unwrap()
+    }
+
+    fn get_main_store(
+        &self,
+    ) -> RwLockReadGuard<
+        TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes, NoopNotifier>,
+    > {
+        self.store.read().unwrap()
+    }
+
+    fn get_wasted_store(
+        &self,
+    ) -> RwLockReadGuard<
+        TrackStore<VisualAttributes, VisualMetric, VisualObservationAttributes, NoopNotifier>,
+    > {
+        self.wasted_store.read().unwrap()
     }
 }
 
@@ -283,11 +329,12 @@ impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>>
 mod tests {
     use crate::track::Observation;
     use crate::trackers::sort::{PositionalMetricType, VotingType};
-    use crate::trackers::visual::metric::VisualMetricType;
-    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-    use crate::trackers::visual::simple_api::options::VisualSortOptions;
-    use crate::trackers::visual::simple_api::VisualSort;
-    use crate::trackers::visual::{PyWastedVisualSortTrack, VisualObservation};
+    use crate::trackers::tracker_api::TrackerAPI;
+    use crate::trackers::visual_sort::metric::VisualSortMetricType;
+    use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
+    use crate::trackers::visual_sort::simple_api::VisualSort;
+    use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
     use crate::utils::bbox::BoundingBox;
 
     #[test]
@@ -295,7 +342,7 @@ mod tests {
         let opts = VisualSortOptions::default()
             .max_idle_epochs(3)
             .kept_history_length(3)
-            .visual_metric(VisualMetricType::Euclidean(1.0))
+            .visual_metric(VisualSortMetricType::Euclidean(1.0))
             .positional_metric(PositionalMetricType::Mahalanobis)
             .visual_minimal_track_length(2)
             .visual_minimal_area(5.0)
@@ -323,7 +370,8 @@ mod tests {
         assert!(matches!(t.voting_type, VotingType::Positional));
         assert!(matches!(t.epoch, 1));
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -351,7 +399,8 @@ mod tests {
             assert!(matches!(t.voting_type, VotingType::Positional));
             assert!(matches!(t.epoch, 1));
             let attrs = {
-                let store = tracker.store.get_store(t.id as usize);
+                let lock = tracker.store.read().unwrap();
+                let store = lock.get_store(t.id as usize);
                 let track = store.get(&t.id).unwrap();
                 track.get_attributes().clone()
             };
@@ -380,7 +429,8 @@ mod tests {
         assert!(matches!(t.voting_type, VotingType::Positional));
         assert!(matches!(t.epoch, 2));
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -390,7 +440,7 @@ mod tests {
         assert_eq!(attrs.predicted_boxes.len(), 2);
         assert_eq!(attrs.observed_features.len(), 2);
 
-        // add the segment to the track (no visual feature)
+        // add the segment to the track (no visual_sort feature)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -408,7 +458,8 @@ mod tests {
         assert!(matches!(t.voting_type, VotingType::Positional));
         assert!(matches!(t.epoch, 3));
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -419,7 +470,7 @@ mod tests {
         assert_eq!(attrs.observed_features.len(), 3);
         assert!(attrs.observed_features.back().unwrap().is_none());
 
-        // add the segment to the track (no visual feature)
+        // add the segment to the track (no visual_sort feature)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -435,7 +486,8 @@ mod tests {
         assert!(matches!(t.voting_type, VotingType::Positional));
         assert!(matches!(t.epoch, 4));
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -446,7 +498,7 @@ mod tests {
         assert_eq!(attrs.observed_features.len(), 3);
         assert!(attrs.observed_features.back().unwrap().is_none());
 
-        // add the segment to the track (with visual feature but low quality - no use, no collect)
+        // add the segment to the track (with visual_sort feature but low quality - no use, no collect)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -461,7 +513,8 @@ mod tests {
         assert_eq!(t.id, first_track_id);
         assert!(matches!(t.voting_type, VotingType::Positional));
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -469,7 +522,7 @@ mod tests {
         assert_eq!(attrs.track_length, 5);
         assert!(attrs.observed_features.back().unwrap().is_some());
 
-        // add the segment to the track (with visual feature but low quality - use, but no collect)
+        // add the segment to the track (with visual_sort feature but low quality - use, but no collect)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -484,7 +537,8 @@ mod tests {
         assert_eq!(t.id, first_track_id);
         assert!(matches!(t.voting_type, VotingType::Visual));
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -492,7 +546,7 @@ mod tests {
         assert_eq!(attrs.track_length, 6);
         assert!(attrs.observed_features.back().unwrap().is_some());
 
-        // add the segment to the track (with visual feature of normal quality - use, collect)
+        // add the segment to the track (with visual_sort feature of normal quality - use, collect)
         //
         let tracks = tracker.predict_with_scene(
             10,
@@ -507,7 +561,8 @@ mod tests {
         assert_eq!(t.id, first_track_id);
         assert!(matches!(t.voting_type, VotingType::Visual));
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             let observations = track.get_observations(0).unwrap();
 
@@ -543,7 +598,8 @@ mod tests {
         assert!(matches!(t.epoch, 8));
         assert_ne!(t.id, first_track_id);
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -572,7 +628,8 @@ mod tests {
         assert!(matches!(t.epoch, 9));
         assert_eq!(t.id, other_track_id);
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };
@@ -600,7 +657,8 @@ mod tests {
         assert!(matches!(t.epoch, 10));
         assert_eq!(t.id, other_track_id);
         let attrs = {
-            let store = tracker.store.get_store(t.id as usize);
+            let lock = tracker.store.read().unwrap();
+            let store = lock.get_store(t.id as usize);
             let track = store.get(&t.id).unwrap();
             track.get_attributes().clone()
         };

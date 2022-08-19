@@ -12,5 +12,7 @@ if __name__ == '__main__':
     for t in tracks:
         print(t)
     sort.skip_epochs(10)
+    # you have to call wasted from time to time to purge wasted tracks
+    # out of the waste bin. Without doing that the memory utilization will grow.
     wasted = sort.wasted()
     print(wasted[0])

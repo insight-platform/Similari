@@ -1,12 +1,12 @@
 use crate::trackers::sort::PositionalMetricType;
-use crate::trackers::visual::metric::{
-    PyVisualMetricType, VisualMetric, VisualMetricOptions, VisualMetricType,
+use crate::trackers::visual_sort::metric::{
+    PyVisualSortMetricType, VisualMetric, VisualMetricOptions, VisualSortMetricType,
 };
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct VisualMetricBuilder {
-    visual_kind: VisualMetricType,
+    visual_kind: VisualSortMetricType,
     positional_kind: PositionalMetricType,
     visual_minimal_track_length: usize,
     visual_minimal_area: f32,
@@ -16,15 +16,16 @@ pub struct VisualMetricBuilder {
     visual_min_votes: usize,
     visual_minimal_own_area_percentage_use: f32,
     visual_minimal_own_area_percentage_collect: f32,
+    positional_min_confidence: f32,
 }
 
-/// By default the metric object is constructed with: Euclidean visual metric, IoU(0.3) positional metric
-/// and minimal visual track length = 3
+/// By default the metric object is constructed with: Euclidean visual_sort metric, IoU(0.3) positional metric
+/// and minimal visual_sort track length = 3
 ///
 impl Default for VisualMetricBuilder {
     fn default() -> Self {
         VisualMetricBuilder {
-            visual_kind: VisualMetricType::Euclidean(f32::MAX),
+            visual_kind: VisualSortMetricType::Euclidean(f32::MAX),
             positional_kind: PositionalMetricType::IoU(0.3),
             visual_minimal_track_length: 3,
             visual_minimal_area: 0.0,
@@ -34,13 +35,22 @@ impl Default for VisualMetricBuilder {
             visual_min_votes: 1,
             visual_minimal_own_area_percentage_use: 0.0,
             visual_minimal_own_area_percentage_collect: 0.0,
+            positional_min_confidence: 0.1,
         }
     }
 }
 
 impl VisualMetricBuilder {
-    pub(crate) fn visual_metric_py(&mut self, metric: PyVisualMetricType) {
+    pub(crate) fn visual_metric_py(&mut self, metric: PyVisualSortMetricType) {
         self.visual_kind = metric.0;
+    }
+
+    pub(crate) fn positional_min_confidence_py(&mut self, conf: f32) {
+        assert!(
+            (0.01..=1.0).contains(&conf),
+            "Confidence must lay between (0.01 and 1.0)"
+        );
+        self.positional_min_confidence = conf;
     }
 
     pub(crate) fn visual_min_votes_py(&mut self, n: i64) {
@@ -61,7 +71,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_track_length_py(&mut self, length: usize) {
         assert!(
             length > 0,
-            "The minimum amount of visual features collected before visual metric is applied should be greater than 0."
+            "The minimum amount of visual_sort features collected before visual_sort metric is applied should be greater than 0."
         );
         self.visual_minimal_track_length = length;
     }
@@ -69,7 +79,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_area_py(&mut self, area: f32) {
         assert!(
             area >= 0.0,
-            "The minimum area of bbox for visual feature distance calculated and feature collected should be greater than 0."
+            "The minimum area of bbox for visual_sort feature distance calculated and feature collected should be greater than 0."
         );
         self.visual_minimal_area = area;
     }
@@ -93,7 +103,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_quality_use_py(&mut self, q: f32) {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_use = q;
     }
@@ -105,7 +115,7 @@ impl VisualMetricBuilder {
     pub(crate) fn visual_minimal_quality_collect_py(&mut self, q: f32) {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_collect = q;
     }
@@ -127,7 +137,16 @@ impl VisualMetricBuilder {
         self
     }
 
-    pub fn visual_metric(mut self, metric: VisualMetricType) -> Self {
+    pub fn positional_min_confidence(mut self, conf: f32) -> Self {
+        assert!(
+            (0.01..=1.0).contains(&conf),
+            "Confidence must lay between (0.01 and 1.0)"
+        );
+        self.positional_min_confidence = conf;
+        self
+    }
+
+    pub fn visual_metric(mut self, metric: VisualSortMetricType) -> Self {
         self.visual_kind = metric;
         self
     }
@@ -146,7 +165,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_track_length(mut self, length: usize) -> Self {
         assert!(
             length > 0,
-            "The minimum amount of visual features collected before visual metric is applied should be greater than 0."
+            "The minimum amount of visual_sort features collected before visual_sort metric is applied should be greater than 0."
         );
         self.visual_minimal_track_length = length;
         self
@@ -155,7 +174,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_area(mut self, area: f32) -> Self {
         assert!(
             area >= 0.0,
-            "The minimum area of bbox for visual feature distance calculated and feature collected should be greater than 0."
+            "The minimum area of bbox for visual_sort feature distance calculated and feature collected should be greater than 0."
         );
         self.visual_minimal_area = area;
         self
@@ -164,7 +183,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_quality_use(mut self, q: f32) -> Self {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_use = q;
         self
@@ -178,7 +197,7 @@ impl VisualMetricBuilder {
     pub fn visual_minimal_quality_collect(mut self, q: f32) -> Self {
         assert!(
             q >= 0.0,
-            "The minimum quality of visual feature should be greater than or equal to 0.0."
+            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
         );
         self.visual_minimal_quality_collect = q;
         self
@@ -193,6 +212,7 @@ impl VisualMetricBuilder {
         );
         VisualMetric {
             opts: Arc::new(VisualMetricOptions {
+                positional_min_confidence: self.positional_min_confidence,
                 visual_kind: self.visual_kind,
                 positional_kind: self.positional_kind,
                 visual_minimal_track_length: self.visual_minimal_track_length,

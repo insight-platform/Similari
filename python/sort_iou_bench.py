@@ -9,9 +9,16 @@ if __name__ == '__main__':
         for i in range(n):
             dets.append((BoundingBox(1000 * i, 1000 * i, 50, 60).as_xyaah(), None))
 
+        shards = 4
+        if n <= 100:
+            shards = 1
+        elif n <= 200:
+            shards = 2
+
+
         constraints = SpatioTemporalConstraints()
         constraints.add_constraints([(1, 1.0)])
-        mot_tracker = Sort(shards=4, bbox_history=1, max_idle_epochs=10,
+        mot_tracker = Sort(shards=shards, bbox_history=1, max_idle_epochs=10,
                     method=PositionalMetricType.iou(threshold=0.3),
                     spatio_temporal_constraints=constraints)
 

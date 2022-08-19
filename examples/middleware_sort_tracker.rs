@@ -1,6 +1,6 @@
 use similari::examples::{current_time_ms, BoxGen2};
 use similari::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
-use similari::trackers::sort::tracker::SortMetric;
+use similari::trackers::sort::metric::SortMetric;
 use similari::trackers::sort::voting::SortVoting;
 use similari::trackers::sort::{SortAttributes, SortAttributesOptions, DEFAULT_SORT_IOU_THRESHOLD};
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;

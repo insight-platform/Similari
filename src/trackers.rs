@@ -6,7 +6,7 @@ pub mod sort;
 mod epoch_db;
 
 /// Visual tracker implementations
-pub mod visual;
+pub mod visual_sort;
 
 /// Trait that implements kalman prediction for attributes
 pub mod kalman_prediction;
@@ -15,3 +15,10 @@ pub mod kalman_prediction;
 /// It helps to decrease the brute-force space
 ///
 pub mod spatio_temporal_constraints;
+
+/// Prediction batch request implementation
+///
+pub mod batch;
+
+/// Trait to implement tracker API
+pub mod tracker_api;

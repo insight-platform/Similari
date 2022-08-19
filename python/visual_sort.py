@@ -1,5 +1,5 @@
-from similari import VisualSortOptions, VisualObservation, VisualObservationSet, VisualSort, BoundingBox, \
-    VisualMetricType, PositionalMetricType, SpatioTemporalConstraints
+from similari import VisualSortOptions, VisualSortObservation, VisualSortObservationSet, VisualSort, BoundingBox, \
+    VisualSortMetricType, PositionalMetricType, SpatioTemporalConstraints
 
 import numpy as np
 
@@ -11,7 +11,7 @@ if __name__ == '__main__':
     opts.spatio_temporal_constraints(constraints)
     opts.max_idle_epochs(3)
     opts.kept_history_length(10)
-    opts.visual_metric(VisualMetricType.euclidean(1.0))
+    opts.visual_metric(VisualSortMetricType.euclidean(1.0))
     opts.positional_metric(PositionalMetricType.maha())
     opts.visual_minimal_track_length(3)
     opts.visual_minimal_area(5.0)
@@ -22,13 +22,16 @@ if __name__ == '__main__':
     print(opts)
 
     tracker = VisualSort(shards=4, opts=opts)
-    observation_set = VisualObservationSet()
-    observation_set.add(VisualObservation(feature=np.array([0.1, 0.1]),
+    observation_set = VisualSortObservationSet()
+    observation_set.add(VisualSortObservation(feature=np.array([0.1, 0.1]),
                                           feature_quality=0.96,
                                           bounding_box=BoundingBox(0, 0, 5, 10).as_xyaah(),
                                           custom_object_id=10))
     tracks = tracker.predict(observation_set)
     print(tracks[0])
+
+    # you have to call wasted from time to time to purge wasted tracks
+    # out of the waste bin. Without doing that the memory utilization will grow.
     tracker.skip_epochs(10)
     wasted = tracker.wasted()
     print(wasted[0])

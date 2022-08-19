@@ -139,7 +139,8 @@ is returned for each track in the form of the structure `SortTrack`. Fields are 
 
 ```python
 ...
-tracks = sort.predict([box])
+custom_object_id = 13 # None is also a valid value
+tracks = sort.predict([(box, custom_object_id)])
 for t in tracks:
     print(t)
 ```
@@ -243,26 +244,26 @@ both axis-aligned and oriented (rotated) bounding boxes.
 
 The Similari SORT is able to achieve the following speeds:
 
-| Objects | Time (ms/prediction) | FPS  |
-|---------|----------------------|------|
-| 10      | 0.588                | 1700 |
-| 100     | 2.432                | 411  |
-| 200     | 6.528                | 153  |
-| 300     | 9.911                | 100  |
-| 500     | 17.432               | 57   |
-| 1000    | 53.098               | 18   |
+| Objects | Time (ms/prediction) |   FPS |  CPU Cores |
+|---------|---------------------:|------:|-----------:|
+| 10      |                0.149 |  6711 |          1 |
+| 100     |                1.660 |   602 |          1 |        
+| 200     |                4.895 |   204 |          2 |       
+| 300     |                8.991 |   110 |          4 |      
+| 500     |               17.432 |    57 |          4 |     
+| 1000    |               53.098 |    18 |          5 |    
 
 Comparing to a standard Python SORT from the original [repository](https://github.com/abewley/sort), 
 the Similari SORT tracker works several times faster:
 
-| Objects | Time (ms/prediction)  | FPS | Similari Gain |
-|---------|-----------------------|-----|---------------|
-| 10      | 1.588                 | 620 | x2.74         |
-| 100     | 11.976                | 83  | x4.95         |
-| 200     | 25.160                | 39  | x3.92         |
-| 300     | 40.922                | 24  | x4.16         |
-| 500     | 74.254                | 13  | x4.38         |
-| 1000    | 162.037               | 6   | x3            |
+| Objects |   Time (ms/prediction) |  FPS |  CPU Cores (NumPy) |  Similari Gain |
+|---------|-----------------------:|-----:|-------------------:|---------------:|
+| 10      |                  1.588 |  620 |                ALL |          x10.8 |
+| 100     |                 11.976 |   83 |                ALL |          x7.25 |
+| 200     |                 25.160 |   39 |                ALL |          x5.23 |
+| 300     |                 40.922 |   24 |                ALL |          x4.58 |
+| 500     |                 74.254 |   13 |                ALL |          x4.38 |
+| 1000    |                162.037 |    6 |                ALL |             x3 |
 
 The examples of the tracker usage are located at:
 * [SORT IOU](/python/sort_iou.py) - IoU SORT tracker;

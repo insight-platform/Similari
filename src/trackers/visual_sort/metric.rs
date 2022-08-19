@@ -6,13 +6,12 @@ use crate::track::{Feature, MetricQuery, ObservationAttributes, ObservationMetri
 use crate::track::{MetricOutput, Observation, ObservationMetric};
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::PositionalMetricType;
-use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-use crate::trackers::visual::metric::VisualMetricType::{Cosine, Euclidean};
-use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-use crate::trackers::visual::track_attributes::VisualAttributes;
+use crate::trackers::visual_sort::metric::builder::VisualMetricBuilder;
+use crate::trackers::visual_sort::metric::VisualSortMetricType::{Cosine, Euclidean};
+use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
+use crate::trackers::visual_sort::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::KalmanFilter;
-use crate::EPS;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::default::Default;
@@ -20,21 +19,21 @@ use std::iter::Iterator;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
-pub enum VisualMetricType {
+pub enum VisualSortMetricType {
     Euclidean(f32),
     Cosine(f32),
 }
 
-impl Default for VisualMetricType {
+impl Default for VisualSortMetricType {
     fn default() -> Self {
         Euclidean(f32::MAX)
     }
 }
 
-impl VisualMetricType {
+impl VisualSortMetricType {
     pub fn euclidean(threshold: f32) -> Self {
         assert!(threshold > 0.0, "Threshold must be a positive number");
-        VisualMetricType::Euclidean(threshold)
+        VisualSortMetricType::Euclidean(threshold)
     }
 
     pub fn cosine(threshold: f32) -> Self {
@@ -42,7 +41,7 @@ impl VisualMetricType {
             (-1.0..=1.0).contains(&threshold),
             "Threshold must lay within [-1.0:1:0]"
         );
-        VisualMetricType::Cosine(threshold)
+        VisualSortMetricType::Cosine(threshold)
     }
 
     pub fn threshold(&self) -> f32 {
@@ -67,20 +66,20 @@ impl VisualMetricType {
 }
 
 #[pyclass]
-#[pyo3(name = "VisualMetricType")]
+#[pyo3(name = "VisualSortMetricType")]
 #[derive(Clone, Debug)]
-pub struct PyVisualMetricType(pub VisualMetricType);
+pub struct PyVisualSortMetricType(pub VisualSortMetricType);
 
 #[pymethods]
-impl PyVisualMetricType {
+impl PyVisualSortMetricType {
     #[staticmethod]
     pub fn euclidean(threshold: f32) -> Self {
-        PyVisualMetricType(VisualMetricType::euclidean(threshold))
+        PyVisualSortMetricType(VisualSortMetricType::euclidean(threshold))
     }
 
     #[staticmethod]
     pub fn cosine(threshold: f32) -> Self {
-        PyVisualMetricType(VisualMetricType::cosine(threshold))
+        PyVisualSortMetricType(VisualSortMetricType::cosine(threshold))
     }
 
     #[classattr]
@@ -99,7 +98,7 @@ impl PyVisualMetricType {
 pub struct VisualMetricOptions {
     pub visual_max_observations: usize,
     pub visual_min_votes: usize,
-    pub visual_kind: VisualMetricType,
+    pub visual_kind: VisualSortMetricType,
     pub positional_kind: PositionalMetricType,
     pub visual_minimal_track_length: usize,
     pub visual_minimal_area: f32,
@@ -107,6 +106,7 @@ pub struct VisualMetricOptions {
     pub visual_minimal_quality_collect: f32,
     pub visual_minimal_own_area_percentage_use: f32,
     pub visual_minimal_own_area_percentage_collect: f32,
+    pub positional_min_confidence: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -160,24 +160,27 @@ impl VisualMetric {
             if Universal2DBox::too_far(candidate_observation_bbox, track_observation_bbox) {
                 None
             } else {
+                let conf = if candidate_observation_bbox.confidence
+                    < self.opts.positional_min_confidence
+                {
+                    self.opts.positional_min_confidence
+                } else {
+                    candidate_observation_bbox.confidence
+                };
+
                 match self.opts.positional_kind {
                     PositionalMetricType::Mahalanobis => {
                         let state = track_attributes.get_state().unwrap();
                         let f = KalmanFilter::default();
                         let dist = f.distance(state, candidate_observation_bbox);
-                        Some(
-                            KalmanFilter::calculate_cost(dist, true)
-                                / (candidate_observation_bbox.confidence + EPS),
-                        )
+                        Some(KalmanFilter::calculate_cost(dist, true) / conf)
                     }
                     PositionalMetricType::IoU(threshold) => {
                         let box_m_opt = Universal2DBox::calculate_metric_object(
                             &candidate_observation_bbox_opt.as_ref(),
                             &track_observation_bbox_opt.as_ref(),
                         );
-                        box_m_opt
-                            .map(|e| e * candidate_observation_bbox.confidence)
-                            .filter(|e| *e >= threshold)
+                        box_m_opt.map(|e| e * conf).filter(|e| *e >= threshold)
                     }
                 }
             }
@@ -195,10 +198,10 @@ impl VisualMetric {
         if track_attributes.visual_features_collected_count >= self.opts.visual_minimal_track_length
         {
             let d = match self.opts.visual_kind {
-                VisualMetricType::Euclidean(_) => {
+                VisualSortMetricType::Euclidean(_) => {
                     euclidean(candidate_observation_feature, track_observation_feature)
                 }
-                VisualMetricType::Cosine(_) => {
+                VisualSortMetricType::Cosine(_) => {
                     cosine(candidate_observation_feature, track_observation_feature)
                 }
             };
@@ -373,10 +376,10 @@ mod optimize {
     use crate::track::{Observation, ObservationMetric};
     use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-    use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-    use crate::trackers::visual::metric::VisualMetricType;
-    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-    use crate::trackers::visual::track_attributes::VisualAttributes;
+    use crate::trackers::visual_sort::metric::builder::VisualMetricBuilder;
+    use crate::trackers::visual_sort::metric::VisualSortMetricType;
+    use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual_sort::track_attributes::VisualAttributes;
     use crate::utils::bbox::{BoundingBox, Universal2DBox};
     use std::sync::Arc;
 
@@ -384,7 +387,7 @@ mod optimize {
     fn optimization_regular() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .build();
 
         let mut attrs = VisualAttributes::new(Arc::new(SortAttributesOptions::new(
@@ -512,7 +515,7 @@ mod optimize {
     fn optimize_low_quality() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_quality_collect(0.3)
             .build();
 
@@ -545,7 +548,7 @@ mod optimize {
     fn optimize_small_box() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_area(1.0)
             .build();
 
@@ -578,7 +581,7 @@ mod optimize {
     fn optimize_overlap() {
         let mut metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_area(1.0)
             .visual_minimal_own_area_percentage_collect(0.6)
             .build();
@@ -618,10 +621,10 @@ mod metric_tests {
     use crate::track::ObservationMetricOk;
     use crate::trackers::sort::{PositionalMetricType, SortAttributesOptions};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
-    use crate::trackers::visual::metric::builder::VisualMetricBuilder;
-    use crate::trackers::visual::metric::{VisualMetric, VisualMetricType};
-    use crate::trackers::visual::observation_attributes::VisualObservationAttributes;
-    use crate::trackers::visual::track_attributes::VisualAttributes;
+    use crate::trackers::visual_sort::metric::builder::VisualMetricBuilder;
+    use crate::trackers::visual_sort::metric::{VisualMetric, VisualSortMetricType};
+    use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
+    use crate::trackers::visual_sort::track_attributes::VisualAttributes;
     use crate::utils::bbox::BoundingBox;
     use crate::EPS;
     use std::sync::Arc;
@@ -700,7 +703,7 @@ mod metric_tests {
     fn metric_iou() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::cosine(1.0))
+            .visual_metric(VisualSortMetricType::cosine(1.0))
             .visual_minimal_track_length(1)
             .build();
         let store = default_store(metric);
@@ -749,7 +752,7 @@ mod metric_tests {
     fn metric_maha() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::Mahalanobis)
-            .visual_metric(VisualMetricType::Euclidean(10.0))
+            .visual_metric(VisualSortMetricType::Euclidean(10.0))
             .visual_minimal_track_length(1)
             .build();
         let store = default_store(metric);
@@ -792,14 +795,14 @@ mod metric_tests {
                 to: 2,
                 attribute_metric: Some(x),
                 feature_distance: Some(y)
-            } if (x - 99.999).abs() < EPS && y.abs() < EPS));
+            } if (x - 100.0).abs() < EPS && y.abs() < EPS));
     }
 
     #[test]
     fn visual_track_too_short() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_track_length(3)
             .build();
 
@@ -849,7 +852,7 @@ mod metric_tests {
     fn visual_track_long_enough() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_track_length(2)
             .build();
 
@@ -917,7 +920,7 @@ mod metric_tests {
     fn visual_track_small_bbox() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_track_length(1)
             .visual_minimal_area(1.0)
             .build();
@@ -970,7 +973,7 @@ mod metric_tests {
     fn visual_quality_low() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_quality_use(0.3)
             .visual_minimal_track_length(1)
             .build();
@@ -1021,7 +1024,7 @@ mod metric_tests {
     fn visual_own_area_percentage_low() {
         let metric = VisualMetricBuilder::default()
             .positional_metric(PositionalMetricType::IoU(0.3))
-            .visual_metric(VisualMetricType::Euclidean(f32::MAX))
+            .visual_metric(VisualSortMetricType::Euclidean(f32::MAX))
             .visual_minimal_own_area_percentage_use(0.6)
             .visual_minimal_track_length(1)
             .build();
