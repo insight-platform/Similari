@@ -9,7 +9,7 @@ class TrackerType(Enum):
 
     OriginalSort = 0
     Sort = 1
-    VisualSort = 2
+    # VisualSort = 2
 
 
 @dataclass
@@ -92,9 +92,10 @@ class VisualSortParams:
 
 @dataclass
 class Evaluator:
-    """Evaluator configuration.
-    TODO
-    """
+    """Evaluator configuration."""
+
+    num_cores: int = 1
+    """Number of cores to use."""
 
 
 @dataclass
@@ -105,7 +106,7 @@ class ConfigSchema:
     data_path: str
     output_path: str
     tracker: Tracker
-    evaluator: Optional[Evaluator] = None
+    evaluator: Evaluator = Evaluator()
 
 
 @dataclass
@@ -124,10 +125,10 @@ def load_config(config_file_path: str) -> Config:
     config = OmegaConf.unsafe_merge(ConfigSchema, OmegaConf.load(config_file_path))
 
     tracker_params_schema = SortParams
-    if config.tracker.type == TrackerType.VisualSort:
-        tracker_params_schema = VisualSortParams
-    elif config.tracker.type == TrackerType.OriginalSort:
+    if config.tracker.type == TrackerType.OriginalSort:
         tracker_params_schema = OriginalSortParams
+    # elif config.tracker.type == TrackerType.VisualSort:
+    #     tracker_params_schema = VisualSortParams
     tracker_params = OmegaConf.to_object(
         OmegaConf.unsafe_merge(
             tracker_params_schema, config.tracker.params

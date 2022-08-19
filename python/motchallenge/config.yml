@@ -2,7 +2,7 @@
 # Use as a template to configure
 
 # unique run name (used to build resulting folder)
-name: sort_maha
+name: sort_iou
 
 # data location configuration, mot challenge format
 # detection and ground truth files location
@@ -16,7 +16,10 @@ output_path: /data/MOT20/output
 
 # tracker configuration
 tracker:
-  # supported tracker types: Sort, VisualSort, OriginalSort (https://github.com/abewley/sort)
+  # supported tracker types:
+  #  type: Sort
+  #  type: VisualSort [TODO]
+  #  type: OriginalSort (https://github.com/abewley/sort)
   type: Sort
   # tracker initialization parameters
   params:
@@ -29,9 +32,9 @@ tracker:
     # tracker positional metric configuration, default IoU
     positional_metric:
       # supported types: IoU, Maha (Mahalanobis)
-      type: Maha
+      type: IoU
       # IoU threshold, required for IoU positional metric type, default 0.3
-#      threshold: 0.3
+      threshold: 0.3
     # constraints for objects compared across different epochs (epoch_delta, max_allowed_distance)
     spatio_temporal_constraints:
       - [1, 1.0]
@@ -53,4 +56,5 @@ tracker:
 
 # evaluator configuration
 evaluator:
-  #
+  # number of cores to use
+  num_cores: 4

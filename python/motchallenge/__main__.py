@@ -80,7 +80,7 @@ def main(config_file_path: str):
 
     write_csv(tracker_path / 'processing_stats.csv', processing_stat_rows)
 
-    evaluate(tracker_name, data_path, output_path)
+    evaluate(tracker_name, data_path, output_path, config.evaluator)
 
 
 if __name__ == '__main__':
