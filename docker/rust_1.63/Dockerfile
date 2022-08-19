@@ -14,6 +14,7 @@ FROM chef AS builder
 WORKDIR /opt
 COPY --from=planner /opt/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
+COPY .cargo/config /root/.cargo/
 COPY . .
 
 ENV RUSTFLAGS=" -C target-cpu=native -C opt-level=3"
