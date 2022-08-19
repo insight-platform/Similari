@@ -14,7 +14,7 @@ pub mod store;
 pub mod utils;
 pub mod voting;
 
-/// Return type item for distance between the current track's and other track's observations
+/// Return type for distance between the current track's and other track observation pair
 ///
 #[derive(Debug, Clone)]
 pub struct ObservationMetricOk<OA>
@@ -57,9 +57,11 @@ pub type Feature = Vec<f32x8>;
 /// Number of SIMD lanes used to store observation parts internally
 const FEATURE_LANES_SIZE: usize = 8;
 
-/// Observation specification. It is a tuple of optional observation attributes (T) and optional feature vector itself. Such a representation
-/// is used to support the estimation for every observation during the collecting. If the model doesn't provide the observation attributes
-/// `()` may be used.
+/// Observation specification.
+///
+/// It is a tuple struct of optional observation attributes (T) and optional feature vector itself.
+/// Observations are collected from the real world and placed into tracks. Later the observations are used
+/// to calculate the distances between tracks to make merging.
 ///
 #[derive(Default, Clone)]
 pub struct Observation<T>(pub(crate) Option<T>, pub(crate) Option<Feature>)
@@ -74,27 +76,39 @@ where
         Self(attrs, feature)
     }
 
+    /// Access to observation attributes
+    ///
     pub fn attr(&self) -> &Option<T> {
         &self.0
     }
 
+    /// Access to observation attributes for modification purposes
+    ///
     pub fn attr_mut(&mut self) -> &mut Option<T> {
         &mut self.0
     }
 
+    /// Access to observation feature
+    ///
     pub fn feature(&self) -> &Option<Feature> {
         &self.1
     }
 
+    /// Access to observation feature for modification purposes
+    ///
     pub fn feature_mut(&mut self) -> &mut Option<Feature> {
         &mut self.1
     }
 }
 
-/// Table that accumulates observed features across the tracks (or objects)
+/// HashTable that accumulates observations within the track.
+///
+/// The key is the feature class the value is the vector of observations collected.
+///
 pub type ObservationsDb<T> = HashMap<u64, Vec<Observation<T>>>;
 
-/// Custom feature attributes object that accompanies the observation itself
+/// Custom observation attributes object that is the part of the observation together with the feature vector.
+///
 pub trait ObservationAttributes: Send + Sync + Clone + 'static {
     type MetricObject: Debug + Send + Sync + Clone + 'static;
     fn calculate_metric_object(l: &Option<&Self>, r: &Option<&Self>) -> Option<Self::MetricObject>;
@@ -103,10 +117,20 @@ pub trait ObservationAttributes: Send + Sync + Clone + 'static {
 /// Output result type used by metric when pairwise metric is calculated
 ///
 /// `None` - no metric for that pair - the result will be dropped (optimization technique)
-/// `Some(X, Y)` - metric is calculated, values are inside
+/// `Some(Option<X>, Option<Y>)` - metric is calculated, values are inside.
+///  where
+///   * `Option<X>` is the metric object computed for observation attributes;
+///   * `Option<Y>` is the distance computed for feature vectors of the observation.
 ///
 pub type MetricOutput<T> = Option<(Option<T>, Option<f32>)>;
 
+/// Query object that is a parameter of the ``ObservationMetric::metric` method.
+///
+/// The query is used to make pairwise comparison of observations for two tracks.
+/// There is a
+///  * `candidate` track - the one, that is selected as a comparison subject
+///  * `track` track - the one, that is iterated over those kept in the store
+///
 pub struct MetricQuery<'a, TA, OA: ObservationAttributes> {
     /// * `feature_class` - class of currently used feature
     pub feature_class: u64,
@@ -120,7 +144,11 @@ pub struct MetricQuery<'a, TA, OA: ObservationAttributes> {
     pub track_observation: &'a Observation<OA>,
 }
 
-/// The trait that implements the methods for features comparison and filtering
+/// The trait that implements the methods for observations comparison, optimization and filtering.
+///
+/// This is the one of the most important elements of the track. It defines how track distances are
+/// computed, how track observations are compacted and transformed upon merging.
+///
 pub trait ObservationMetric<TA, OA: ObservationAttributes>: Send + Sync + Clone + 'static {
     /// calculates the distance between two features.
     ///
@@ -135,11 +163,11 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>: Send + Sync + Clone 
     /// # Arguments
     ///
     /// * `feature_class` - the feature class
-    /// * `merge_history` - how many times the track was merged already (it may be used to calculate maximum amount of observation for the feature)
-    /// * `attributes` - mutable attributes that can be updated or read during optimization
-    /// * `observations` - features to optimize
+    /// * `merge_history` - the vector of track identifiers collected upon every merge
+    /// * `attributes` - mutable track attributes that can be updated or read during optimization
+    /// * `observations` - observations to optimize
     /// * `prev_length` - previous length of observations (before the current observation was added or merge occurred)
-    /// * `is_merge` - true, when merge op, false when the feature added to the object
+    /// * `is_merge` - true, when the op is for track merging, false when the observation is added to the track
     ///
     /// # Returns
     /// * `Ok(())` if the optimization is successful
@@ -155,8 +183,10 @@ pub trait ObservationMetric<TA, OA: ObservationAttributes>: Send + Sync + Clone 
         is_merge: bool,
     ) -> Result<()>;
 
-    /// The postprocessing is run just before the executor returns calculated distances. `self` is a metric object
-    /// kept in track that passed to distance calculation methods.
+    /// The postprocessing is run just before the executor returns calculated distances.
+    ///
+    /// The postprocessing is aimed to remove non-viable, invalid distances that can be skipped
+    /// to improve the performance or the quality of further track voting process.
     ///
     fn postprocess_distances(
         &self,
@@ -176,11 +206,11 @@ pub enum TrackStatus {
     Ready,
     /// The track is not ready and still being collected.
     Pending,
-    /// The track is invalid because somehow became incorrect during the collection.
+    /// The track is invalid because somehow became incorrect or outdated along the way.
     Wasted,
 }
 
-/// Trait that must be implemented to run searches over the store
+/// The trait that must be implemented by a search query object to run searches over the store
 ///
 pub trait LookupRequest<TA, OA>: Send + Sync + Clone + 'static
 where

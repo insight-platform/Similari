@@ -18,10 +18,10 @@ pub mod examples;
 ///
 pub mod prelude;
 
-/// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions. It defines the track's
+/// Holds basic abstractions for tracking - [Track](track::Track), auxiliary structures, traits, and functions.
 ///
-/// look and feel, provides `Track` structure that holds track attributes and features, can accumulate track features and
-/// calculate feature distances between pair of tracks.
+/// It defines the track's look and feel, provides `Track` structure that holds track attributes and features,
+/// can accumulate track features and calculate feature distances between pair of tracks.
 ///
 pub mod track;
 
