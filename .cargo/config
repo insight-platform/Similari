@@ -1,7 +1,7 @@
 [build]
 rustflags = "-C target-cpu=native"
 
-# Apple M1 fix
+# Apple Silicone fix
 [target.aarch64-apple-darwin]
 rustflags = [
     "-C", "link-arg=-undefined",

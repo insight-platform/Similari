@@ -145,7 +145,7 @@ performance and metrics.
 
 ### Build Python API in Docker
 
-#### MacOS Apple M1 Notes
+#### MacOS Apple Silicone Build Notes
 
 You may need to add following lines into your `~/.cargo/config` to build the code on Apple Silicone:
 
@@ -153,7 +153,7 @@ You may need to add following lines into your `~/.cargo/config` to build the cod
 [build]
 rustflags = "-C target-cpu=native"
 
-# Apple M1 fix
+# Apple Silicone fix
 [target.aarch64-apple-darwin]
 rustflags = [
     "-C", "link-arg=-undefined",
