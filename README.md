@@ -222,6 +222,8 @@ RUSTFLAGS=" -C target-cpu=native -C opt-level=3" maturin develop
 ```
 
 5. Usage examples are located at [python](python).
+6. MOT Challenge Docker image for Similari trackers and conventional trackers is [here](python/motchallenge). 
+   You can easily build all-in-one Docker image and try ours trackers.
 
 ## Manuals and Articles
 Collected articles about how the Similari can be used to solve specific problems.
