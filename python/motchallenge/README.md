@@ -88,8 +88,7 @@ Resulting file /data/MOT20/output/sort_iou/data/MOT20-01.txt was successfully wr
 
 The resulting files will be saved to the specified folder (`output_path` in the config file).
 
-Folder structure
-* `data\` - tracker output in MOTChallenge format;
+The `data/MOT20/output/<NAME>/data` folder output structure:
 * `pedestrian_detailed.csv` - detailed evaluation info;
 * `pedestrian_summary.txt` - evaluation summary;
 * `processing_stats.csv` - processing statistics: frames, detections, FPS, etc.
