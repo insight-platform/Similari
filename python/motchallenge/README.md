@@ -1,9 +1,9 @@
-# Tracker Evaluation on MOT Challenge Data
+# Trackers Evaluation on MOT Challenge Data
 
 An easy way to run Similari trackers and measure their performance on real data from 
 [Multiple Object Tracking Benchmark (MOTChallenge)](https://motchallenge.net/).
 
-## 1. Download The Data
+## Download The Data
 
 E.g. for [MOT20](https://motchallenge.net/data/MOT20/) use one of the links:
 
@@ -37,13 +37,13 @@ MOT20/
     ...
 ```
 
-## 2. Build The Docker Image
+## Build The Docker Image
 
 ```bash
 docker build -t similari_py_mot -f python/motchallenge/Dockerfile .
 ```
 
-## 3. Run The Processing and Evaluation
+## Run The Processing and Evaluation
 
 Execute code to process default `data/MOT20/train` data using default Similari SORT that uses 
 IoU metric with `0.3` threshold: 
@@ -71,7 +71,7 @@ docker run --rm \
 ```
 
 
-## 4. Interpreting The Results
+## Interpreting The Results
 
 The whole process is logged on the stdout. 
 
