@@ -133,7 +133,7 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 * the Kalman filter for axis-aligned and oriented (rotated) boxes prediction;
 * NMS (Non-maximum suppression);
 * the Sutherland-Hodgman clipping, intersection area for oriented (rotated) boxes;
-* SORT with IoU and Mahalanobis metric (Sort);
+* SORT with IoU and Mahalanobis metric;
 * VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
   for positional tracking (VisualSort).
 
