@@ -7,6 +7,7 @@
 
 [![Docker Rust 1.63](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_63.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_63.yml)
 [![Docker Python 3.8](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml)
+[![Docker Python 3.9](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_9.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_9.yml)
 [![Docker Python 3.10](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml)
 
 
