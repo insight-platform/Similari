@@ -134,6 +134,7 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 * NMS (Non-maximum suppression);
 * the Sutherland-Hodgman clipping, intersection area for oriented (rotated) boxes;
 * SORT with IoU and Mahalanobis metric;
+* BatchSORT with IoU and Mahalanobis metric;
 * VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
   for positional tracking (VisualSort).
 
@@ -232,7 +233,8 @@ Collected articles about how the Similari can be used to solve specific problems
 
 * IoU object tracker [example](https://medium.com/@kudryavtsev_ia/high-performance-object-tracking-engine-with-rust-59ccbc79cdb0);
 * Re-ID object tracker [example](https://medium.com/@kudryavtsev_ia/feature-based-object-tracker-with-similari-and-rust-25d72d01d2e2);
-* SORT object tracker [example](https://medium.com/p/9a1dd18c259c).
+* SORT object tracker [example](https://medium.com/p/9a1dd18c259c);
+* Python SORT object tracker [example](https://medium.com/@kudryavtsev_ia/high-performance-python-sort-tracker-225c2b507562).
 
 ## Usage Examples
 
