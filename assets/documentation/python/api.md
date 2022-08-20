@@ -289,8 +289,6 @@ idle tracks can be accessible as well:
 
 ##### Methods
 
-**Sort Constructor**
-
 ```python
 Sort(shards, bbox_history, max_idle_epochs, method, min_confidence, spatio_temporal_constraints)
 ```
