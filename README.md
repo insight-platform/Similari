@@ -163,6 +163,9 @@ performance and metrics.
 
 ### Build Python API in Docker
 
+You can build the wheel in the Docker and if you want to install it in the host system, 
+copy the resulting package to the host system as demonstrated by the following examples.
+
 #### Rust 1.63 Base Image
 
 If you use other rust libraries you may find it beneficial to build with base Rust 
