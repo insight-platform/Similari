@@ -299,7 +299,7 @@ impl BatchSort {
             .iter()
             .map(|(track_id, _status)| {
                 let shard = store.get_store(*track_id as usize);
-                let track = shard.get(&track_id).unwrap();
+                let track = shard.get(track_id).unwrap();
                 SortTrack::from(track)
             })
             .collect()

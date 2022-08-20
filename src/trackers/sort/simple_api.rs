@@ -207,7 +207,7 @@ impl Sort {
             .iter()
             .map(|(track_id, _status)| {
                 let shard = store.get_store(*track_id as usize);
-                let track = shard.get(&track_id).unwrap();
+                let track = shard.get(track_id).unwrap();
                 SortTrack::from(track)
             })
             .collect()
@@ -395,6 +395,9 @@ mod tests {
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
 
         let _v = t.predict_with_scene(1, &[(bb.into(), Some(4))]);
+        let idle = t.idle_tracks_with_scene(1);
+        assert!(idle.is_empty());
+
         let _v = t.predict_with_scene(1, &[]);
 
         let idle = t.idle_tracks_with_scene(1);
