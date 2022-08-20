@@ -697,14 +697,14 @@ where
     ///
     /// The search is parallelized with Rayon. The results returned for tracks with their statuses.
     ///
-    pub fn lookup(&mut self, q: TA::Lookup) -> Vec<(u64, Result<TrackStatus>)> {
+    pub fn lookup(&self, q: TA::Lookup) -> Vec<(u64, Result<TrackStatus>)> {
         let mut results = Vec::with_capacity(self.shard_stats().iter().sum());
         let (results_sender, results_receiver) = crossbeam::channel::unbounded();
-        for (cmd, _) in &mut self.executors {
+        for (cmd, _) in &self.executors {
             cmd.send(Commands::Lookup(q.clone(), results_sender.clone()))
                 .unwrap();
         }
-        for (_, _) in &mut self.executors {
+        for (_, _) in &self.executors {
             let res = results_receiver.recv().unwrap();
             match res {
                 Results::BakedStatus(r) => {
@@ -716,5 +716,14 @@ where
             }
         }
         results
+    }
+
+    /// clears all the tracks from the store
+    ///
+    pub fn clear(&self) {
+        for s in self.stores.as_ref() {
+            let mut lock = s.lock().unwrap();
+            lock.clear();
+        }
     }
 }

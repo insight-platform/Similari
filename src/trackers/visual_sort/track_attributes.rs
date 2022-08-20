@@ -1,5 +1,5 @@
 use crate::track::{
-    Feature, NoopLookup, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    Feature, LookupRequest, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
@@ -100,6 +100,31 @@ impl TrackAttributesKalmanPrediction for VisualAttributes {
 }
 
 #[derive(Clone, Debug)]
+pub enum VisualSortLookup {
+    IdleLookup(u64),
+}
+
+impl LookupRequest<VisualAttributes, VisualObservationAttributes> for VisualSortLookup {
+    fn lookup(
+        &self,
+        attributes: &VisualAttributes,
+        _observations: &ObservationsDb<VisualObservationAttributes>,
+        _merge_history: &[u64],
+    ) -> bool {
+        match self {
+            VisualSortLookup::IdleLookup(scene_id) => {
+                *scene_id == attributes.scene_id
+                    && attributes.last_updated_epoch
+                        != attributes
+                            .opts
+                            .current_epoch_with_scene(attributes.scene_id)
+                            .unwrap()
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum VisualAttributesUpdate {
     Init {
         epoch: usize,
@@ -149,7 +174,7 @@ impl TrackAttributesUpdate<VisualAttributes> for VisualAttributesUpdate {
 
 impl TrackAttributes<VisualAttributes, VisualObservationAttributes> for VisualAttributes {
     type Update = VisualAttributesUpdate;
-    type Lookup = NoopLookup<VisualAttributes, VisualObservationAttributes>;
+    type Lookup = VisualSortLookup;
 
     fn compatible(&self, other: &VisualAttributes) -> bool {
         if self.scene_id == other.scene_id {

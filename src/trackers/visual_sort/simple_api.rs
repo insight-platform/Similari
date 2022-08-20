@@ -12,7 +12,9 @@ use crate::trackers::tracker_api::TrackerAPI;
 use crate::trackers::visual_sort::metric::{VisualMetric, VisualMetricOptions};
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
-use crate::trackers::visual_sort::track_attributes::{VisualAttributes, VisualAttributesUpdate};
+use crate::trackers::visual_sort::track_attributes::{
+    VisualAttributes, VisualAttributesUpdate, VisualSortLookup,
+};
 use crate::trackers::visual_sort::voting::VisualVoting;
 use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
 use crate::utils::clipping::bbox_own_areas::{
@@ -226,12 +228,30 @@ impl VisualSort {
 
             let lock = self.store.read().unwrap();
             let store = lock.get_store(track_id as usize);
-            let track = store.get(&track_id).unwrap().clone();
+            let track = store.get(&track_id).unwrap();
 
-            res.push(track.into())
+            res.push(SortTrack::from(track))
         }
 
         res
+    }
+
+    pub fn idle_tracks(&mut self) -> Vec<SortTrack> {
+        self.idle_tracks_with_scene(0)
+    }
+
+    pub fn idle_tracks_with_scene(&mut self, scene_id: u64) -> Vec<SortTrack> {
+        let store = self.store.read().unwrap();
+
+        store
+            .lookup(VisualSortLookup::IdleLookup(scene_id))
+            .iter()
+            .map(|(track_id, _status)| {
+                let shard = store.get_store(*track_id as usize);
+                let track = shard.get(track_id).unwrap();
+                SortTrack::from(track)
+            })
+            .collect()
     }
 }
 
@@ -285,8 +305,8 @@ impl
     }
 }
 
-impl From<Track<VisualAttributes, VisualMetric, VisualObservationAttributes>> for SortTrack {
-    fn from(track: Track<VisualAttributes, VisualMetric, VisualObservationAttributes>) -> Self {
+impl From<&Track<VisualAttributes, VisualMetric, VisualObservationAttributes>> for SortTrack {
+    fn from(track: &Track<VisualAttributes, VisualMetric, VisualObservationAttributes>) -> Self {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),

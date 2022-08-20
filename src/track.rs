@@ -31,14 +31,14 @@ where
     pub feature_distance: Option<f32>,
 }
 
-impl<M> ObservationMetricOk<M>
+impl<OA> ObservationMetricOk<OA>
 where
-    M: ObservationAttributes,
+    OA: ObservationAttributes,
 {
     pub fn new(
         from: u64,
         to: u64,
-        attribute_metric: Option<M::MetricObject>,
+        attribute_metric: Option<OA::MetricObject>,
         feature_distance: Option<f32>,
     ) -> Self {
         Self {

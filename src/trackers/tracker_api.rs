@@ -47,6 +47,7 @@ where
     ///
     fn skip_epochs_for_scene(&mut self, scene_id: u64, n: usize) {
         self.get_opts().skip_epochs_for_scene(scene_id, n);
+        self.auto_waste();
     }
 
     /// Get the current epoch for `scene_id` == 0
@@ -108,5 +109,10 @@ where
     ///
     fn wasted_shard_stats(&self) -> Vec<usize> {
         self.get_main_store().shard_stats()
+    }
+
+    /// Clears wasted tracks
+    fn clear_wasted(&self) {
+        self.get_wasted_store().clear();
     }
 }
