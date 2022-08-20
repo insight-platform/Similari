@@ -280,6 +280,13 @@ one without the need to create a separate tracker for every object class. There 
 To increase the performance of the SORT in scenes with large number of objects one can use 
 [SpatioTemporalConstraints](https://docs.rs/similari/0.22.0/similari/trackers/spatio_temporal_constraints/struct.SpatioTemporalConstraints.html).
 
+When certain tracks are not updated on the current prediction epoch and the `max_idle_epochs` is greater than `0` the
+idle tracks can be accessible as well:
+
+* [SORT_IDLE](/python/sort/sort_idle.py) - working with idle tracks;
+* The Medium [article](https://medium.com/@kudryavtsev_ia/high-performance-python-sort-tracker-225c2b507562)  where the tracker that 
+  uses idle tracks is demonstrated.
+
 #### Visual SORT Tracker
 
 Visual SORT tracker is DeepSORT flavour with improvements. It uses custom user ReID model and 
