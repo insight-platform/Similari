@@ -35,3 +35,6 @@ if __name__ == '__main__':
     tracker.skip_epochs(10)
     wasted = tracker.wasted()
     print(wasted[0])
+
+    # or just clear wasted
+    tracker.clear_wasted()

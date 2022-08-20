@@ -27,3 +27,7 @@ if __name__ == '__main__':
     sort.skip_epochs(10)
     wasted = sort.wasted()
     print(wasted[0])
+
+
+    # or just clear wasted
+    sort.clear_wasted()
