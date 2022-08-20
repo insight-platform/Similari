@@ -287,6 +287,101 @@ idle tracks can be accessible as well:
 * The Medium [article](https://medium.com/@kudryavtsev_ia/high-performance-python-sort-tracker-225c2b507562)  where the tracker that 
   uses idle tracks is demonstrated.
 
+##### Methods
+
+**Sort Constructor**
+
+```python
+Sort(shards, bbox_history, max_idle_epochs, method, min_confidence, spatio_temporal_constraints)
+```
+
+Parameters:
+* `shards` - the parallelism of the tracker, the more data holds, the more shards show be created,
+  1-2 shards is enough to manage up to 100 tracks, try it to get the lowest processing time;
+* `bbox_history` - the number of predictions the tracks hold in the history; the history is only 
+  accessible via `wasted()` method, if you are receiving and analyze the tracking info on every 
+  prediction step, you can set it to `1`;
+* `max_idle_epochs` - how long the track stays active in the tracker without updates;
+* `method` - `PositionalMetricType` instance that defines the method used for distance calculation (IoU or Mahalanobis);
+* `min_confidence` - minimal bounding box confidence allowed, when a bounding box has lowe confidence it is set to the parameter;
+* `spatio_temporal_constraints` - additional limitations that define how far the observation may be from the prediction for the 
+  next and following epochs; the parameter helps decrease the processing time, but if you don't care, just set to `None`.
+
+```python
+def skip_epochs(n: int)
+```
+
+Does fast-forward on `n` epochs for the scene `0`.
+
+```python
+def skip_epochs_for_scene(scene_id: int, n: int)
+```
+
+Does fast-forward on `n` epochs for the scene `scene_id`.
+
+```python
+def shard_stats() -> List[int]
+```
+
+Shows how many elements is kept in every shard. Imbalance may 
+lead to uneven cores load, but it can happen in the real world.  
+
+```python
+def current_epoch() -> int
+```
+
+Returns the current epoch for scene `0`.
+
+```python
+def current_epoch_with_scene(scene_id: int) -> int
+```
+
+Returns the current epoch for scene `scene_id`.
+
+```python
+def predict(bboxes: List[(Universal2DBox, Optional[int] = None)]) -> List[SortTrack]
+```
+
+Predicts the tracks for specified bounding boxes. The second tuple parameter is the custom object id. 
+It is present in returned tracks and helps to find what track was chosen to the box without the need to
+look for boxes in tracks by their coordinates.
+
+```python
+def predict_with_scene(scene_id: int, bboxes: List[(Universal2DBox, Optional[int] = None)]) -> List[SortTrack]
+```
+
+The same predict, but the scene id is set to `scene_id`. If there are some object classes, they can be tracked separately
+with use of `scene_id`. The same apply to the case when the tracker tracks objects on multiple camers. `Scene_id` helps 
+efficiently manage multiple classes, cameras, etc. within the one tracker.
+
+```python
+def wasted() -> List[WastedSortTrack]
+```
+
+Returns the tracks that are expired.
+
+```python
+def clear_wasted()
+```
+
+Clears the expired tracks. Works faster than `wasted()` because doesn't require
+capturing the information from the database.
+
+```python
+def idle_tracks() -> List[SortTrack]
+```
+
+Returns the tracks that are active but wasn't updated during the last 
+prediction. Scene is `0`.
+
+
+```python
+def idle_tracks_with_scene(scene_id: int) -> List[SortTrack]
+```
+
+Returns the tracks that are active but wasn't updated during the last 
+prediction. Scene is `scene_id`.
+
 #### Visual SORT Tracker
 
 Visual SORT tracker is DeepSORT flavour with improvements. It uses custom user ReID model and 

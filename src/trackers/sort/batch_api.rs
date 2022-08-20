@@ -504,14 +504,7 @@ impl BatchSort {
     /// Get idle tracks with not expired life
     ///
     #[pyo3(name = "idle_tracks", text_signature = "($self)")]
-    pub fn idle_tracks_py(&mut self) -> Vec<SortTrack> {
-        self.idle_tracks_with_scene_py(0)
-    }
-
-    /// Get idle tracks with not expired life
-    ///
-    #[pyo3(name = "idle_tracks_with_scene", text_signature = "($self)")]
-    pub fn idle_tracks_with_scene_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
+    pub fn idle_tracks_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
