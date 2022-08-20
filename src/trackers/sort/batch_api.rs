@@ -1,5 +1,6 @@
 use crate::prelude::{
-    NoopNotifier, ObservationBuilder, PositionalMetricType, TrackStoreBuilder, Universal2DBox,
+    NoopNotifier, ObservationBuilder, PositionalMetricType, SortTrack, TrackStoreBuilder,
+    Universal2DBox,
 };
 use crate::store::track_distance::TrackDistanceOkIterator;
 use crate::store::TrackStore;
@@ -11,7 +12,8 @@ use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
 use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::{
     AutoWaste, PyPositionalMetricType, PyWastedSortTrack, SortAttributes, SortAttributesOptions,
-    SortAttributesUpdate, DEFAULT_AUTO_WASTE_PERIODICITY, MAHALANOBIS_NEW_TRACK_THRESHOLD,
+    SortAttributesUpdate, SortLookup, DEFAULT_AUTO_WASTE_PERIODICITY,
+    MAHALANOBIS_NEW_TRACK_THRESHOLD,
 };
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::trackers::tracker_api::TrackerAPI;
@@ -139,13 +141,11 @@ fn voting_thread(
                         tid
                     };
 
-                    let track = {
-                        let store = store.read().expect("Access to store must always succeed");
-                        let shard = store.get_store(track_id as usize);
-                        shard.get(&track_id).unwrap().clone()
-                    };
+                    let store = store.read().expect("Access to store must always succeed");
+                    let shard = store.get_store(track_id as usize);
+                    let track = shard.get(&track_id).unwrap();
 
-                    res.push(track.into())
+                    res.push(SortTrack::from(track))
                 }
                 let res = channel.send((scene_id, res));
                 if let Err(e) = res {
@@ -285,6 +285,24 @@ impl BatchSort {
                 })
                 .expect("Sending voting request to voting thread must not fail");
         }
+    }
+
+    pub fn idle_tracks(&mut self) -> Vec<SortTrack> {
+        self.idle_tracks_with_scene(0)
+    }
+
+    pub fn idle_tracks_with_scene(&mut self, scene_id: u64) -> Vec<SortTrack> {
+        let store = self.store.read().unwrap();
+
+        store
+            .lookup(SortLookup::IdleLookup(scene_id))
+            .iter()
+            .map(|(track_id, _status)| {
+                let shard = store.get_store(*track_id as usize);
+                let track = shard.get(&track_id).unwrap();
+                SortTrack::from(track)
+            })
+            .collect()
     }
 }
 
@@ -472,5 +490,30 @@ impl BatchSort {
                 .map(PyWastedSortTrack::from)
                 .collect()
         })
+    }
+
+    /// Clear all tracks with expired life
+    ///
+    #[pyo3(name = "clear_wasted", text_signature = "($self)")]
+    pub fn clear_wasted_py(&mut self) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        py.allow_threads(|| self.clear_wasted());
+    }
+
+    /// Get idle tracks with not expired life
+    ///
+    #[pyo3(name = "idle_tracks", text_signature = "($self)")]
+    pub fn idle_tracks_py(&mut self) -> Vec<SortTrack> {
+        self.idle_tracks_with_scene_py(0)
+    }
+
+    /// Get idle tracks with not expired life
+    ///
+    #[pyo3(name = "idle_tracks_with_scene", text_signature = "($self)")]
+    pub fn idle_tracks_with_scene_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
     }
 }

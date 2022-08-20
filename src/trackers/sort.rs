@@ -1,5 +1,5 @@
 use crate::track::{
-    NoopLookup, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    LookupRequest, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
@@ -154,6 +154,33 @@ pub struct SortAttributesUpdate {
     custom_object_id: Option<i64>,
 }
 
+/// Lookup object for SortAttributes
+///
+#[derive(Clone, Debug)]
+pub enum SortLookup {
+    IdleLookup(u64),
+}
+
+impl LookupRequest<SortAttributes, Universal2DBox> for SortLookup {
+    fn lookup(
+        &self,
+        attributes: &SortAttributes,
+        _observations: &ObservationsDb<Universal2DBox>,
+        _merge_history: &[u64],
+    ) -> bool {
+        match self {
+            SortLookup::IdleLookup(scene_id) => {
+                *scene_id == attributes.scene_id
+                    && attributes.last_updated_epoch
+                        != attributes
+                            .opts
+                            .current_epoch_with_scene(attributes.scene_id)
+                            .unwrap()
+            }
+        }
+    }
+}
+
 impl SortAttributesUpdate {
     /// update epoch with scene_id == 0
     ///
@@ -192,7 +219,7 @@ impl TrackAttributesUpdate<SortAttributes> for SortAttributesUpdate {
 
 impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
     type Update = SortAttributesUpdate;
-    type Lookup = NoopLookup<SortAttributes, Universal2DBox>;
+    type Lookup = SortLookup;
 
     fn compatible(&self, other: &SortAttributes) -> bool {
         if self.scene_id == other.scene_id {

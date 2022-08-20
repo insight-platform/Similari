@@ -5,8 +5,8 @@ use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::metric::SortMetric;
 use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::{
-    AutoWaste, PositionalMetricType, PyPositionalMetricType, DEFAULT_AUTO_WASTE_PERIODICITY,
-    MAHALANOBIS_NEW_TRACK_THRESHOLD,
+    AutoWaste, PositionalMetricType, PyPositionalMetricType, SortLookup,
+    DEFAULT_AUTO_WASTE_PERIODICITY, MAHALANOBIS_NEW_TRACK_THRESHOLD,
 };
 use crate::trackers::sort::{
     PyWastedSortTrack, SortAttributes, SortAttributesOptions, SortAttributesUpdate, SortTrack,
@@ -188,12 +188,29 @@ impl Sort {
 
             let lock = self.store.read().unwrap();
             let store = lock.get_store(track_id as usize);
-            let track = store.get(&track_id).unwrap().clone();
-
-            res.push(track.into())
+            let track = store.get(&track_id).unwrap();
+            res.push(SortTrack::from(track));
         }
 
         res
+    }
+
+    pub fn idle_tracks(&mut self) -> Vec<SortTrack> {
+        self.idle_tracks_with_scene(0)
+    }
+
+    pub fn idle_tracks_with_scene(&mut self, scene_id: u64) -> Vec<SortTrack> {
+        let store = self.store.read().unwrap();
+
+        store
+            .lookup(SortLookup::IdleLookup(scene_id))
+            .iter()
+            .map(|(track_id, _status)| {
+                let shard = store.get_store(*track_id as usize);
+                let track = shard.get(&track_id).unwrap();
+                SortTrack::from(track)
+            })
+            .collect()
     }
 }
 
@@ -235,8 +252,8 @@ impl TrackerAPI<SortAttributes, SortMetric, Universal2DBox, SortAttributesOption
     }
 }
 
-impl From<Track<SortAttributes, SortMetric, Universal2DBox>> for SortTrack {
-    fn from(track: Track<SortAttributes, SortMetric, Universal2DBox>) -> Self {
+impl From<&Track<SortAttributes, SortMetric, Universal2DBox>> for SortTrack {
+    fn from(track: &Track<SortAttributes, SortMetric, Universal2DBox>) -> Self {
         let attrs = track.get_attributes();
         SortTrack {
             id: track.get_track_id(),
@@ -364,6 +381,61 @@ mod tests {
         assert_eq!(t.current_epoch_with_scene(1), 2);
         assert_eq!(t.current_epoch_with_scene(2), 1);
     }
+
+    #[test]
+    fn idle_tracks() {
+        let mut t = Sort::new(
+            1,
+            10,
+            2,
+            IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            None,
+        );
+        let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
+
+        let _v = t.predict_with_scene(1, &[(bb.into(), Some(4))]);
+        let _v = t.predict_with_scene(1, &[]);
+
+        let idle = t.idle_tracks_with_scene(1);
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].id, 1);
+    }
+
+    #[test]
+    fn clear_wasted_tracks() {
+        let mut t = Sort::new(
+            1,
+            10,
+            2,
+            IoU(DEFAULT_SORT_IOU_THRESHOLD),
+            DEFAULT_MINIMAL_SORT_CONFIDENCE,
+            None,
+        );
+        let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
+
+        let _v = t.predict_with_scene(1, &[(bb.into(), Some(4))]);
+        t.skip_epochs_for_scene(1, 3);
+        assert_eq!(
+            t.wasted_store
+                .read()
+                .unwrap()
+                .shard_stats()
+                .iter()
+                .sum::<usize>(),
+            1
+        );
+        t.clear_wasted();
+        assert_eq!(
+            t.wasted_store
+                .read()
+                .unwrap()
+                .shard_stats()
+                .iter()
+                .sum::<usize>(),
+            0
+        );
+    }
 }
 
 #[pymethods]
@@ -484,7 +556,7 @@ impl Sort {
         py.allow_threads(|| self.predict_with_scene(scene_id.try_into().unwrap(), &bboxes))
     }
 
-    /// Remove all the tracks with expired life
+    /// Fetch and remove all the tracks with expired life
     ///
     #[pyo3(name = "wasted", text_signature = "($self)")]
     pub fn wasted_py(&mut self) -> Vec<PyWastedSortTrack> {
@@ -497,5 +569,30 @@ impl Sort {
                 .map(PyWastedSortTrack::from)
                 .collect()
         })
+    }
+
+    /// Clear all tracks with expired life
+    ///
+    #[pyo3(name = "clear_wasted", text_signature = "($self)")]
+    pub fn clear_wasted_py(&mut self) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        py.allow_threads(|| self.clear_wasted());
+    }
+
+    /// Get idle tracks with not expired life
+    ///
+    #[pyo3(name = "idle_tracks", text_signature = "($self)")]
+    pub fn idle_tracks_py(&mut self) -> Vec<SortTrack> {
+        self.idle_tracks_with_scene_py(0)
+    }
+
+    /// Get idle tracks with not expired life
+    ///
+    #[pyo3(name = "idle_tracks_with_scene", text_signature = "($self)")]
+    pub fn idle_tracks_with_scene_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
     }
 }
