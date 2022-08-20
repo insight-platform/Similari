@@ -170,6 +170,10 @@ container (and Python 3.8):
 
 ```
 docker build -t similari_py -f docker/rust_1.63/Dockerfile .
+
+# optional: copy and install to host system
+docker run --rm -it -v $(pwd)/distfiles:/tmp similari_py cp -R /opt/dist /tmp
+pip3 install --force-reinstall distfiles/dist/*.whl
 ```
 
 #### Python 3.8 Base Image
@@ -178,6 +182,10 @@ Python 3.8 is still a very frequently used. Here is how to build Similari with i
 
 ```
 docker build -t similari_py -f docker/python_3.8/Dockerfile .
+
+# optional: copy and install to host system
+docker run --rm -it -v $(pwd)/distfiles:/tmp similari_py cp -R /opt/dist /tmp
+pip3 install --force-reinstall distfiles/dist/*.whl
 ```
 
 #### Python 3.10 Base Image
@@ -186,7 +194,20 @@ If you use the most recent Python environment, you can build with base Python co
 
 ```
 docker build -t similari_py -f docker/python_3.10/Dockerfile .
+
+# optional: copy and install to host system
+docker run --rm -it -v $(pwd)/distfiles:/tmp similari_py cp -R /opt/dist /tmp
+pip3 install --force-reinstall distfiles/dist/*.whl
 ```
+
+**NOTE**: If you are getting the `pip3` error like:
+
+```
+ERROR: similari_py-0.22.5-cp38-cp38-manylinux_2_28_x86_64.whl is not a supported wheel on this platform.
+```
+
+It means that the Python version in the host system doesn't match to the one that is in the image used
+to build the wheel.
 
 ### Build Python API in Host System
 
