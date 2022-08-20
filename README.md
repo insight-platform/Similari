@@ -128,6 +128,22 @@ rustup default nightly
 cargo bench
 ```
 
+## Apple Silicone Build Notes
+
+You may need to add following lines into your `~/.cargo/config` to build the code on Apple Silicone:
+
+```
+[build]
+rustflags = "-C target-cpu=native"
+
+# Apple Silicone fix
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-undefined",
+    "-C", "link-arg=dynamic_lookup",
+]
+```
+
 ## Python API
 
 Python interface exposes ready-to-use functions and classes of Similari. As for now, the Python interface provides:
@@ -146,23 +162,6 @@ There is also [MOTChallenge](python/motchallenge) evaluation kit provided which 
 performance and metrics.
 
 ### Build Python API in Docker
-
-#### MacOS Apple Silicone Build Notes
-
-You may need to add following lines into your `~/.cargo/config` to build the code on Apple Silicone:
-
-```
-[build]
-rustflags = "-C target-cpu=native"
-
-# Apple Silicone fix
-[target.aarch64-apple-darwin]
-rustflags = [
-    "-C", "link-arg=-undefined",
-    "-C", "link-arg=dynamic_lookup",
-]
-```
-
 
 #### Rust 1.63 Base Image
 
