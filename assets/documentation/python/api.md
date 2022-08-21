@@ -380,17 +380,29 @@ def idle_tracks_with_scene(scene_id: int) -> List[SortTrack]
 Returns the tracks that are active but wasn't updated during the last 
 prediction. Scene is `scene_id`.
 
-#### Visual SORT Tracker
+### Batch SORT Tracker
+
+Batch SORT tracker is the same tracker as SORT tracker but allows passing to prediction
+the batch with several scenes and receive the results back. In case, when the ML pipeline
+supports the batching the Batch SORT tracker must be used, because it can efficeintly 
+handle results with less time required, when there are several independent scenes in the batch.
+
+API is almost the same, except the `predict(...)`. See examples at:
+
+* [BATCH_SORT_IOU_TRACKER](/python/sort/batch_sort_iou.py) - IoU flavor;
+* [BATCH_SORT_IOU_BENCHMARK](/python/sort/batch_sort_iou_bench.py) - IoU performance benchmark.
+
+### Visual SORT Tracker
 
 Visual SORT tracker is DeepSORT flavour with improvements. It uses custom user ReID model and 
 positional tracking based on IoU or Mahalanobis distance.
 
-##### Tracker Configuration
+#### Tracker Configuration
 
 * [VisualSortOptions](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/options/struct.VisualSortOptions.html)
 * [VisualMetricType](https://docs.rs/similari/0.22.0/similari/trackers/visual/metric/struct.PyVisualMetricType.html)
 
-##### Tracker Usage
+#### Tracker Usage
 
 * [VisualObservation](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/simple_visual_py/struct.PyVisualObservation.html)
 * [VisualObservationSet](https://docs.rs/similari/0.22.0/similari/trackers/visual/simple_api/simple_visual_py/struct.PyVisualObservationSet.html)
