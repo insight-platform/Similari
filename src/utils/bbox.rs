@@ -84,18 +84,6 @@ impl BoundingBox {
     }
 }
 
-// impl EstimateClose for BoundingBox {
-//     /// Allows comparing bboxes
-//     ///
-//     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-//         (self.left - other.left).abs() < eps
-//             && (self.top - other.top).abs() < eps
-//             && (self.width - other.width) < eps
-//             && (self.height - other.height) < eps
-//             && (self.confidence - other.confidence) < eps
-//     }
-// }
-
 /// Bounding box in the format (x, y, angle, aspect, height)
 #[derive(Default, Debug)]
 #[pyclass]
@@ -281,18 +269,6 @@ impl Universal2DBox {
         }
     }
 }
-
-// impl EstimateClose for Universal2DBox {
-//     /// Allows comparing bboxes
-//     ///
-//     fn almost_same(&self, other: &Self, eps: f32) -> bool {
-//         (self.xc - other.xc).abs() < eps
-//             && (self.yc - other.yc).abs() < eps
-//             && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < eps
-//             && (self.aspect - other.aspect) < eps
-//             && (self.height - other.height) < eps
-//     }
-// }
 
 impl From<BoundingBox> for Universal2DBox {
     fn from(f: BoundingBox) -> Self {
