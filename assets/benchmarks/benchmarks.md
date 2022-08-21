@@ -118,3 +118,15 @@ The benchmark is located at [benches/batch_sort_iou_tracker.rs](benches/batch_so
 | 10      |          106,876 | 9300 |
 | 100     |        1,616,542 |  618 |
 | 500     |       20,454,230 |   48 |
+
+**BatchSORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark uses heuristics 
+that separate the observed objects based on object distances.
+
+The benchmark is located at [benches/batch_sort_maha_tracker.rs](benches/batch_sort_maha_tracker.rs).
+
+| Objects | Time (ns/iter) |  FPS |
+|---------|---------------:|-----:|
+| 10      |        114,592 | 8695 |
+| 100     |      1,533,445 |  649 |
+| 500     |     18,270,742 |   54 |
+

@@ -262,7 +262,6 @@ mod track_tests {
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;
     use crate::utils::kalman::KalmanFilter;
-    use crate::{EstimateClose, EPS};
 
     #[test]
     fn construct() {
@@ -291,13 +290,13 @@ mod track_tests {
         assert_eq!(t1.get_attributes().predicted_boxes.len(), 1);
         assert_eq!(t1.get_attributes().observed_boxes.len(), 1);
         assert_eq!(t1.get_merge_history().len(), 1);
-        assert!(t1.get_attributes().predicted_boxes[0].almost_same(&observation_bb_0.into(), EPS));
+        assert_eq!(
+            t1.get_attributes().predicted_boxes[0],
+            observation_bb_0.into()
+        );
 
         let predicted_state = f.predict(init_state);
-        assert!(predicted_state
-            .bbox()
-            .unwrap()
-            .almost_same(&observation_bb_0, EPS));
+        assert_eq!(predicted_state.bbox().unwrap(), observation_bb_0);
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
@@ -321,8 +320,10 @@ mod track_tests {
         assert_eq!(t1.get_attributes().observed_boxes.len(), 2);
 
         let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
-        assert!(t1.get_attributes().predicted_boxes[1]
-            .almost_same(&predicted_state.universal_bbox(), EPS));
+        assert_eq!(
+            t1.get_attributes().predicted_boxes[1],
+            predicted_state.universal_bbox()
+        );
     }
 }
 

@@ -3,7 +3,7 @@ use crate::utils::clipping::sutherland_hodgman_clip;
 use crate::voting::topn::TopNVotingElt;
 use crate::voting::Voting;
 use crate::Errors::GenericBBoxConversionError;
-use crate::{EstimateClose, EPS};
+use crate::EPS;
 use anyhow::Result;
 use geo::{Area, Coordinate, LineString, Polygon};
 use itertools::Itertools;
@@ -84,17 +84,17 @@ impl BoundingBox {
     }
 }
 
-impl EstimateClose for BoundingBox {
-    /// Allows comparing bboxes
-    ///
-    fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self.left - other.left).abs() < eps
-            && (self.top - other.top).abs() < eps
-            && (self.width - other.width) < eps
-            && (self.height - other.height) < eps
-            && (self.confidence - other.confidence) < eps
-    }
-}
+// impl EstimateClose for BoundingBox {
+//     /// Allows comparing bboxes
+//     ///
+//     fn almost_same(&self, other: &Self, eps: f32) -> bool {
+//         (self.left - other.left).abs() < eps
+//             && (self.top - other.top).abs() < eps
+//             && (self.width - other.width) < eps
+//             && (self.height - other.height) < eps
+//             && (self.confidence - other.confidence) < eps
+//     }
+// }
 
 /// Bounding box in the format (x, y, angle, aspect, height)
 #[derive(Default, Debug)]
@@ -282,17 +282,17 @@ impl Universal2DBox {
     }
 }
 
-impl EstimateClose for Universal2DBox {
-    /// Allows comparing bboxes
-    ///
-    fn almost_same(&self, other: &Self, eps: f32) -> bool {
-        (self.xc - other.xc).abs() < eps
-            && (self.yc - other.yc).abs() < eps
-            && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < eps
-            && (self.aspect - other.aspect) < eps
-            && (self.height - other.height) < eps
-    }
-}
+// impl EstimateClose for Universal2DBox {
+//     /// Allows comparing bboxes
+//     ///
+//     fn almost_same(&self, other: &Self, eps: f32) -> bool {
+//         (self.xc - other.xc).abs() < eps
+//             && (self.yc - other.yc).abs() < eps
+//             && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < eps
+//             && (self.aspect - other.aspect) < eps
+//             && (self.height - other.height) < eps
+//     }
+// }
 
 impl From<BoundingBox> for Universal2DBox {
     fn from(f: BoundingBox) -> Self {
@@ -495,7 +495,11 @@ impl ObservationAttributes for BoundingBox {
 
 impl PartialEq<Self> for BoundingBox {
     fn eq(&self, other: &Self) -> bool {
-        self.almost_same(other, EPS)
+        (self.left - other.left).abs() < EPS
+            && (self.top - other.top).abs() < EPS
+            && (self.width - other.width) < EPS
+            && (self.height - other.height) < EPS
+            && (self.confidence - other.confidence) < EPS
     }
 }
 
@@ -605,7 +609,11 @@ impl ObservationAttributes for Universal2DBox {
 
 impl PartialEq<Self> for Universal2DBox {
     fn eq(&self, other: &Self) -> bool {
-        self.almost_same(other, EPS)
+        (self.xc - other.xc).abs() < EPS
+            && (self.yc - other.yc).abs() < EPS
+            && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < EPS
+            && (self.aspect - other.aspect) < EPS
+            && (self.height - other.height) < EPS
     }
 }
 

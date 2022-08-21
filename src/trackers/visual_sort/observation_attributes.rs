@@ -1,6 +1,6 @@
 use crate::track::{Observation, ObservationAttributes};
 use crate::utils::bbox::Universal2DBox;
-use crate::{EstimateClose, EPS};
+use crate::EPS;
 use std::fmt::Formatter;
 
 #[derive(Clone, Debug, Default)]
@@ -87,8 +87,7 @@ impl ObservationAttributes for VisualObservationAttributes {
 impl PartialEq<Self> for VisualObservationAttributes {
     fn eq(&self, other: &Self) -> bool {
         if let (Some(my_bbox), Some(other_bbox)) = (&self.bbox, &other.bbox) {
-            my_bbox.almost_same(other_bbox, EPS)
-                && (self.visual_quality - other.visual_quality).abs() < EPS
+            my_bbox.eq(other_bbox) && (self.visual_quality - other.visual_quality).abs() < EPS
         } else {
             false
         }

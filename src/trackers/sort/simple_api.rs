@@ -292,7 +292,6 @@ mod tests {
     use crate::trackers::sort::DEFAULT_SORT_IOU_THRESHOLD;
     use crate::trackers::tracker_api::TrackerAPI;
     use crate::utils::bbox::BoundingBox;
-    use crate::{EstimateClose, EPS};
 
     #[test]
     fn sort() {
@@ -314,7 +313,7 @@ mod tests {
         let track_id = v.id;
         assert_eq!(v.custom_object_id, None);
         assert_eq!(v.length, 1);
-        assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
+        assert_eq!(v.observed_bbox, bb.into());
         assert_eq!(v.epoch, 1);
         assert_eq!(t.current_epoch(), 1);
 
@@ -327,7 +326,7 @@ mod tests {
         assert_eq!(v.custom_object_id, Some(2));
         assert_eq!(v.id, track_id);
         assert_eq!(v.length, 2);
-        assert!(v.observed_bbox.almost_same(&bb.into(), EPS));
+        assert_eq!(v.observed_bbox, bb.into());
         assert_eq!(v.epoch, 2);
         assert_eq!(t.current_epoch(), 2);
 

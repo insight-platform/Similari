@@ -7,8 +7,10 @@ pub use track::notify::NoopNotifier;
 pub use track::store::builder::TrackStoreBuilder;
 
 pub use crate::trackers::sort::PositionalMetricType;
+pub use trackers::sort::batch_api::BatchSort;
 pub use trackers::sort::simple_api::Sort;
 pub use trackers::sort::SortTrack;
+pub use trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 
 pub use trackers::visual_sort::metric::VisualSortMetricType;
 pub use trackers::visual_sort::simple_api::options::VisualSortOptions;

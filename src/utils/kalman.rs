@@ -254,7 +254,6 @@ impl KalmanFilter {
 mod tests {
     use crate::utils::bbox::{BoundingBox, Universal2DBox};
     use crate::utils::kalman::{KalmanFilter, CHI2INV95};
-    use crate::{EstimateClose, EPS};
 
     #[test]
     fn constructor() {
@@ -263,7 +262,7 @@ mod tests {
 
         let state = f.initiate(bbox.into());
         let new_bb = state.bbox();
-        assert_eq!(new_bb.unwrap(), bbox.clone());
+        assert_eq!(new_bb.unwrap(), bbox);
     }
 
     #[test]
@@ -276,7 +275,7 @@ mod tests {
         let p = state.universal_bbox();
 
         let est_p = Universal2DBox::new(-9.0, 4.5, None, 0.4, 5.0);
-        assert!(p.almost_same(&est_p, EPS));
+        assert_eq!(p, est_p);
 
         let bbox = Universal2DBox::new(8.75, 52.35, None, 0.150_849_15, 100.1);
         let state = f.update(state, bbox);
@@ -284,7 +283,7 @@ mod tests {
 
         let state = f.predict(state);
         let p = state.universal_bbox();
-        assert!(p.almost_same(&est_p, EPS));
+        assert_eq!(p, est_p);
     }
 
     #[test]

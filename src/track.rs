@@ -418,7 +418,7 @@ where
         self.observations.keys().cloned().collect()
     }
 
-    fn update_attributes(&mut self, update: TA::Update) -> Result<()> {
+    fn update_attributes(&mut self, update: &TA::Update) -> Result<()> {
         update.apply(&mut self.attributes)
     }
 
@@ -448,7 +448,7 @@ where
         let last_observations = self.observations.clone();
         let last_metric = self.metric.clone();
 
-        if let Some(track_attributes_update) = track_attributes_update {
+        if let Some(track_attributes_update) = &track_attributes_update {
             let res = self.update_attributes(track_attributes_update);
             if res.is_err() {
                 self.attributes = last_attributes;
@@ -546,9 +546,9 @@ where
                 _ => None,
             };
             let merge_history = if merge_history {
-                vec![&self.merge_history, &other.merge_history]
-                    .into_iter()
-                    .flatten()
+                self.merge_history
+                    .iter()
+                    .chain(other.merge_history.iter())
                     .cloned()
                     .collect::<Vec<_>>()
             } else {

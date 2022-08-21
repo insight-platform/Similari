@@ -77,8 +77,8 @@ pub enum Errors {
 
 pub const EPS: f32 = 0.00001;
 
-/// Trait is used to implement fuzzy epsilon-comparison of two objects
-///
-pub trait EstimateClose {
-    fn almost_same(&self, other: &Self, eps: f32) -> bool;
-}
+// /// Trait is used to implement fuzzy epsilon-comparison of two objects
+// ///
+// pub trait EstimateClose {
+//     fn almost_same(&self, other: &Self, eps: f32) -> bool;
+// }

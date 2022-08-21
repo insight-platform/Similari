@@ -553,7 +553,7 @@ where
                     metric: self.metric.clone(),
                     merge_history: vec![track_id],
                 };
-                if let Some(attributes_update) = attributes_update {
+                if let Some(attributes_update) = &attributes_update {
                     t.update_attributes(attributes_update)?;
                 }
 
