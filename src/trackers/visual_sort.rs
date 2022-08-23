@@ -20,6 +20,9 @@ pub mod simple_api;
 /// Python API implementation
 pub mod visual_sort_py;
 
+/// Batched API that accepts the batch with multiple scenes at once
+pub mod batch_api;
+
 #[derive(Debug, Clone)]
 pub struct VisualObservation<'a> {
     feature: Option<&'a Vec<f32>>,

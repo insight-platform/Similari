@@ -102,14 +102,14 @@ fn voting_thread(
                 let mut res = Vec::default();
                 for mut t in tracks {
                     let source = t.get_track_id();
+                    let tid = {
+                        let mut track_id = track_id.write().unwrap();
+                        *track_id += 1;
+                        *track_id
+                    };
                     let track_id: u64 = if let Some(dest) = winners.get(&source) {
                         let dest = dest[0];
                         if dest == source {
-                            let tid = {
-                                let mut track_id = track_id.write().unwrap();
-                                *track_id += 1;
-                                *track_id
-                            };
                             t.set_track_id(tid);
                             store
                                 .write()
@@ -126,13 +126,7 @@ fn voting_thread(
                             dest
                         }
                     } else {
-                        let tid = {
-                            let mut track_id = track_id.write().unwrap();
-                            *track_id += 1;
-                            *track_id
-                        };
                         t.set_track_id(tid);
-
                         store
                             .write()
                             .expect("Access to store must always succeed")
@@ -228,6 +222,13 @@ impl BatchSort {
         &mut self,
         batch_request: PredictionBatchRequest<(Universal2DBox, Option<i64>)>,
     ) {
+        if self.auto_waste.counter == 0 {
+            self.auto_waste();
+            self.auto_waste.counter = self.auto_waste.periodicity;
+        } else {
+            self.auto_waste.counter -= 1;
+        }
+
         if let Some(m) = &self.monitor {
             let (lock, cvar) = &**m;
             let _guard = cvar.wait_while(lock.lock().unwrap(), |v| *v > 0).unwrap();
@@ -317,29 +318,19 @@ impl TrackerAPI<SortAttributes, SortMetric, Universal2DBox, SortAttributesOption
         &self.opts
     }
 
-    fn get_main_store_mut(
-        &mut self,
-    ) -> RwLockWriteGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>>
-    {
+    fn get_main_store_mut(&mut self) -> RwLockWriteGuard<MiddlewareSortTrackStore> {
         self.store.write().unwrap()
     }
 
-    fn get_wasted_store_mut(
-        &mut self,
-    ) -> RwLockWriteGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>>
-    {
+    fn get_wasted_store_mut(&mut self) -> RwLockWriteGuard<MiddlewareSortTrackStore> {
         self.wasted_store.write().unwrap()
     }
 
-    fn get_main_store(
-        &self,
-    ) -> RwLockReadGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>> {
+    fn get_main_store(&self) -> RwLockReadGuard<MiddlewareSortTrackStore> {
         self.store.read().unwrap()
     }
 
-    fn get_wasted_store(
-        &self,
-    ) -> RwLockReadGuard<TrackStore<SortAttributes, SortMetric, Universal2DBox, NoopNotifier>> {
+    fn get_wasted_store(&self) -> RwLockReadGuard<MiddlewareSortTrackStore> {
         self.wasted_store.read().unwrap()
     }
 }
