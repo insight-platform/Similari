@@ -6,7 +6,7 @@ use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::KalmanFilter;
+use crate::utils::kalman_bbox::KalmanFilter;
 
 pub const DEFAULT_MINIMAL_SORT_CONFIDENCE: f32 = 0.05;
 

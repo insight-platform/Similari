@@ -6,7 +6,7 @@ use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::{SortAttributesOptions, VotingType};
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::KalmanState;
+use crate::utils::kalman_bbox::KalmanState;
 use anyhow::Result;
 use std::collections::VecDeque;
 use std::sync::Arc;

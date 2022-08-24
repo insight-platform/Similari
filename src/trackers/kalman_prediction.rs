@@ -1,5 +1,5 @@
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::{KalmanFilter, KalmanState};
+use crate::utils::kalman_bbox::{KalmanFilter, KalmanState};
 
 pub trait TrackAttributesKalmanPrediction {
     fn get_state(&self) -> Option<KalmanState>;

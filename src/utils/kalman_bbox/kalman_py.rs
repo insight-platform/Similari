@@ -1,5 +1,5 @@
 use crate::utils::bbox::{BoundingBox, Universal2DBox};
-use crate::utils::kalman::{KalmanFilter, KalmanState};
+use crate::utils::kalman_bbox::{KalmanFilter, KalmanState};
 use pyo3::prelude::*;
 
 #[pyclass]

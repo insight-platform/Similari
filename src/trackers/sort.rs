@@ -5,7 +5,7 @@ use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::KalmanState;
+use crate::utils::kalman_bbox::KalmanState;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
@@ -261,7 +261,7 @@ mod track_tests {
     use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;
-    use crate::utils::kalman::KalmanFilter;
+    use crate::utils::kalman_bbox::KalmanFilter;
 
     #[test]
     fn construct() {

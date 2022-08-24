@@ -253,7 +253,7 @@ impl KalmanFilter {
 #[cfg(test)]
 mod tests {
     use crate::utils::bbox::{BoundingBox, Universal2DBox};
-    use crate::utils::kalman::{KalmanFilter, CHI2INV95};
+    use crate::utils::kalman_bbox::{KalmanFilter, CHI2INV95};
 
     #[test]
     fn constructor() {

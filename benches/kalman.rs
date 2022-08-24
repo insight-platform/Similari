@@ -4,7 +4,7 @@ extern crate test;
 
 use similari::examples::FeatGen2;
 use similari::utils::bbox::Universal2DBox;
-use similari::utils::kalman::KalmanFilter;
+use similari::utils::kalman_bbox::KalmanFilter;
 use test::Bencher;
 
 #[bench]

@@ -31,7 +31,7 @@ pub mod trackers;
 
 mod py;
 
-/// Utility objects - bounding boxes, kalman filter, polygon clipping, nms
+/// Utility objects - bounding boxes, kalman_bbox filter, polygon clipping, nms
 ///
 pub mod utils;
 
