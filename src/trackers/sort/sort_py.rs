@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 #[pyo3(name = "SortPredictionBatchRequest")]
 pub(crate) struct PySortPredictionBatchRequest {
     pub(crate) batch: PredictionBatchRequest<(Universal2DBox, Option<i64>)>,
-    result: Option<PredictionBatchResult>,
+    pub(crate) result: Option<PredictionBatchResult>,
 }
 
 #[pymethods]
@@ -19,10 +19,6 @@ impl PySortPredictionBatchRequest {
             batch,
             result: Some(result),
         }
-    }
-
-    fn prediction(&mut self) -> Option<PredictionBatchResult> {
-        self.result.take()
     }
 
     fn add(&mut self, scene_id: u64, bbox: Universal2DBox, custom_object_id: Option<i64>) {

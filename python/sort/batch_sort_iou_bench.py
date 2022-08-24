@@ -25,8 +25,7 @@ if __name__ == '__main__':
             batch = SortPredictionBatchRequest()
             for d in detections:
                 batch.add(0, d, 11111)
-            prediction_result = batch.prediction()
-            mot_tracker.predict(batch)
+            prediction_result = mot_tracker.predict(batch)
             for _ in range(prediction_result.batch_size()):
                 _scene_id, _tracks = prediction_result.get()
 

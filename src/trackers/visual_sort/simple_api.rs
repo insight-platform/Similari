@@ -16,7 +16,7 @@ use crate::trackers::visual_sort::track_attributes::{
     VisualAttributes, VisualAttributesUpdate, VisualSortLookup,
 };
 use crate::trackers::visual_sort::voting::VisualVoting;
-use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
+use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualSortObservation};
 use crate::utils::clipping::bbox_own_areas::{
     exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
 };
@@ -89,7 +89,7 @@ impl VisualSort {
     /// * `scene_id` - custom identifier for the group of observed objects;
     /// * `observations` - object observations with (feature, feature_quality and bounding box).
     ///
-    pub fn predict(&mut self, observations: &[VisualObservation]) -> Vec<SortTrack> {
+    pub fn predict(&mut self, observations: &[VisualSortObservation]) -> Vec<SortTrack> {
         self.predict_with_scene(0, observations)
     }
 
@@ -107,7 +107,7 @@ impl VisualSort {
     pub fn predict_with_scene(
         &mut self,
         scene_id: u64,
-        observations: &[VisualObservation],
+        observations: &[VisualSortObservation],
     ) -> Vec<SortTrack> {
         if self.auto_waste.counter == 0 {
             self.auto_waste();
@@ -354,7 +354,7 @@ mod tests {
     use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
     use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
     use crate::trackers::visual_sort::simple_api::VisualSort;
-    use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
+    use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualSortObservation};
     use crate::utils::bbox::BoundingBox;
 
     #[test]
@@ -377,7 +377,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![1.0, 1.0]),
                 Some(0.9),
                 BoundingBox::new(1.0, 1.0, 3.0, 5.0).as_xyaah(),
@@ -406,7 +406,7 @@ mod tests {
             // another scene - new track
             let tracks = tracker.predict_with_scene(
                 1,
-                &[VisualObservation::new(
+                &[VisualSortObservation::new(
                     Some(&vec![1.0, 1.0]),
                     Some(0.9),
                     BoundingBox::new(1.0, 1.0, 3.0, 5.0).as_xyaah(),
@@ -435,7 +435,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![0.95, 0.95]),
                 Some(0.93),
                 BoundingBox::new(1.1, 1.1, 3.05, 5.01).as_xyaah(),
@@ -464,7 +464,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 None,
                 Some(0.93),
                 BoundingBox::new(1.11, 1.15, 3.15, 5.05).as_xyaah(),
@@ -494,7 +494,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 None,
                 Some(0.93),
                 BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
@@ -522,7 +522,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![0.97, 0.97]),
                 Some(0.44),
                 BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
@@ -546,7 +546,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![0.97, 0.97]),
                 Some(0.6),
                 BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
@@ -570,7 +570,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![0.97, 0.97]),
                 Some(0.8),
                 BoundingBox::new(1.15, 1.25, 3.10, 5.05).as_xyaah(),
@@ -604,7 +604,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![0.1, 0.1]),
                 Some(0.9),
                 BoundingBox::new(10.0, 10.0, 3.0, 5.0).as_xyaah(),
@@ -634,7 +634,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![0.12, 0.15]),
                 Some(0.88),
                 BoundingBox::new(10.1, 10.1, 3.0, 5.0).as_xyaah(),
@@ -663,7 +663,7 @@ mod tests {
         //
         let tracks = tracker.predict_with_scene(
             10,
-            &[VisualObservation::new(
+            &[VisualSortObservation::new(
                 Some(&vec![0.12, 0.14]),
                 Some(0.87),
                 BoundingBox::new(10.1, 10.1, 3.0, 5.0).as_xyaah(),

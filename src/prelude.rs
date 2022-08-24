@@ -15,7 +15,7 @@ pub use trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 pub use trackers::visual_sort::metric::VisualSortMetricType;
 pub use trackers::visual_sort::simple_api::options::VisualSortOptions;
 pub use trackers::visual_sort::simple_api::VisualSort;
-pub use trackers::visual_sort::VisualObservation;
+pub use trackers::visual_sort::VisualSortObservation;
 
 pub use utils::bbox::BoundingBox;
 pub use utils::bbox::Universal2DBox;
