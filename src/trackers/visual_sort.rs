@@ -24,14 +24,14 @@ pub mod visual_sort_py;
 pub mod batch_api;
 
 #[derive(Debug, Clone)]
-pub struct VisualObservation<'a> {
+pub struct VisualSortObservation<'a> {
     feature: Option<&'a Vec<f32>>,
     feature_quality: Option<f32>,
     bounding_box: Universal2DBox,
     custom_object_id: Option<i64>,
 }
 
-impl<'a> VisualObservation<'a> {
+impl<'a> VisualSortObservation<'a> {
     pub fn new(
         feature: Option<&'a Vec<f32>>,
         feature_quality: Option<f32>,

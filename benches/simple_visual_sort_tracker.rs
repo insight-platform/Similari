@@ -5,7 +5,7 @@ extern crate test;
 use rand::distributions::Uniform;
 use rand::Rng;
 use similari::examples::BoxGen2;
-use similari::prelude::{VisualObservation, VisualSort, VisualSortOptions};
+use similari::prelude::{VisualSort, VisualSortObservation, VisualSortOptions};
 use similari::trackers::sort::PositionalMetricType;
 use similari::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use similari::trackers::tracker_api::TrackerAPI;
@@ -143,7 +143,7 @@ fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
             iteration += 1;
             let b = bi.next();
             let f = &features[index];
-            observations.push(VisualObservation::new(
+            observations.push(VisualSortObservation::new(
                 Some(f),
                 Some(1.0),
                 b.unwrap().into(),

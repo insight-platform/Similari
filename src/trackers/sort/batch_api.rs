@@ -5,7 +5,7 @@ use crate::prelude::{
 use crate::store::track_distance::TrackDistanceOkIterator;
 use crate::store::TrackStore;
 use crate::track::Track;
-use crate::trackers::batch::{PredictionBatchRequest, SceneTracks};
+use crate::trackers::batch::{PredictionBatchRequest, PredictionBatchResult, SceneTracks};
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::metric::SortMetric;
 use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
@@ -464,8 +464,9 @@ impl BatchSort {
     /// * `bboxes` - bounding boxes received from a detector
     ///
     #[pyo3(name = "predict", text_signature = "($self, batch)")]
-    fn predict_py(&mut self, batch: PySortPredictionBatchRequest) {
+    fn predict_py(&mut self, mut batch: PySortPredictionBatchRequest) -> PredictionBatchResult {
         self.predict(batch.batch);
+        batch.result.take().unwrap()
     }
 
     /// Remove all the tracks with expired life

@@ -1,12 +1,12 @@
 use crate::prelude::{
     NoopNotifier, ObservationBuilder, PositionalMetricType, SortTrack, TrackStoreBuilder,
-    VisualObservation, VisualSortOptions,
+    VisualSortObservation, VisualSortOptions,
 };
 use crate::store::track_distance::TrackDistanceOkIterator;
 use crate::store::TrackStore;
 use crate::track::utils::FromVec;
 use crate::track::{Feature, Track};
-use crate::trackers::batch::{PredictionBatchRequest, SceneTracks};
+use crate::trackers::batch::{PredictionBatchRequest, PredictionBatchResult, SceneTracks};
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::sort::{
     AutoWaste, SortAttributesOptions, DEFAULT_AUTO_WASTE_PERIODICITY,
@@ -18,7 +18,9 @@ use crate::trackers::visual_sort::observation_attributes::VisualObservationAttri
 use crate::trackers::visual_sort::track_attributes::{
     VisualAttributes, VisualAttributesUpdate, VisualSortLookup,
 };
+use crate::trackers::visual_sort::visual_sort_py::PyVisualSortPredictionBatchRequest;
 use crate::trackers::visual_sort::voting::VisualVoting;
+use crate::trackers::visual_sort::PyWastedVisualSortTrack;
 use crate::utils::clipping::bbox_own_areas::{
     exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
 };
@@ -213,7 +215,7 @@ impl BatchVisualSort {
         }
     }
 
-    pub fn predict(&mut self, batch_request: PredictionBatchRequest<VisualObservation>) {
+    pub fn predict(&mut self, batch_request: PredictionBatchRequest<VisualSortObservation>) {
         if self.auto_waste.counter == 0 {
             self.auto_waste();
             self.auto_waste.counter = self.auto_waste.periodicity;
@@ -376,4 +378,140 @@ impl
 mod tests {
     #[test]
     fn test() {}
+}
+
+#[pymethods]
+impl BatchVisualSort {
+    #[new]
+    #[args(distance_shards = "4", voting_shards = "4")]
+    pub fn new_py(distance_shards: i64, voting_shards: i64, opts: &VisualSortOptions) -> Self {
+        Self::new(
+            distance_shards
+                .try_into()
+                .expect("Positive number expected"),
+            voting_shards.try_into().expect("Positive number expected"),
+            opts,
+        )
+    }
+
+    #[pyo3(name = "skip_epochs", text_signature = "($self, n)")]
+    fn skip_epochs_py(&mut self, n: i64) {
+        assert!(n > 0);
+        self.skip_epochs(n.try_into().unwrap())
+    }
+
+    #[pyo3(
+        name = "skip_epochs_for_scene",
+        text_signature = "($self, scene_id, n)"
+    )]
+    fn skip_epochs_for_scene_py(&mut self, scene_id: i64, n: i64) {
+        assert!(n > 0 && scene_id >= 0);
+        self.skip_epochs_for_scene(scene_id.try_into().unwrap(), n.try_into().unwrap())
+    }
+
+    /// Get the amount of stored tracks per shard
+    ///
+    #[pyo3(name = "shard_stats", text_signature = "($self)")]
+    fn shard_stats_py(&self) -> Vec<i64> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.store
+                .read()
+                .unwrap()
+                .shard_stats()
+                .into_iter()
+                .map(|e| i64::try_from(e).unwrap())
+                .collect()
+        })
+    }
+
+    /// Get the current epoch for `scene_id` == 0
+    ///
+    #[pyo3(name = "current_epoch", text_signature = "($self)")]
+    fn current_epoch_py(&self) -> i64 {
+        self.current_epoch_with_scene(0).try_into().unwrap()
+    }
+
+    /// Get the current epoch for `scene_id`
+    ///
+    /// # Parameters
+    /// * `scene_id` - scene id
+    ///
+    #[pyo3(
+        name = "current_epoch_with_scene",
+        text_signature = "($self, scene_id)"
+    )]
+    fn current_epoch_with_scene_py(&self, scene_id: i64) -> isize {
+        assert!(scene_id >= 0);
+        self.current_epoch_with_scene(scene_id.try_into().unwrap())
+            .try_into()
+            .unwrap()
+    }
+
+    /// Receive tracking information for observed bboxes of `scene_id` == 0
+    ///
+    /// # Parameters
+    /// * `bboxes` - bounding boxes received from a detector
+    ///
+    #[pyo3(name = "predict", text_signature = "($self, batch)")]
+    fn predict_py(
+        &mut self,
+        py_batch: PyVisualSortPredictionBatchRequest,
+    ) -> PredictionBatchResult {
+        let mut features = Vec::default();
+        let (mut batch, res) = PredictionBatchRequest::<VisualSortObservation>::new();
+        for (scene_id, observations) in py_batch.batch.get_batch() {
+            features.reserve(observations.len());
+            for o in observations {
+                features.push(&o.feature);
+                let f = features.last().unwrap().as_ref();
+                batch.add(
+                    *scene_id,
+                    VisualSortObservation::new(
+                        f,
+                        o.feature_quality,
+                        o.bounding_box.clone(),
+                        o.custom_object_id,
+                    ),
+                );
+            }
+        }
+        self.predict(batch);
+        res
+    }
+
+    /// Remove all the tracks with expired life
+    ///
+    #[pyo3(name = "wasted", text_signature = "($self)")]
+    fn wasted_py(&mut self) -> Vec<PyWastedVisualSortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        py.allow_threads(|| {
+            self.wasted()
+                .into_iter()
+                .map(PyWastedVisualSortTrack::from)
+                .collect()
+        })
+    }
+
+    /// Clear all tracks with expired life
+    ///
+    #[pyo3(name = "clear_wasted", text_signature = "($self)")]
+    pub fn clear_wasted_py(&mut self) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        py.allow_threads(|| self.clear_wasted());
+    }
+
+    /// Get idle tracks with not expired life
+    ///
+    #[pyo3(name = "idle_tracks", text_signature = "($self)")]
+    pub fn idle_tracks_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
+    }
 }

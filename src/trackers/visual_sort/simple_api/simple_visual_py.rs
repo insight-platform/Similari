@@ -2,7 +2,7 @@ use crate::prelude::SortTrack;
 use crate::trackers::tracker_api::TrackerAPI;
 use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
 use crate::trackers::visual_sort::simple_api::VisualSort;
-use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualObservation};
+use crate::trackers::visual_sort::{PyWastedVisualSortTrack, VisualSortObservation};
 use crate::utils::bbox::Universal2DBox;
 use pyo3::prelude::*;
 
@@ -175,7 +175,7 @@ impl VisualSort {
             .inner
             .iter()
             .map(|e| {
-                VisualObservation::new(
+                VisualSortObservation::new(
                     e.feature.as_ref(),
                     e.feature_quality,
                     e.bounding_box.clone(),
