@@ -376,8 +376,86 @@ impl
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::{
+        BoundingBox, PositionalMetricType, VisualSortMetricType, VisualSortObservation,
+        VisualSortOptions,
+    };
+    use crate::trackers::batch::PredictionBatchRequest;
+    use crate::trackers::visual_sort::batch_api::BatchVisualSort;
+
     #[test]
-    fn test() {}
+    fn test() {
+        let opts = VisualSortOptions::default()
+            .max_idle_epochs(3)
+            .kept_history_length(3)
+            .visual_metric(VisualSortMetricType::Euclidean(1.0))
+            .positional_metric(PositionalMetricType::Mahalanobis)
+            .visual_minimal_track_length(2)
+            .visual_minimal_area(5.0)
+            .visual_minimal_quality_use(0.45)
+            .visual_minimal_quality_collect(0.7)
+            .visual_max_observations(3)
+            .visual_min_votes(2);
+
+        let mut tracker = BatchVisualSort::new(1, 1, &opts);
+        let (mut batch, predictions) = PredictionBatchRequest::<VisualSortObservation>::new();
+        let vec = &vec![1.0, 1.0];
+        batch.add(
+            1,
+            VisualSortObservation::new(
+                Some(vec),
+                Some(0.9),
+                BoundingBox::new(1.0, 1.0, 3.0, 5.0).as_xyaah(),
+                Some(13),
+            ),
+        );
+        tracker.predict(batch);
+        for _ in 0..predictions.batch_size() {
+            let (scene, tracks) = predictions.get();
+            assert_eq!(scene, 1);
+            assert_eq!(tracks.len(), 1);
+            dbg!(tracks);
+        }
+
+        let (mut batch, predictions) = PredictionBatchRequest::<VisualSortObservation>::new();
+        let vec1 = &vec![1.0, 1.0];
+        let vec2 = &vec![0.1, 0.15];
+        batch.add(
+            1,
+            VisualSortObservation::new(
+                Some(vec1),
+                Some(0.9),
+                BoundingBox::new(1.0, 1.0, 3.0, 5.0).as_xyaah(),
+                Some(13),
+            ),
+        );
+
+        batch.add(
+            2,
+            VisualSortObservation::new(
+                Some(vec2),
+                Some(0.87),
+                BoundingBox::new(5.0, 10.0, 3.0, 5.0).as_xyaah(),
+                Some(23),
+            ),
+        );
+
+        batch.add(
+            2,
+            VisualSortObservation::new(
+                None,
+                None,
+                BoundingBox::new(25.0, 15.0, 3.0, 5.0).as_xyaah(),
+                Some(33),
+            ),
+        );
+
+        tracker.predict(batch);
+        for _ in 0..predictions.batch_size() {
+            let (scene, tracks) = predictions.get();
+            dbg!(scene, tracks);
+        }
+    }
 }
 
 #[pymethods]

@@ -12,8 +12,7 @@ if __name__ == '__main__':
     batch = SortPredictionBatchRequest()
     batch.add(0, box1, 11111)
     batch.add(1, box2, 22222)
-    prediction_result = batch.prediction()
-    sort.predict(batch)
+    prediction_result = sort.predict(batch)
     for _ in range(prediction_result.batch_size()):
         scene_id, tracks = prediction_result.get()
         print("Scene", scene_id)
