@@ -4,6 +4,7 @@ use crate::trackers::sort::batch_api::BatchSort;
 use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
 use crate::trackers::sort::{PyPositionalMetricType, PyWastedSortTrack};
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
+use crate::trackers::visual_sort::batch_api::BatchVisualSort;
 use crate::trackers::visual_sort::metric::PyVisualSortMetricType;
 use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
 use crate::trackers::visual_sort::simple_api::simple_visual_py::{
@@ -45,8 +46,12 @@ fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<VisualSort>()?;
 
     m.add_class::<PredictionBatchResult>()?;
+
     m.add_class::<PySortPredictionBatchRequest>()?;
     m.add_class::<BatchSort>()?;
+
+    m.add_class::<PyVisualSortPredictionBatchRequest>()?;
+    m.add_class::<BatchVisualSort>()?;
 
     m.add_function(wrap_pyfunction!(nms_py, m)?)?;
     m.add_function(wrap_pyfunction!(sutherland_hodgman_clip_py, m)?)?;
