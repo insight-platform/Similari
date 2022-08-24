@@ -216,7 +216,7 @@ to build the wheel.
 
 #### Linux Instruction
 
-0. Install Rust 1.62:
+0. Install up-to-date Rust toolkit:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
