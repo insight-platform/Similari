@@ -73,6 +73,10 @@ pub enum Errors {
     ///
     #[error("Generic BBox cannot be converted to a requested type")]
     GenericBBoxConversionError,
+
+    /// Index is out of range
+    #[error("The index is out of range")]
+    OutOfRange,
 }
 
 pub const EPS: f32 = 0.00001;

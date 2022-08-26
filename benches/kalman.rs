@@ -4,13 +4,13 @@ extern crate test;
 
 use similari::examples::FeatGen2;
 use similari::utils::bbox::Universal2DBox;
-use similari::utils::kalman_bbox::KalmanFilter;
+use similari::utils::kalman::kalman_bbox::Universal2DBoxKalmanFilter;
 use test::Bencher;
 
 #[bench]
 fn kalman_100k(b: &mut Bencher) {
     const N: usize = 100_000;
-    let f = KalmanFilter::default();
+    let f = Universal2DBoxKalmanFilter::default();
     let mut pt = FeatGen2::new(-10.0, 2.0, 0.2);
 
     b.iter(|| {

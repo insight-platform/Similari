@@ -4,81 +4,18 @@ use std::ops::SubAssign;
 // Original source code idea from
 // https://github.com/nwojke/deep_sort/blob/master/deep_sort/kalman_filter.py
 //
-use crate::utils::bbox::{BoundingBox, Universal2DBox};
-use anyhow::Result;
+use crate::utils::bbox::Universal2DBox;
+use crate::utils::kalman::{KalmanState, CHI2INV95, CHI2_UPPER_BOUND};
 use nalgebra::{SMatrix, SVector};
 
-pub const CHI2_UPPER_BOUND: f32 = 100.0;
-
-pub const CHI2INV95: [f32; 9] = [
-    3.8415, 5.9915, 7.8147, 9.4877, 11.070, 12.592, 14.067, 15.507, 16.919,
-];
-
-const DIM: usize = 5;
-const DIM_X2: usize = DIM * 2;
-const DT: u64 = 1;
-
-macro_rules! pretty_print {
-    ($arr:expr) => {{
-        let indent = 4;
-        let prefix = String::from_utf8(vec![b' '; indent]).unwrap();
-        let mut result_els = vec!["".to_string()];
-        for i in 0..$arr.nrows() {
-            let mut row_els = vec![];
-            for j in 0..$arr.ncols() {
-                row_els.push(format!("{:12.3}", $arr[(i, j)]));
-            }
-            let row_str = row_els.into_iter().collect::<Vec<_>>().join(" ");
-            let row_str = format!("{}{}", prefix, row_str);
-            result_els.push(row_str);
-        }
-        result_els.into_iter().collect::<Vec<_>>().join("\n")
-    }};
-}
-
-/// Kalman filter current state
-///
-#[derive(Copy, Clone, Debug)]
-pub struct KalmanState<const X: usize = DIM_X2> {
-    mean: SVector<f32, X>,
-    covariance: SMatrix<f32, X, X>,
-}
-
-impl<const X: usize> KalmanState<X> {
-    /// Fetch predicted bbox in (x,y,w,h) format from the state
-    ///
-    pub fn bbox(&self) -> Result<BoundingBox> {
-        self.universal_bbox().into()
-    }
-
-    /// Fetch predicted bbox in (x,y,a,h) format from the state
-    ///
-    pub fn universal_bbox(&self) -> Universal2DBox {
-        Universal2DBox::new(
-            self.mean[0],
-            self.mean[1],
-            if self.mean[2] == 0.0 {
-                None
-            } else {
-                Some(self.mean[2])
-            },
-            self.mean[3],
-            self.mean[4],
-        )
-    }
-
-    /// dump the state
-    ///
-    pub fn dump(&self) {
-        eprintln!("Mean={}", pretty_print!(self.mean.transpose()));
-        eprintln!("Covariance={}", pretty_print!(self.covariance));
-    }
-}
+pub const DIM: usize = 5;
+pub const DIM_X2: usize = DIM * 2;
+pub const DT: u64 = 1;
 
 /// Kalman filter
 ///
 #[derive(Debug)]
-pub struct KalmanFilter {
+pub struct Universal2DBoxKalmanFilter {
     motion_matrix: SMatrix<f32, DIM_X2, DIM_X2>,
     update_matrix: SMatrix<f32, DIM, DIM_X2>,
     std_position_weight: f32,
@@ -86,13 +23,13 @@ pub struct KalmanFilter {
 }
 
 /// Default initializer
-impl Default for KalmanFilter {
+impl Default for Universal2DBoxKalmanFilter {
     fn default() -> Self {
-        KalmanFilter::new(1.0 / 20.0, 1.0 / 160.0)
+        Universal2DBoxKalmanFilter::new(1.0 / 20.0, 1.0 / 160.0)
     }
 }
 
-impl KalmanFilter {
+impl Universal2DBoxKalmanFilter {
     /// Constructor with custom weights (shouldn't be used without the need)
     pub fn new(position_weight: f32, velocity_weight: f32) -> Self {
         let mut motion_matrix: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::identity();
@@ -101,7 +38,7 @@ impl KalmanFilter {
             motion_matrix[(i, DIM + i)] = DT as f32;
         }
 
-        KalmanFilter {
+        Universal2DBoxKalmanFilter {
             motion_matrix,
             update_matrix: SMatrix::identity(),
             std_position_weight: position_weight,
@@ -253,26 +190,27 @@ impl KalmanFilter {
 #[cfg(test)]
 mod tests {
     use crate::utils::bbox::{BoundingBox, Universal2DBox};
-    use crate::utils::kalman_bbox::{KalmanFilter, CHI2INV95};
+    use crate::utils::kalman::kalman_bbox::Universal2DBoxKalmanFilter;
+    use crate::utils::kalman::CHI2INV95;
 
     #[test]
     fn constructor() {
-        let f = KalmanFilter::default();
+        let f = Universal2DBoxKalmanFilter::default();
         let bbox = BoundingBox::new(1.0, 2.0, 5.0, 5.0);
 
         let state = f.initiate(bbox.into());
-        let new_bb = state.bbox();
+        let new_bb = BoundingBox::try_from(state);
         assert_eq!(new_bb.unwrap(), bbox);
     }
 
     #[test]
     fn step() {
-        let f = KalmanFilter::default();
+        let f = Universal2DBoxKalmanFilter::default();
         let bbox = BoundingBox::new(-10.0, 2.0, 2.0, 5.0);
 
         let state = f.initiate(bbox.into());
         let state = f.predict(state);
-        let p = state.universal_bbox();
+        let p = Universal2DBox::try_from(state).unwrap();
 
         let est_p = Universal2DBox::new(-9.0, 4.5, None, 0.4, 5.0);
         assert_eq!(p, est_p);
@@ -282,13 +220,13 @@ mod tests {
         let est_p = Universal2DBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
 
         let state = f.predict(state);
-        let p = state.universal_bbox();
+        let p = Universal2DBox::try_from(state).unwrap();
         assert_eq!(p, est_p);
     }
 
     #[test]
     fn gating_distance() {
-        let f = KalmanFilter::default();
+        let f = Universal2DBoxKalmanFilter::default();
         let bbox = BoundingBox::new(-10.0, 2.0, 2.0, 5.0);
 
         let upd_bbox = BoundingBox::new(-9.5, 2.1, 2.0, 5.0);
@@ -303,12 +241,12 @@ mod tests {
         let state = f.predict(state);
 
         let dist = f.distance(state, &new_bbox_1.into());
-        let dist = KalmanFilter::calculate_cost(dist, false);
+        let dist = Universal2DBoxKalmanFilter::calculate_cost(dist, false);
         dbg!(&dist);
         assert!((0.0..CHI2INV95[4]).contains(&dist));
 
         let dist = f.distance(state, &new_bbox_2.into());
-        let dist = KalmanFilter::calculate_cost(dist, false);
+        let dist = Universal2DBoxKalmanFilter::calculate_cost(dist, false);
         dbg!(&dist);
         assert!(dist > CHI2INV95[4]);
     }

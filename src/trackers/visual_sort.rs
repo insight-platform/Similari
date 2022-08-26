@@ -22,6 +22,8 @@ pub mod visual_sort_py;
 
 /// Batched API that accepts the batch with multiple scenes at once
 pub mod batch_api;
+/// Options object to configure the tracker
+pub mod options;
 
 #[derive(Debug, Clone)]
 pub struct VisualSortObservation<'a> {

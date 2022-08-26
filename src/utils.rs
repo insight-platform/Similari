@@ -2,10 +2,6 @@
 ///
 pub mod bbox;
 
-/// Kalman filter for the prediction of axis-aligned and oriented bounding boxes
-///
-pub mod kalman_bbox;
-
 /// Bounding box intersection calculation for oriented bounding boxes
 ///
 pub mod clipping;
@@ -18,6 +14,8 @@ pub mod primitive;
 ///
 pub mod nms;
 
-/// Kalman filter for Vector of 2d points
-///
-pub mod kalman_2d_vec;
+/// Kalman filter related stuff
+pub mod kalman;
+
+/// 2D Points stuff
+pub mod point;

@@ -5,7 +5,8 @@ use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman_bbox::KalmanState;
+use crate::utils::kalman::kalman_bbox::DIM_X2;
+use crate::utils::kalman::KalmanState;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::collections::{HashMap, VecDeque};
@@ -86,16 +87,16 @@ pub struct SortAttributes {
     pub custom_object_id: Option<i64>,
 
     /// Kalman filter predicted state
-    state: Option<KalmanState>,
+    state: Option<KalmanState<{ DIM_X2 }>>,
     opts: Arc<SortAttributesOptions>,
 }
 
 impl TrackAttributesKalmanPrediction for SortAttributes {
-    fn get_state(&self) -> Option<KalmanState> {
+    fn get_state(&self) -> Option<KalmanState<{ DIM_X2 }>> {
         self.state
     }
 
-    fn set_state(&mut self, state: KalmanState) {
+    fn set_state(&mut self, state: KalmanState<{ DIM_X2 }>) {
         self.state = Some(state);
     }
 }
@@ -261,14 +262,14 @@ mod track_tests {
     use crate::trackers::sort::PositionalMetricType::IoU;
     use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
     use crate::utils::bbox::BoundingBox;
-    use crate::utils::kalman_bbox::KalmanFilter;
+    use crate::utils::kalman::kalman_bbox::Universal2DBoxKalmanFilter;
 
     #[test]
     fn construct() {
         let observation_bb_0 = BoundingBox::new(1.0, 1.0, 10.0, 15.0);
         let observation_bb_1 = BoundingBox::new(1.1, 1.3, 10.0, 15.0);
 
-        let f = KalmanFilter::default();
+        let f = Universal2DBoxKalmanFilter::default();
         let init_state = f.initiate(observation_bb_0.into());
 
         let mut t1 = TrackBuilder::new(1)
@@ -296,7 +297,10 @@ mod track_tests {
         );
 
         let predicted_state = f.predict(init_state);
-        assert_eq!(predicted_state.bbox().unwrap(), observation_bb_0);
+        assert_eq!(
+            BoundingBox::try_from(predicted_state).unwrap(),
+            observation_bb_0
+        );
 
         let t2 = TrackBuilder::new(2)
             .attributes(SortAttributes::default())
@@ -322,7 +326,7 @@ mod track_tests {
         let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
         assert_eq!(
             t1.get_attributes().predicted_boxes[1],
-            predicted_state.universal_bbox()
+            predicted_state.try_into().unwrap()
         );
     }
 }

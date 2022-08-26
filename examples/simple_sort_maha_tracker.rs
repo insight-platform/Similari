@@ -1,4 +1,3 @@
-use anyhow::Result;
 use similari::examples::BoxGen2;
 use similari::prelude::Sort;
 use similari::trackers::sort::metric::DEFAULT_MINIMAL_SORT_CONFIDENCE;
@@ -31,10 +30,7 @@ fn main() {
             t.get_attributes()
                 .predicted_boxes
                 .iter()
-                .map(|x| {
-                    let r: Result<BoundingBox> = x.into();
-                    r.unwrap()
-                })
+                .map(|x| BoundingBox::try_from(x))
                 .collect::<Vec<_>>()
         );
     }
