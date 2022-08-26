@@ -17,8 +17,11 @@ use crate::utils::bbox::{BoundingBox, Universal2DBox};
 use crate::utils::clipping::clipping_py::{
     intersection_area_py, sutherland_hodgman_clip_py, PyPolygon,
 };
-use crate::utils::kalman::kalman_2d_box::kalman_py::{
+use crate::utils::kalman::kalman_2d_box::python::{
     PyUniversal2DBoxKalmanFilter, PyUniversal2DBoxKalmanFilterState,
+};
+use crate::utils::kalman::kalman_2d_point::python::{
+    PyPoint2DKalmanFilter, PyPoint2DKalmanFilterState,
 };
 use crate::utils::nms::nms_py::nms_py;
 use pyo3::prelude::*;
@@ -31,8 +34,12 @@ fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyPolygon>()?;
     m.add_class::<SortTrack>()?;
     m.add_class::<PyWastedSortTrack>()?;
+
     m.add_class::<PyUniversal2DBoxKalmanFilterState>()?;
     m.add_class::<PyUniversal2DBoxKalmanFilter>()?;
+
+    m.add_class::<PyPoint2DKalmanFilterState>()?;
+    m.add_class::<PyPoint2DKalmanFilter>()?;
 
     m.add_class::<PySortPredictionBatchRequest>()?;
     m.add_class::<SpatioTemporalConstraints>()?;

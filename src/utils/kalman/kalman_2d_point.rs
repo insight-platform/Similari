@@ -66,8 +66,8 @@ impl Point2DKalmanFilter {
 
     pub fn predict(&self, state: KalmanState<DIM_2D_POINT_X2>) -> KalmanState<DIM_2D_POINT_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
-        let std_pos = self.std_position(2.0);
-        let std_vel = self.std_velocity(10.0);
+        let std_pos = self.std_position(1.0);
+        let std_vel = self.std_velocity(1.0);
 
         let mut std: SVector<f32, DIM_2D_POINT_X2> =
             SVector::from_iterator(std_pos.into_iter().chain(std_vel.into_iter()));
@@ -214,5 +214,89 @@ mod tests {
         let state = f.update(state, p);
         let state = f.predict(state);
         dbg!(Point2::from(state));
+
+        let dist = f.distance(state, Point2::from([2.0, 0.57]));
+        dbg!(&dist);
+    }
+}
+
+pub mod python {
+    use crate::utils::kalman::kalman_2d_point::{Point2DKalmanFilter, DIM_2D_POINT_X2};
+    use crate::utils::kalman::KalmanState;
+    use nalgebra::Point2;
+    use pyo3::prelude::*;
+
+    #[pyclass]
+    #[pyo3(name = "Point2DKalmanFilter")]
+    pub struct PyPoint2DKalmanFilter {
+        filter: Point2DKalmanFilter,
+    }
+
+    #[derive(Clone)]
+    #[pyclass]
+    #[pyo3(name = "Point2DKalmanFilterState")]
+    pub struct PyPoint2DKalmanFilterState {
+        state: KalmanState<{ DIM_2D_POINT_X2 }>,
+    }
+
+    #[pymethods]
+    impl PyPoint2DKalmanFilterState {
+        #[pyo3(text_signature = "($self)")]
+        pub fn x(&self) -> f32 {
+            self.state.mean[0]
+        }
+
+        #[pyo3(text_signature = "($self)")]
+        pub fn y(&self) -> f32 {
+            self.state.mean[1]
+        }
+    }
+
+    #[pymethods]
+    impl PyPoint2DKalmanFilter {
+        #[new]
+        #[args(position_weight = "0.05", velocity_weight = "0.00625")]
+        pub fn new(position_weight: f32, velocity_weight: f32) -> Self {
+            Self {
+                filter: Point2DKalmanFilter::new(position_weight, velocity_weight),
+            }
+        }
+
+        #[pyo3(text_signature = "($self, x, y)")]
+        pub fn initiate(&self, x: f32, y: f32) -> PyPoint2DKalmanFilterState {
+            PyPoint2DKalmanFilterState {
+                state: self.filter.initiate(Point2::from([x, y])),
+            }
+        }
+
+        #[pyo3(text_signature = "($self, state)")]
+        pub fn predict(&self, state: PyPoint2DKalmanFilterState) -> PyPoint2DKalmanFilterState {
+            PyPoint2DKalmanFilterState {
+                state: self.filter.predict(state.state),
+            }
+        }
+
+        #[pyo3(text_signature = "($self, state, x, y)")]
+        pub fn update(
+            &self,
+            state: PyPoint2DKalmanFilterState,
+            x: f32,
+            y: f32,
+        ) -> PyPoint2DKalmanFilterState {
+            PyPoint2DKalmanFilterState {
+                state: self.filter.update(state.state, Point2::from([x, y])),
+            }
+        }
+
+        #[pyo3(text_signature = "($self, state, x, y)")]
+        pub fn distance(&self, state: PyPoint2DKalmanFilterState, x: f32, y: f32) -> f32 {
+            self.filter.distance(state.state, Point2::from([x, y]))
+        }
+
+        #[staticmethod]
+        #[pyo3(text_signature = "(distance, inverted)")]
+        pub fn calculate_cost(distance: f32, inverted: bool) -> f32 {
+            Point2DKalmanFilter::calculate_cost(distance, inverted)
+        }
     }
 }
