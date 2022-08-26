@@ -11,7 +11,7 @@ use crate::trackers::visual_sort::metric::VisualSortMetricType::{Cosine, Euclide
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::trackers::visual_sort::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::kalman_bbox::Universal2DBoxKalmanFilter;
+use crate::utils::kalman::kalman_2d_box::Universal2DBoxKalmanFilter;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::default::Default;

@@ -189,7 +189,7 @@ impl Universal2DBoxKalmanFilter {
 #[cfg(test)]
 mod tests {
     use crate::utils::bbox::{BoundingBox, Universal2DBox};
-    use crate::utils::kalman::kalman_bbox::Universal2DBoxKalmanFilter;
+    use crate::utils::kalman::kalman_2d_box::Universal2DBoxKalmanFilter;
     use crate::utils::kalman::CHI2INV95;
 
     #[test]

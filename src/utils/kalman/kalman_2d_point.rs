@@ -38,13 +38,13 @@ impl Point2DKalmanFilter {
         }
     }
 
-    fn std_position(&self, k: f32, p: f32) -> [f32; DIM_2D_POINT] {
-        let pos_weight = k * self.std_position_weight * p;
+    fn std_position(&self, k: f32) -> [f32; DIM_2D_POINT] {
+        let pos_weight = k * self.std_position_weight;
         [pos_weight, pos_weight]
     }
 
-    fn std_velocity(&self, k: f32, p: f32) -> [f32; DIM_2D_POINT] {
-        let vel_weight = k * self.std_velocity_weight * p;
+    fn std_velocity(&self, k: f32) -> [f32; DIM_2D_POINT] {
+        let vel_weight = k * self.std_velocity_weight;
         [vel_weight, vel_weight]
     }
 
@@ -52,9 +52,9 @@ impl Point2DKalmanFilter {
         let mean: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator([p.x, p.y, 0.0, 0.0]);
 
         let mut std: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator(
-            self.std_position(2.0, 1.0)
+            self.std_position(2.0)
                 .into_iter()
-                .chain(self.std_velocity(10.0, 1.0).into_iter()),
+                .chain(self.std_velocity(10.0).into_iter()),
         );
 
         std = std.component_mul(&std);
@@ -66,8 +66,8 @@ impl Point2DKalmanFilter {
 
     pub fn predict(&self, state: KalmanState<DIM_2D_POINT_X2>) -> KalmanState<DIM_2D_POINT_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
-        let std_pos = self.std_position(1.0, 1.0);
-        let std_vel = self.std_velocity(10.0, 1.0);
+        let std_pos = self.std_position(2.0);
+        let std_vel = self.std_velocity(10.0);
 
         let mut std: SVector<f32, DIM_2D_POINT_X2> =
             SVector::from_iterator(std_pos.into_iter().chain(std_vel.into_iter()));
@@ -88,8 +88,7 @@ impl Point2DKalmanFilter {
         mean: SVector<f32, DIM_2D_POINT_X2>,
         covariance: SMatrix<f32, DIM_2D_POINT_X2, DIM_2D_POINT_X2>,
     ) -> KalmanState<DIM_2D_POINT> {
-        let mut std: SVector<f32, DIM_2D_POINT> =
-            SVector::from_iterator(self.std_position(1.0, 1.0));
+        let mut std: SVector<f32, DIM_2D_POINT> = SVector::from_iterator(self.std_position(1.0));
 
         std = std.component_mul(&std);
 
