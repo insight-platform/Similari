@@ -8,7 +8,7 @@ pub const DIM_2D_POINT_X2: usize = DIM_2D_POINT * 2;
 /// Kalman filter
 ///
 #[derive(Debug)]
-pub struct Kalman2DPoint {
+pub struct Point2DKalmanFilter {
     motion_matrix: SMatrix<f32, DIM_2D_POINT_X2, DIM_2D_POINT_X2>,
     update_matrix: SMatrix<f32, DIM_2D_POINT, DIM_2D_POINT_X2>,
     std_position_weight: f32,
@@ -16,13 +16,13 @@ pub struct Kalman2DPoint {
 }
 
 /// Default initializer
-impl Default for Kalman2DPoint {
+impl Default for Point2DKalmanFilter {
     fn default() -> Self {
-        Kalman2DPoint::new(1.0 / 20.0, 1.0 / 160.0)
+        Point2DKalmanFilter::new(1.0 / 20.0, 1.0 / 160.0)
     }
 }
 
-impl Kalman2DPoint {
+impl Point2DKalmanFilter {
     pub fn new(position_weight: f32, velocity_weight: f32) -> Self {
         let mut motion_matrix: SMatrix<f32, DIM_2D_POINT_X2, DIM_2D_POINT_X2> = SMatrix::identity();
 
@@ -30,7 +30,7 @@ impl Kalman2DPoint {
             motion_matrix[(i, DIM_2D_POINT + i)] = DT as f32;
         }
 
-        Kalman2DPoint {
+        Point2DKalmanFilter {
             motion_matrix,
             update_matrix: SMatrix::identity(),
             std_position_weight: position_weight,
@@ -160,13 +160,13 @@ impl From<KalmanState<{ DIM_2D_POINT_X2 }>> for Point2<f32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::kalman::kalman_2d_point::Kalman2DPoint;
+    use crate::utils::kalman::kalman_2d_point::Point2DKalmanFilter;
     use nalgebra::Point2;
 
     #[test]
     fn test() {
         let p = Point2::from([1.0, 0.0]);
-        let f = Kalman2DPoint::default();
+        let f = Point2DKalmanFilter::default();
         let state = f.initiate(p);
         let state = f.predict(state);
         dbg!(Point2::from(state));
