@@ -1,10 +1,10 @@
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::kalman_bbox::{Universal2DBoxKalmanFilter, DIM_X2};
+use crate::utils::kalman::kalman_bbox::{Universal2DBoxKalmanFilter, DIM_2D_BOX_X2};
 use crate::utils::kalman::KalmanState;
 
 pub trait TrackAttributesKalmanPrediction {
-    fn get_state(&self) -> Option<KalmanState<{ DIM_X2 }>>;
-    fn set_state(&mut self, state: KalmanState<{ DIM_X2 }>);
+    fn get_state(&self) -> Option<KalmanState<{ DIM_2D_BOX_X2 }>>;
+    fn set_state(&mut self, state: KalmanState<{ DIM_2D_BOX_X2 }>);
 
     fn make_prediction(&mut self, observation_bbox: &Universal2DBox) -> Universal2DBox {
         let f = Universal2DBoxKalmanFilter::default();

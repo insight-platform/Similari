@@ -5,19 +5,18 @@ use std::ops::SubAssign;
 // https://github.com/nwojke/deep_sort/blob/master/deep_sort/kalman_filter.py
 //
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::{KalmanState, CHI2INV95, CHI2_UPPER_BOUND};
+use crate::utils::kalman::{KalmanState, CHI2INV95, CHI2_UPPER_BOUND, DT};
 use nalgebra::{SMatrix, SVector};
 
-pub const DIM: usize = 5;
-pub const DIM_X2: usize = DIM * 2;
-pub const DT: u64 = 1;
+pub const DIM_2D_BOX: usize = 5;
+pub const DIM_2D_BOX_X2: usize = DIM_2D_BOX * 2;
 
 /// Kalman filter
 ///
 #[derive(Debug)]
 pub struct Universal2DBoxKalmanFilter {
-    motion_matrix: SMatrix<f32, DIM_X2, DIM_X2>,
-    update_matrix: SMatrix<f32, DIM, DIM_X2>,
+    motion_matrix: SMatrix<f32, DIM_2D_BOX_X2, DIM_2D_BOX_X2>,
+    update_matrix: SMatrix<f32, DIM_2D_BOX, DIM_2D_BOX_X2>,
     std_position_weight: f32,
     std_velocity_weight: f32,
 }
@@ -32,10 +31,10 @@ impl Default for Universal2DBoxKalmanFilter {
 impl Universal2DBoxKalmanFilter {
     /// Constructor with custom weights (shouldn't be used without the need)
     pub fn new(position_weight: f32, velocity_weight: f32) -> Self {
-        let mut motion_matrix: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::identity();
+        let mut motion_matrix: SMatrix<f32, DIM_2D_BOX_X2, DIM_2D_BOX_X2> = SMatrix::identity();
 
-        for i in 0..DIM {
-            motion_matrix[(i, DIM + i)] = DT as f32;
+        for i in 0..DIM_2D_BOX {
+            motion_matrix[(i, DIM_2D_BOX + i)] = DT as f32;
         }
 
         Universal2DBoxKalmanFilter {
@@ -46,20 +45,20 @@ impl Universal2DBoxKalmanFilter {
         }
     }
 
-    fn std_position(&self, k: f32, cnst: f32, p: f32) -> [f32; DIM] {
+    fn std_position(&self, k: f32, cnst: f32, p: f32) -> [f32; DIM_2D_BOX] {
         let pos_weight = k * self.std_position_weight * p;
         [pos_weight, pos_weight, pos_weight, cnst, pos_weight]
     }
 
-    fn std_velocity(&self, k: f32, cnst: f32, p: f32) -> [f32; DIM] {
+    fn std_velocity(&self, k: f32, cnst: f32, p: f32) -> [f32; DIM_2D_BOX] {
         let vel_weight = k * self.std_velocity_weight * p;
         [vel_weight, vel_weight, vel_weight, cnst, vel_weight]
     }
 
     /// Initialize the filter with the first observation
     ///
-    pub fn initiate(&self, bbox: Universal2DBox) -> KalmanState<DIM_X2> {
-        let mean: SVector<f32, DIM_X2> = SVector::from_iterator([
+    pub fn initiate(&self, bbox: Universal2DBox) -> KalmanState<DIM_2D_BOX_X2> {
+        let mean: SVector<f32, DIM_2D_BOX_X2> = SVector::from_iterator([
             bbox.xc,
             bbox.yc,
             bbox.angle.unwrap_or(0.0),
@@ -72,7 +71,7 @@ impl Universal2DBoxKalmanFilter {
             0.0,
         ]);
 
-        let mut std: SVector<f32, DIM_X2> = SVector::from_iterator(
+        let mut std: SVector<f32, DIM_2D_BOX_X2> = SVector::from_iterator(
             self.std_position(2.0, 1e-2, bbox.height)
                 .into_iter()
                 .chain(self.std_velocity(10.0, 1e-5, bbox.height).into_iter()),
@@ -80,23 +79,23 @@ impl Universal2DBoxKalmanFilter {
 
         std = std.component_mul(&std);
 
-        let covariance: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::from_diagonal(&std);
+        let covariance: SMatrix<f32, DIM_2D_BOX_X2, DIM_2D_BOX_X2> = SMatrix::from_diagonal(&std);
         KalmanState { mean, covariance }
     }
 
     /// Predicts the state from the last state
     ///
-    pub fn predict(&self, state: KalmanState<DIM_X2>) -> KalmanState<DIM_X2> {
+    pub fn predict(&self, state: KalmanState<DIM_2D_BOX_X2>) -> KalmanState<DIM_2D_BOX_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let std_pos = self.std_position(1.0, 1e-2, mean[4]);
         let std_vel = self.std_velocity(1.0, 1e-5, mean[4]);
 
-        let mut std: SVector<f32, DIM_X2> =
+        let mut std: SVector<f32, DIM_2D_BOX_X2> =
             SVector::from_iterator(std_pos.into_iter().chain(std_vel.into_iter()));
 
         std = std.component_mul(&std);
 
-        let motion_cov: SMatrix<f32, DIM_X2, DIM_X2> = SMatrix::from_diagonal(&std);
+        let motion_cov: SMatrix<f32, DIM_2D_BOX_X2, DIM_2D_BOX_X2> = SMatrix::from_diagonal(&std);
 
         let mean = self.motion_matrix * mean;
         let covariance =
@@ -106,15 +105,15 @@ impl Universal2DBoxKalmanFilter {
 
     fn project(
         &self,
-        mean: SVector<f32, DIM_X2>,
-        covariance: SMatrix<f32, DIM_X2, DIM_X2>,
-    ) -> KalmanState<DIM> {
-        let mut std: SVector<f32, DIM> =
+        mean: SVector<f32, DIM_2D_BOX_X2>,
+        covariance: SMatrix<f32, DIM_2D_BOX_X2, DIM_2D_BOX_X2>,
+    ) -> KalmanState<DIM_2D_BOX> {
+        let mut std: SVector<f32, DIM_2D_BOX> =
             SVector::from_iterator(self.std_position(1.0, 1e-1, mean[4]));
 
         std = std.component_mul(&std);
 
-        let innovation_cov: SMatrix<f32, DIM, DIM> = SMatrix::from_diagonal(&std);
+        let innovation_cov: SMatrix<f32, DIM_2D_BOX, DIM_2D_BOX> = SMatrix::from_diagonal(&std);
 
         let mean = self.update_matrix * mean;
         let covariance =
@@ -126,9 +125,9 @@ impl Universal2DBoxKalmanFilter {
     ///
     pub fn update(
         &self,
-        state: KalmanState<DIM_X2>,
+        state: KalmanState<DIM_2D_BOX_X2>,
         measurement: Universal2DBox,
-    ) -> KalmanState<DIM_X2> {
+    ) -> KalmanState<DIM_2D_BOX_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (projected_mean, projected_cov) = (projected_state.mean, projected_state.covariance);
@@ -143,20 +142,20 @@ impl Universal2DBoxKalmanFilter {
             measurement.height,
         ]) - projected_mean;
 
-        let innovation: SMatrix<f32, 1, DIM> = innovation.transpose();
+        let innovation: SMatrix<f32, 1, DIM_2D_BOX> = innovation.transpose();
 
         let mean = mean + (innovation * kalman_gain).transpose();
         let covariance = covariance - kalman_gain.transpose() * projected_cov * kalman_gain;
         KalmanState { mean, covariance }
     }
 
-    pub fn distance(&self, state: KalmanState<DIM_X2>, measurement: &Universal2DBox) -> f32 {
+    pub fn distance(&self, state: KalmanState<DIM_2D_BOX_X2>, measurement: &Universal2DBox) -> f32 {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
 
         let measurements = {
-            let mut r: SVector<f32, DIM> = SVector::from_vec(vec![
+            let mut r: SVector<f32, DIM_2D_BOX> = SVector::from_vec(vec![
                 measurement.xc,
                 measurement.yc,
                 measurement.angle.unwrap_or(0.0),

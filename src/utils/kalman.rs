@@ -80,3 +80,5 @@ impl<const X: usize> TryFrom<KalmanState<X>> for BoundingBox {
         BoundingBox::try_from(&bb)
     }
 }
+
+pub const DT: u64 = 1;

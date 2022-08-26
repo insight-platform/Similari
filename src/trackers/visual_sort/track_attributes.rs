@@ -6,7 +6,7 @@ use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::{SortAttributesOptions, VotingType};
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::kalman_bbox::DIM_X2;
+use crate::utils::kalman::kalman_bbox::DIM_2D_BOX_X2;
 use crate::utils::kalman::KalmanState;
 use anyhow::Result;
 use std::collections::VecDeque;
@@ -35,7 +35,7 @@ pub struct VisualAttributes {
     /// Last voting type
     pub voting_type: Option<VotingType>,
 
-    state: Option<KalmanState<{ DIM_X2 }>>,
+    state: Option<KalmanState<{ DIM_2D_BOX_X2 }>>,
     opts: Arc<SortAttributesOptions>,
 }
 
@@ -91,11 +91,11 @@ impl VisualAttributes {
 }
 
 impl TrackAttributesKalmanPrediction for VisualAttributes {
-    fn get_state(&self) -> Option<KalmanState<{ DIM_X2 }>> {
+    fn get_state(&self) -> Option<KalmanState<{ DIM_2D_BOX_X2 }>> {
         self.state
     }
 
-    fn set_state(&mut self, state: KalmanState<{ DIM_X2 }>) {
+    fn set_state(&mut self, state: KalmanState<{ DIM_2D_BOX_X2 }>) {
         self.state = Some(state);
     }
 }

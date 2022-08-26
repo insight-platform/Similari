@@ -5,7 +5,7 @@ use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::kalman_bbox::DIM_X2;
+use crate::utils::kalman::kalman_bbox::DIM_2D_BOX_X2;
 use crate::utils::kalman::KalmanState;
 use anyhow::Result;
 use pyo3::prelude::*;
@@ -87,16 +87,16 @@ pub struct SortAttributes {
     pub custom_object_id: Option<i64>,
 
     /// Kalman filter predicted state
-    state: Option<KalmanState<{ DIM_X2 }>>,
+    state: Option<KalmanState<{ DIM_2D_BOX_X2 }>>,
     opts: Arc<SortAttributesOptions>,
 }
 
 impl TrackAttributesKalmanPrediction for SortAttributes {
-    fn get_state(&self) -> Option<KalmanState<{ DIM_X2 }>> {
+    fn get_state(&self) -> Option<KalmanState<{ DIM_2D_BOX_X2 }>> {
         self.state
     }
 
-    fn set_state(&mut self, state: KalmanState<{ DIM_X2 }>) {
+    fn set_state(&mut self, state: KalmanState<{ DIM_2D_BOX_X2 }>) {
         self.state = Some(state);
     }
 }
