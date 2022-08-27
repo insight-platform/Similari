@@ -28,8 +28,12 @@ often used in video processing or other systems where the observer receives fuzz
 
 Similari is a framework to build custom trackers, however it provides certain algorithms as an end-user functionality:
 
-**Kalman filter**, that predicts rectangular bounding boxes axis-aligned to scene, supports the oriented (rotated) 
+**Bounding Box Kalman filter**, that predicts rectangular bounding boxes axis-aligned to scene, supports the oriented (rotated) 
 bounding boxes as well.
+
+**2D Point Kalman filter**, that predicts 2D point motion.
+
+**2D Point Vector Kalman filter**, that predicts the vector of independent 2D points motion (used in the Keypoint Tracker).
 
 **Bounding box clipping**, that allows calculating the area of intersection for axis-aligned and oriented (rotated) 
 bounding boxes.
@@ -148,6 +152,8 @@ rustflags = [
 
 Python interface exposes ready-to-use functions and classes of Similari. As for now, the Python interface provides:
 * the Kalman filter for axis-aligned and oriented (rotated) boxes prediction;
+* the Kalman filter for 2D point motion prediction;
+* the 2D Point Vector Kalman filter, that predicts the vector of independent 2D points motion (used in the Keypoint Tracker);
 * NMS (Non-maximum suppression);
 * the Sutherland-Hodgman clipping, intersection area for oriented (rotated) boxes;
 * SORT with IoU and Mahalanobis metric;
