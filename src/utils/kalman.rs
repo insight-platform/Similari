@@ -5,9 +5,12 @@ use nalgebra::{SMatrix, SVector};
 /// Kalman filter for the prediction of axis-aligned and oriented bounding boxes
 ///
 pub mod kalman_2d_box;
-/// Kalman filter for Vector of 2d points
+/// Kalman filter for 2d point
 ///
 pub mod kalman_2d_point;
+/// Kalman filter for Vector of 2d points
+///
+mod kalman_2d_point_vec;
 
 pub const CHI2_UPPER_BOUND: f32 = 100.0;
 

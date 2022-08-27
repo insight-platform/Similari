@@ -768,7 +768,7 @@ impl VisualSort {
     ///
     /// # Parameters
     /// * `scene_id` - scene id provided by a user (class, camera id, etc...)
-    /// * `bboxes` - bounding boxes received from a detector
+    /// * `observation_set` - observation set
     ///
     #[pyo3(
         name = "predict_with_scene",
