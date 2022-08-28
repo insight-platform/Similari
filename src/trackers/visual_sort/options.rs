@@ -305,7 +305,7 @@ mod tests {
     use crate::trackers::sort::{PositionalMetricType, PyPositionalMetricType};
     use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
     use crate::trackers::visual_sort::metric::{PyVisualSortMetricType, VisualSortMetricType};
-    use crate::trackers::visual_sort::simple_api::options::VisualSortOptions;
+    use crate::trackers::visual_sort::options::VisualSortOptions;
 
     #[test]
     fn visual_sort_options_builder() {

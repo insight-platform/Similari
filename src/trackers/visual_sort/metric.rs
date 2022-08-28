@@ -11,7 +11,7 @@ use crate::trackers::visual_sort::metric::VisualSortMetricType::{Cosine, Euclide
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::trackers::visual_sort::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::KalmanFilter;
+use crate::utils::kalman::kalman_2d_box::Universal2DBoxKalmanFilter;
 use anyhow::Result;
 use pyo3::prelude::*;
 use std::default::Default;
@@ -171,9 +171,9 @@ impl VisualMetric {
                 match self.opts.positional_kind {
                     PositionalMetricType::Mahalanobis => {
                         let state = track_attributes.get_state().unwrap();
-                        let f = KalmanFilter::default();
+                        let f = Universal2DBoxKalmanFilter::default();
                         let dist = f.distance(state, candidate_observation_bbox);
-                        Some(KalmanFilter::calculate_cost(dist, true) / conf)
+                        Some(Universal2DBoxKalmanFilter::calculate_cost(dist, true) / conf)
                     }
                     PositionalMetricType::IoU(threshold) => {
                         let box_m_opt = Universal2DBox::calculate_metric_object(

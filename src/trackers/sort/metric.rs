@@ -6,7 +6,7 @@ use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
 use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
 use crate::utils::bbox::Universal2DBox;
-use crate::utils::kalman::KalmanFilter;
+use crate::utils::kalman::kalman_2d_box::Universal2DBoxKalmanFilter;
 
 pub const DEFAULT_MINIMAL_SORT_CONFIDENCE: f32 = 0.05;
 
@@ -52,9 +52,12 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
             Some(match self.method {
                 PositionalMetricType::Mahalanobis => {
                     let state = mq.track_attrs.get_state().unwrap();
-                    let f = KalmanFilter::default();
+                    let f = Universal2DBoxKalmanFilter::default();
                     let dist = f.distance(state, candidate_bbox);
-                    (Some(KalmanFilter::calculate_cost(dist, true) / conf), None)
+                    (
+                        Some(Universal2DBoxKalmanFilter::calculate_cost(dist, true) / conf),
+                        None,
+                    )
                 }
                 PositionalMetricType::IoU(threshold) => {
                     let box_m_opt = Universal2DBox::calculate_metric_object(

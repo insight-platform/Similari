@@ -538,13 +538,10 @@ impl BatchVisualSort {
         &mut self,
         py_batch: PyVisualSortPredictionBatchRequest,
     ) -> PredictionBatchResult {
-        let mut features = Vec::default();
         let (mut batch, res) = PredictionBatchRequest::<VisualSortObservation>::new();
         for (scene_id, observations) in py_batch.batch.get_batch() {
-            features.reserve(observations.len());
             for o in observations {
-                features.push(&o.feature);
-                let f = features.last().unwrap().as_ref();
+                let f = o.feature.as_ref();
                 batch.add(
                     *scene_id,
                     VisualSortObservation::new(

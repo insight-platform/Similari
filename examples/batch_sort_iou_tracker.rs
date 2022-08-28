@@ -1,4 +1,3 @@
-use anyhow::Result;
 use similari::examples::BoxGen2;
 use similari::trackers::batch::PredictionBatchRequest;
 use similari::trackers::sort::batch_api::BatchSort;
@@ -49,10 +48,7 @@ fn main() {
                 .predicted_boxes
                 .clone()
                 .into_iter()
-                .map(|x| {
-                    let r: Result<BoundingBox> = x.into();
-                    r.unwrap()
-                })
+                .map(|x| BoundingBox::try_from(x).unwrap())
                 .collect::<Vec<_>>()
         );
     }

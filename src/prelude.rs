@@ -12,8 +12,8 @@ pub use trackers::sort::simple_api::Sort;
 pub use trackers::sort::SortTrack;
 pub use trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 
+pub use crate::trackers::visual_sort::options::VisualSortOptions;
 pub use trackers::visual_sort::metric::VisualSortMetricType;
-pub use trackers::visual_sort::simple_api::options::VisualSortOptions;
 pub use trackers::visual_sort::simple_api::VisualSort;
 pub use trackers::visual_sort::VisualSortObservation;
 

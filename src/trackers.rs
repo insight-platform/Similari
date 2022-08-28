@@ -8,7 +8,7 @@ mod epoch_db;
 /// Visual tracker implementations
 pub mod visual_sort;
 
-/// Trait that implements kalman prediction for attributes
+/// Trait that implements kalman_2d_box prediction for attributes
 pub mod kalman_prediction;
 
 /// The object that implements the constraints for space when objects from various epochs are compared.

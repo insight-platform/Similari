@@ -3,8 +3,7 @@ use crate::utils::clipping::sutherland_hodgman_clip;
 use crate::voting::topn::TopNVotingElt;
 use crate::voting::Voting;
 use crate::Errors::GenericBBoxConversionError;
-use crate::EPS;
-use anyhow::Result;
+use crate::{Errors, EPS};
 use geo::{Area, Coordinate, LineString, Polygon};
 use itertools::Itertools;
 use pyo3::exceptions::PyAttributeError;
@@ -137,7 +136,7 @@ impl Universal2DBox {
 
     #[pyo3(name = "as_ltwh")]
     pub fn as_ltwh_py(&self) -> PyResult<BoundingBox> {
-        let r: Result<BoundingBox> = Result::from(self);
+        let r = BoundingBox::try_from(self);
         if let Ok(res) = r {
             Ok(res)
         } else {
@@ -290,19 +289,20 @@ impl From<&BoundingBox> for Universal2DBox {
     }
 }
 
-impl From<Universal2DBox> for Result<BoundingBox> {
-    /// This is a lossy translation. It is valid only when the angle is 0
-    fn from(f: Universal2DBox) -> Self {
-        let r: Result<BoundingBox> = Self::from(&f);
-        r
+impl TryFrom<Universal2DBox> for BoundingBox {
+    type Error = Errors;
+
+    fn try_from(value: Universal2DBox) -> Result<Self, Self::Error> {
+        BoundingBox::try_from(&value)
     }
 }
 
-impl From<&Universal2DBox> for Result<BoundingBox> {
-    /// This is a lossy translation. It is valid only when the angle is 0
-    fn from(f: &Universal2DBox) -> Self {
+impl TryFrom<&Universal2DBox> for BoundingBox {
+    type Error = Errors;
+
+    fn try_from(f: &Universal2DBox) -> Result<Self, Self::Error> {
         if f.angle.is_some() {
-            Err(GenericBBoxConversionError.into())
+            Err(GenericBBoxConversionError)
         } else {
             let width = f.height * f.aspect;
             Ok(BoundingBox {
@@ -412,19 +412,19 @@ mod polygons {
     }
 }
 
-impl From<&Universal2DBox> for BoundingBox {
-    /// This is a lossy translation. It is valid only when the angle is 0
-    fn from(f: &Universal2DBox) -> Self {
-        let width = f.height * f.aspect;
-        BoundingBox {
-            left: f.xc - width / 2.0,
-            top: f.yc - f.height / 2.0,
-            width,
-            height: f.height,
-            confidence: f.confidence,
-        }
-    }
-}
+// impl From<&Universal2DBox> for BoundingBox {
+//     /// This is a lossy translation. It is valid only when the angle is 0
+//     fn from(f: &Universal2DBox) -> Self {
+//         let width = f.height * f.aspect;
+//         BoundingBox {
+//             left: f.xc - width / 2.0,
+//             top: f.yc - f.height / 2.0,
+//             width,
+//             height: f.height,
+//             confidence: f.confidence,
+//         }
+//     }
+// }
 
 impl BoundingBox {
     pub fn intersection(l: &BoundingBox, r: &BoundingBox) -> f64 {
@@ -533,7 +533,7 @@ impl Universal2DBox {
         if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
             < EPS
         {
-            BoundingBox::intersection(&l.into(), &r.into())
+            BoundingBox::intersection(&l.try_into().unwrap(), &r.try_into().unwrap())
         } else if Universal2DBox::too_far(l, r) {
             0.0
         } else {

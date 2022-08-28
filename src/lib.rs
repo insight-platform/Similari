@@ -31,7 +31,7 @@ pub mod trackers;
 
 mod py;
 
-/// Utility objects - bounding boxes, kalman filter, polygon clipping, nms
+/// Utility objects - bounding boxes, kalman_2d_box filter, polygon clipping, nms
 ///
 pub mod utils;
 
@@ -73,6 +73,10 @@ pub enum Errors {
     ///
     #[error("Generic BBox cannot be converted to a requested type")]
     GenericBBoxConversionError,
+
+    /// Index is out of range
+    #[error("The index is out of range")]
+    OutOfRange,
 }
 
 pub const EPS: f32 = 0.00001;
