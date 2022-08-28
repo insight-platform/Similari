@@ -52,6 +52,9 @@ supports batching (like Nvidia DeepStream or Intel DL Streamer) the batch tracke
 Mahalanobis distances are supported for positional tracking, euclidean, cosine distances are used for visual tracking on 
 feature vectors.
 
+* **Batch VisualSORT** - batched VisualSORT flavor;
+
+
 ## Applicability Notes
 
 Although Similari allows building various tracking and similarity engines, there are competitive tools that sometime 
@@ -160,6 +163,7 @@ Python interface exposes ready-to-use functions and classes of Similari. As for 
 * BatchSORT with IoU and Mahalanobis metric;
 * VisualSORT - DeepSORT-like tracker with euclidean/cosine metric for visual features and IoU/Mahalanobis metric 
   for positional tracking (VisualSort).
+* BatchVisualSORT - batched VisualSORT flavor;
 
 Python API classes and functions can be explored in the python 
 [documentation](assets/documentation/python/api.md) and tiny [examples](python) provided.
