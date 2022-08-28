@@ -17,14 +17,14 @@ fn kalman_2d_point_100k(b: &mut Bencher) {
         let v = pt.next().unwrap().feature().as_ref().unwrap().clone();
         let n = v[0].as_array_ref();
 
-        let mut state = f.initiate(Point2::from([n[0], n[1]]));
+        let mut state = f.initiate(&Point2::from([n[0], n[1]]));
         for _i in 0..N {
             let v = pt.next().unwrap().feature().as_ref().unwrap().clone();
             let n = v[0].as_array_ref();
-            state = f.predict(state);
+            state = f.predict(&state);
 
             let p = Point2::from([n[0], n[1]]);
-            state = f.update(state, p);
+            state = f.update(&state, &p);
         }
     });
 }

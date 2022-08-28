@@ -48,7 +48,7 @@ impl Point2DKalmanFilter {
         [vel_weight, vel_weight]
     }
 
-    pub fn initiate(&self, p: Point2<f32>) -> KalmanState<DIM_2D_POINT_X2> {
+    pub fn initiate(&self, p: &Point2<f32>) -> KalmanState<DIM_2D_POINT_X2> {
         let mean: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator([p.x, p.y, 0.0, 0.0]);
 
         let mut std: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator(
@@ -64,7 +64,7 @@ impl Point2DKalmanFilter {
         KalmanState { mean, covariance }
     }
 
-    pub fn predict(&self, state: KalmanState<DIM_2D_POINT_X2>) -> KalmanState<DIM_2D_POINT_X2> {
+    pub fn predict(&self, state: &KalmanState<DIM_2D_POINT_X2>) -> KalmanState<DIM_2D_POINT_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let std_pos = self.std_position(1.0);
         let std_vel = self.std_velocity(1.0);
@@ -102,8 +102,8 @@ impl Point2DKalmanFilter {
 
     pub fn update(
         &self,
-        state: KalmanState<DIM_2D_POINT_X2>,
-        p: Point2<f32>,
+        state: &KalmanState<DIM_2D_POINT_X2>,
+        p: &Point2<f32>,
     ) -> KalmanState<DIM_2D_POINT_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
@@ -120,7 +120,7 @@ impl Point2DKalmanFilter {
         KalmanState { mean, covariance }
     }
 
-    pub fn distance(&self, state: KalmanState<DIM_2D_POINT_X2>, p: Point2<f32>) -> f32 {
+    pub fn distance(&self, state: &KalmanState<DIM_2D_POINT_X2>, p: &Point2<f32>) -> f32 {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
@@ -166,56 +166,56 @@ mod tests {
     fn test() {
         let p = Point2::from([1.0, 0.0]);
         let f = Point2DKalmanFilter::default();
-        let state = f.initiate(p);
-        let state = f.predict(state);
+        let state = f.initiate(&p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.1, 0.1]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.2, 0.2]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.3, 0.3]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.4, 0.4]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.5, 0.5]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.6, 0.6]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.7, 0.7]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.8, 0.67]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
         let p = Point2::from([1.9, 0.60]);
-        let state = f.update(state, p);
-        let state = f.predict(state);
+        let state = f.update(&state, &p);
+        let state = f.predict(&state);
         dbg!(Point2::from(state));
 
-        let dist = f.distance(state, Point2::from([2.0, 0.57]));
+        let dist = f.distance(&state, &Point2::from([2.0, 0.57]));
         dbg!(&dist);
     }
 }
@@ -265,14 +265,14 @@ pub mod python {
         #[pyo3(text_signature = "($self, x, y)")]
         pub fn initiate(&self, x: f32, y: f32) -> PyPoint2DKalmanFilterState {
             PyPoint2DKalmanFilterState {
-                state: self.filter.initiate(Point2::from([x, y])),
+                state: self.filter.initiate(&Point2::from([x, y])),
             }
         }
 
         #[pyo3(text_signature = "($self, state)")]
         pub fn predict(&self, state: PyPoint2DKalmanFilterState) -> PyPoint2DKalmanFilterState {
             PyPoint2DKalmanFilterState {
-                state: self.filter.predict(state.state),
+                state: self.filter.predict(&state.state),
             }
         }
 
@@ -284,13 +284,13 @@ pub mod python {
             y: f32,
         ) -> PyPoint2DKalmanFilterState {
             PyPoint2DKalmanFilterState {
-                state: self.filter.update(state.state, Point2::from([x, y])),
+                state: self.filter.update(&state.state, &Point2::from([x, y])),
             }
         }
 
         #[pyo3(text_signature = "($self, state, x, y)")]
         pub fn distance(&self, state: PyPoint2DKalmanFilterState, x: f32, y: f32) -> f32 {
-            self.filter.distance(state.state, Point2::from([x, y]))
+            self.filter.distance(&state.state, &Point2::from([x, y]))
         }
 
         #[staticmethod]

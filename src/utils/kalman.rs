@@ -10,7 +10,7 @@ pub mod kalman_2d_box;
 pub mod kalman_2d_point;
 /// Kalman filter for Vector of 2d points
 ///
-mod kalman_2d_point_vec;
+pub mod kalman_2d_point_vec;
 
 pub const CHI2_UPPER_BOUND: f32 = 100.0;
 
