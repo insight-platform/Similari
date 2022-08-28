@@ -1,4 +1,5 @@
 use crate::track::{ObservationAttributes, ObservationMetricOk};
+use crate::utils::clipping::clipping_py::PyPolygon;
 use crate::utils::clipping::sutherland_hodgman_clip;
 use crate::voting::topn::TopNVotingElt;
 use crate::voting::Voting;
@@ -146,10 +147,15 @@ impl Universal2DBox {
 
     #[pyo3(name = "gen_vertices")]
     pub fn gen_vertices_py(&mut self) {
-        let copy = self.clone();
         if self.angle.is_some() {
-            self._vertex_cache = Some(Polygon::from(&copy));
+            let c = Polygon::from(&*self);
+            self._vertex_cache = Some(c);
         }
+    }
+
+    #[pyo3(name = "get_vertices")]
+    pub fn get_vertices_py(&self) -> PyPolygon {
+        PyPolygon::new(Polygon::from(self))
     }
 
     /// Sets the angle

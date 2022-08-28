@@ -21,7 +21,11 @@ if __name__ == '__main__':
     ubb = Universal2DBox(3.0, 4.0, 0.0, 1.5, 5.0)
     print(ubb)
     ubb.rotate(0.5)
-    ubb.gen_vertices()
+
+    polygon = ubb.get_vertices()
+    points = polygon.get_points()
+    print("Points", points)
+
     print(ubb)
     print(ubb.area())
     print(ubb.get_radius())
