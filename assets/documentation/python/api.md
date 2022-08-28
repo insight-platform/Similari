@@ -55,6 +55,9 @@ ubb.rotate(0.5)
 ubb.gen_vertices()
 print(ubb)
 
+vertices = ubb.get_vertices()
+print(vertices.get_points())
+
 print(ubb.area())
 print(ubb.get_radius())
 

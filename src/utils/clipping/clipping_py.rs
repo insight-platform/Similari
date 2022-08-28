@@ -10,10 +10,16 @@ pub struct PyPolygon {
     polygon: Polygon<f64>,
 }
 
+impl PyPolygon {
+    pub fn new(polygon: Polygon<f64>) -> Self {
+        Self { polygon }
+    }
+}
+
 #[pymethods]
 impl PyPolygon {
     #[pyo3(text_signature = "($self)")]
-    pub fn get_vertices(&self) -> Vec<(f64, f64)> {
+    pub fn get_points(&self) -> Vec<(f64, f64)> {
         self.polygon.coords_iter().map(|c| (c.x, c.y)).collect()
     }
 
