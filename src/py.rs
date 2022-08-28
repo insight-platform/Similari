@@ -23,6 +23,7 @@ use crate::utils::kalman::kalman_2d_box::python::{
 use crate::utils::kalman::kalman_2d_point::python::{
     PyPoint2DKalmanFilter, PyPoint2DKalmanFilterState,
 };
+use crate::utils::kalman::kalman_2d_point_vec::python::PyVec2DKalmanFilter;
 use crate::utils::nms::nms_py::nms_py;
 use pyo3::prelude::*;
 
@@ -40,6 +41,8 @@ fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<PyPoint2DKalmanFilterState>()?;
     m.add_class::<PyPoint2DKalmanFilter>()?;
+
+    m.add_class::<PyVec2DKalmanFilter>()?;
 
     m.add_class::<PySortPredictionBatchRequest>()?;
     m.add_class::<SpatioTemporalConstraints>()?;

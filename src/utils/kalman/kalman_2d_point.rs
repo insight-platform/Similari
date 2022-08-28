@@ -239,6 +239,16 @@ pub mod python {
         state: KalmanState<{ DIM_2D_POINT_X2 }>,
     }
 
+    impl PyPoint2DKalmanFilterState {
+        pub fn new(state: KalmanState<{ DIM_2D_POINT_X2 }>) -> Self {
+            Self { state }
+        }
+
+        pub fn inner(&self) -> &KalmanState<{ DIM_2D_POINT_X2 }> {
+            &self.state
+        }
+    }
+
     #[pymethods]
     impl PyPoint2DKalmanFilterState {
         #[pyo3(text_signature = "($self)")]

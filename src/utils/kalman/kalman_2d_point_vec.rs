@@ -75,3 +75,95 @@ impl Vec2DKalmanFilter {
             .collect()
     }
 }
+
+pub mod python {
+    use crate::utils::kalman::kalman_2d_point::python::PyPoint2DKalmanFilterState;
+    use crate::utils::kalman::kalman_2d_point_vec::Vec2DKalmanFilter;
+    use nalgebra::Point2;
+    use pyo3::prelude::*;
+
+    #[pyclass]
+    #[pyo3(name = "Vec2DKalmanFilter")]
+    pub struct PyVec2DKalmanFilter {
+        filter: Vec2DKalmanFilter,
+    }
+
+    #[pymethods]
+    impl PyVec2DKalmanFilter {
+        #[new]
+        #[args(position_weight = "0.05", velocity_weight = "0.00625")]
+        pub fn new(position_weight: f32, velocity_weight: f32) -> Self {
+            Self {
+                filter: Vec2DKalmanFilter::new(position_weight, velocity_weight),
+            }
+        }
+
+        #[pyo3(text_signature = "($self, points)")]
+        pub fn initiate(&self, points: Vec<(f32, f32)>) -> Vec<PyPoint2DKalmanFilterState> {
+            let args = points
+                .iter()
+                .map(|(x, y)| Point2::from([*x, *y]))
+                .collect::<Vec<_>>();
+
+            self.filter
+                .initiate(&args)
+                .into_iter()
+                .map(PyPoint2DKalmanFilterState::new)
+                .collect()
+        }
+
+        #[pyo3(text_signature = "($self, state)")]
+        pub fn predict(
+            &self,
+            state: Vec<PyPoint2DKalmanFilterState>,
+        ) -> Vec<PyPoint2DKalmanFilterState> {
+            let args = state
+                .into_iter()
+                .map(|s| s.inner().clone())
+                .collect::<Vec<_>>();
+            self.filter
+                .predict(&args)
+                .into_iter()
+                .map(PyPoint2DKalmanFilterState::new)
+                .collect()
+        }
+
+        #[pyo3(text_signature = "($self, state, points)")]
+        pub fn update(
+            &self,
+            state: Vec<PyPoint2DKalmanFilterState>,
+            points: Vec<(f32, f32)>,
+        ) -> Vec<PyPoint2DKalmanFilterState> {
+            let point_args = points
+                .iter()
+                .map(|(x, y)| Point2::from([*x, *y]))
+                .collect::<Vec<_>>();
+            let state_args = state.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
+            self.filter
+                .update(&state_args, &point_args)
+                .into_iter()
+                .map(PyPoint2DKalmanFilterState::new)
+                .collect()
+        }
+
+        #[pyo3(text_signature = "($self, state, points)")]
+        pub fn distance(
+            &self,
+            state: Vec<PyPoint2DKalmanFilterState>,
+            points: Vec<(f32, f32)>,
+        ) -> Vec<f32> {
+            let point_args = points
+                .iter()
+                .map(|(x, y)| Point2::from([*x, *y]))
+                .collect::<Vec<_>>();
+            let state_args = state.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
+            self.filter.distance(&state_args, &point_args)
+        }
+
+        #[staticmethod]
+        #[pyo3(text_signature = "(distances, inverted)")]
+        pub fn calculate_cost(distances: Vec<f32>, inverted: bool) -> Vec<f32> {
+            Vec2DKalmanFilter::calculate_cost(&distances, inverted)
+        }
+    }
+}
