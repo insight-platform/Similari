@@ -117,10 +117,7 @@ pub mod python {
             &self,
             state: Vec<PyPoint2DKalmanFilterState>,
         ) -> Vec<PyPoint2DKalmanFilterState> {
-            let args = state
-                .into_iter()
-                .map(|s| s.inner().clone())
-                .collect::<Vec<_>>();
+            let args = state.into_iter().map(|s| *s.inner()).collect::<Vec<_>>();
             self.filter
                 .predict(&args)
                 .into_iter()
@@ -138,7 +135,7 @@ pub mod python {
                 .iter()
                 .map(|(x, y)| Point2::from([*x, *y]))
                 .collect::<Vec<_>>();
-            let state_args = state.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
+            let state_args = state.iter().map(|s| *s.inner()).collect::<Vec<_>>();
             self.filter
                 .update(&state_args, &point_args)
                 .into_iter()
@@ -156,7 +153,7 @@ pub mod python {
                 .iter()
                 .map(|(x, y)| Point2::from([*x, *y]))
                 .collect::<Vec<_>>();
-            let state_args = state.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
+            let state_args = state.iter().map(|s| *s.inner()).collect::<Vec<_>>();
             self.filter.distance(&state_args, &point_args)
         }
 
