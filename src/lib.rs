@@ -29,8 +29,6 @@ pub mod track;
 ///
 pub mod trackers;
 
-mod py;
-
 /// Utility objects - bounding boxes, kalman_2d_box filter, polygon clipping, nms
 ///
 pub mod utils;
@@ -80,3 +78,75 @@ pub enum Errors {
 }
 
 pub const EPS: f32 = 0.00001;
+
+mod python {
+    use crate::prelude::{
+        BatchSort, BoundingBox, Sort, SortTrack, SpatioTemporalConstraints, Universal2DBox,
+        VisualSort, VisualSortOptions,
+    };
+    use crate::trackers::batch::PredictionBatchResult;
+    use crate::trackers::sort::sort_py::PySortPredictionBatchRequest;
+    use crate::trackers::sort::{PyPositionalMetricType, PyWastedSortTrack};
+    use crate::trackers::visual_sort::batch_api::BatchVisualSort;
+    use crate::trackers::visual_sort::metric::PyVisualSortMetricType;
+    use crate::trackers::visual_sort::visual_sort_py::{
+        PyVisualSortObservation, PyVisualSortObservationSet, PyVisualSortPredictionBatchRequest,
+    };
+    use crate::trackers::visual_sort::PyWastedVisualSortTrack;
+    use crate::utils::clipping::clipping_py::{
+        intersection_area_py, sutherland_hodgman_clip_py, PyPolygon,
+    };
+    use crate::utils::kalman::kalman_2d_box::python::{
+        PyUniversal2DBoxKalmanFilter, PyUniversal2DBoxKalmanFilterState,
+    };
+    use crate::utils::kalman::kalman_2d_point::python::{
+        PyPoint2DKalmanFilter, PyPoint2DKalmanFilterState,
+    };
+    use crate::utils::kalman::kalman_2d_point_vec::python::PyVec2DKalmanFilter;
+    use crate::utils::nms::nms_py::nms_py;
+    use pyo3::prelude::*;
+
+    #[pymodule]
+    #[pyo3(name = "similari")]
+    fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
+        m.add_class::<BoundingBox>()?;
+        m.add_class::<Universal2DBox>()?;
+        m.add_class::<PyPolygon>()?;
+        m.add_class::<SortTrack>()?;
+        m.add_class::<PyWastedSortTrack>()?;
+
+        m.add_class::<PyUniversal2DBoxKalmanFilterState>()?;
+        m.add_class::<PyUniversal2DBoxKalmanFilter>()?;
+
+        m.add_class::<PyPoint2DKalmanFilterState>()?;
+        m.add_class::<PyPoint2DKalmanFilter>()?;
+
+        m.add_class::<PyVec2DKalmanFilter>()?;
+
+        m.add_class::<PySortPredictionBatchRequest>()?;
+        m.add_class::<SpatioTemporalConstraints>()?;
+        m.add_class::<Sort>()?;
+
+        m.add_class::<PyPositionalMetricType>()?;
+        m.add_class::<PyVisualSortMetricType>()?;
+        m.add_class::<VisualSortOptions>()?;
+        m.add_class::<PyVisualSortObservation>()?;
+        m.add_class::<PyVisualSortObservationSet>()?;
+        m.add_class::<PyVisualSortPredictionBatchRequest>()?;
+        m.add_class::<PyWastedVisualSortTrack>()?;
+        m.add_class::<VisualSort>()?;
+
+        m.add_class::<PredictionBatchResult>()?;
+
+        m.add_class::<PySortPredictionBatchRequest>()?;
+        m.add_class::<BatchSort>()?;
+
+        m.add_class::<PyVisualSortPredictionBatchRequest>()?;
+        m.add_class::<BatchVisualSort>()?;
+
+        m.add_function(wrap_pyfunction!(nms_py, m)?)?;
+        m.add_function(wrap_pyfunction!(sutherland_hodgman_clip_py, m)?)?;
+        m.add_function(wrap_pyfunction!(intersection_area_py, m)?)?;
+        Ok(())
+    }
+}
