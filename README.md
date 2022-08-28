@@ -52,7 +52,7 @@ supports batching (like Nvidia DeepStream or Intel DL Streamer) the batch tracke
 Mahalanobis distances are supported for positional tracking, euclidean, cosine distances are used for visual tracking on 
 feature vectors.
 
-* **Batch VisualSORT** - batched VisualSORT flavor;
+**Batch VisualSORT** - batched VisualSORT flavor;
 
 
 ## Applicability Notes
