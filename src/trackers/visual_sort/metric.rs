@@ -4,7 +4,7 @@ pub mod builder;
 use crate::distance::{cosine, euclidean};
 use crate::track::{Feature, MetricQuery, ObservationAttributes, ObservationMetricOk};
 use crate::track::{MetricOutput, Observation, ObservationMetric};
-use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
+use crate::trackers::kalman_prediction::universal_2d_box::Universal2DBoxKalmanPrediction;
 use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::visual_sort::metric::builder::VisualMetricBuilder;
 use crate::trackers::visual_sort::metric::VisualSortMetricType::{Cosine, Euclidean};

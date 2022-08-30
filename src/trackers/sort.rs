@@ -2,7 +2,7 @@ use crate::track::{
     LookupRequest, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::epoch_db::EpochDb;
-use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
+use crate::trackers::kalman_prediction::universal_2d_box::Universal2DBoxKalmanPrediction;
 use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::kalman_2d_box::DIM_2D_BOX_X2;
@@ -91,7 +91,7 @@ pub struct SortAttributes {
     opts: Arc<SortAttributesOptions>,
 }
 
-impl TrackAttributesKalmanPrediction for SortAttributes {
+impl Universal2DBoxKalmanPrediction for SortAttributes {
     fn get_state(&self) -> Option<KalmanState<{ DIM_2D_BOX_X2 }>> {
         self.state
     }

@@ -2,7 +2,7 @@ use crate::track::{
     Feature, LookupRequest, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::epoch_db::EpochDb;
-use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
+use crate::trackers::kalman_prediction::universal_2d_box::Universal2DBoxKalmanPrediction;
 use crate::trackers::sort::{SortAttributesOptions, VotingType};
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
@@ -90,7 +90,7 @@ impl VisualAttributes {
     }
 }
 
-impl TrackAttributesKalmanPrediction for VisualAttributes {
+impl Universal2DBoxKalmanPrediction for VisualAttributes {
     fn get_state(&self) -> Option<KalmanState<{ DIM_2D_BOX_X2 }>> {
         self.state
     }

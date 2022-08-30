@@ -2,7 +2,7 @@ use crate::track::{
     MetricOutput, MetricQuery, Observation, ObservationAttributes, ObservationMetric,
     ObservationMetricOk,
 };
-use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
+use crate::trackers::kalman_prediction::universal_2d_box::Universal2DBoxKalmanPrediction;
 use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::sort::{SortAttributes, DEFAULT_SORT_IOU_THRESHOLD};
 use crate::utils::bbox::Universal2DBox;
