@@ -22,3 +22,8 @@ pub mod batch;
 
 /// Trait to implement tracker API
 pub mod tracker_api;
+
+/// Keypoint tracker that calculates the track based on Kalman prediction and euclidean distance minimization of the points
+/// mm is for **M**inimal distance gives **M**aximal weight for LAP.
+///
+pub mod keypoint_mm_2d;
