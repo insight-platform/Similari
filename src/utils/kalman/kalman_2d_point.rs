@@ -1,5 +1,6 @@
 use crate::utils::kalman::{KalmanState, CHI2INV95, CHI2_UPPER_BOUND, DT};
-use nalgebra::{Point2, SMatrix, SVector};
+use crate::utils::point_2d::Point2D;
+use nalgebra::{SMatrix, SVector};
 use std::ops::SubAssign;
 
 pub const DIM_2D_POINT: usize = 2;
@@ -48,8 +49,8 @@ impl Point2DKalmanFilter {
         [vel_weight, vel_weight]
     }
 
-    pub fn initiate(&self, p: &Point2<f32>) -> KalmanState<DIM_2D_POINT_X2> {
-        let mean: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator([p.x, p.y, 0.0, 0.0]);
+    pub fn initiate(&self, p: &Point2D) -> KalmanState<DIM_2D_POINT_X2> {
+        let mean: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator([p.p.x, p.p.y, 0.0, 0.0]);
 
         let mut std: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator(
             self.std_position(2.0)
@@ -103,7 +104,7 @@ impl Point2DKalmanFilter {
     pub fn update(
         &self,
         state: &KalmanState<DIM_2D_POINT_X2>,
-        p: &Point2<f32>,
+        p: &Point2D,
     ) -> KalmanState<DIM_2D_POINT_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
@@ -111,7 +112,7 @@ impl Point2DKalmanFilter {
         let b = (covariance * self.update_matrix.transpose()).transpose();
         let kalman_gain = projected_cov.solve_lower_triangular(&b).unwrap();
 
-        let innovation = SVector::from_iterator([p.x, p.y]) - projected_mean;
+        let innovation = SVector::from_iterator([p.p.x, p.p.y]) - projected_mean;
 
         let innovation: SMatrix<f32, 1, DIM_2D_POINT> = innovation.transpose();
 
@@ -120,13 +121,13 @@ impl Point2DKalmanFilter {
         KalmanState { mean, covariance }
     }
 
-    pub fn distance(&self, state: &KalmanState<DIM_2D_POINT_X2>, p: &Point2<f32>) -> f32 {
+    pub fn distance(&self, state: &KalmanState<DIM_2D_POINT_X2>, p: &Point2D) -> f32 {
         let (mean, covariance) = (state.mean, state.covariance);
         let projected_state = self.project(mean, covariance);
         let (mean, covariance) = (projected_state.mean, projected_state.covariance);
 
         let measurements = {
-            let mut r: SVector<f32, DIM_2D_POINT> = SVector::from_vec(vec![p.x, p.y]);
+            let mut r: SVector<f32, DIM_2D_POINT> = SVector::from_vec(vec![p.p.x, p.p.y]);
             r.sub_assign(&mean);
             r
         };
@@ -151,71 +152,65 @@ impl Point2DKalmanFilter {
     }
 }
 
-impl From<KalmanState<{ DIM_2D_POINT_X2 }>> for Point2<f32> {
-    fn from(s: KalmanState<{ DIM_2D_POINT_X2 }>) -> Self {
-        Point2::from([s.mean.x, s.mean.y])
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::utils::kalman::kalman_2d_point::Point2DKalmanFilter;
-    use nalgebra::Point2;
+    use crate::utils::point_2d::Point2D;
 
     #[test]
     fn test() {
-        let p = Point2::from([1.0, 0.0]);
+        let p = Point2D::new(1.0, 0.0);
         let f = Point2DKalmanFilter::default();
         let state = f.initiate(&p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.1, 0.1]);
+        let p = Point2D::new(1.1, 0.1);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.2, 0.2]);
+        let p = Point2D::new(1.2, 0.2);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.3, 0.3]);
+        let p = Point2D::new(1.3, 0.3);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.4, 0.4]);
+        let p = Point2D::new(1.4, 0.4);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.5, 0.5]);
+        let p = Point2D::new(1.5, 0.5);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.6, 0.6]);
+        let p = Point2D::new(1.6, 0.6);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.7, 0.7]);
+        let p = Point2D::new(1.7, 0.7);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.8, 0.67]);
+        let p = Point2D::new(1.8, 0.67);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let p = Point2::from([1.9, 0.60]);
+        let p = Point2D::new(1.9, 0.60);
         let state = f.update(&state, &p);
         let state = f.predict(&state);
-        dbg!(Point2::from(state));
+        dbg!(Point2D::from(state));
 
-        let dist = f.distance(&state, &Point2::from([2.0, 0.57]));
+        let dist = f.distance(&state, &Point2D::new(2.0, 0.57));
         dbg!(&dist);
     }
 }
@@ -223,7 +218,7 @@ mod tests {
 pub mod python {
     use crate::utils::kalman::kalman_2d_point::{Point2DKalmanFilter, DIM_2D_POINT_X2};
     use crate::utils::kalman::KalmanState;
-    use nalgebra::Point2;
+    use crate::utils::point_2d::Point2D;
     use pyo3::prelude::*;
 
     #[pyclass]
@@ -272,10 +267,10 @@ pub mod python {
             }
         }
 
-        #[pyo3(text_signature = "($self, x, y)")]
-        pub fn initiate(&self, x: f32, y: f32) -> PyPoint2DKalmanFilterState {
+        #[pyo3(text_signature = "($self, point)")]
+        pub fn initiate(&self, point: &Point2D) -> PyPoint2DKalmanFilterState {
             PyPoint2DKalmanFilterState {
-                state: self.filter.initiate(&Point2::from([x, y])),
+                state: self.filter.initiate(point),
             }
         }
 
@@ -286,21 +281,20 @@ pub mod python {
             }
         }
 
-        #[pyo3(text_signature = "($self, state, x, y)")]
+        #[pyo3(text_signature = "($self, state, point)")]
         pub fn update(
             &self,
             state: PyPoint2DKalmanFilterState,
-            x: f32,
-            y: f32,
+            point: &Point2D,
         ) -> PyPoint2DKalmanFilterState {
             PyPoint2DKalmanFilterState {
-                state: self.filter.update(&state.state, &Point2::from([x, y])),
+                state: self.filter.update(&state.state, point),
             }
         }
 
-        #[pyo3(text_signature = "($self, state, x, y)")]
-        pub fn distance(&self, state: PyPoint2DKalmanFilterState, x: f32, y: f32) -> f32 {
-            self.filter.distance(&state.state, &Point2::from([x, y]))
+        #[pyo3(text_signature = "($self, state, point)")]
+        pub fn distance(&self, state: PyPoint2DKalmanFilterState, point: &Point2D) -> f32 {
+            self.filter.distance(&state.state, point)
         }
 
         #[staticmethod]

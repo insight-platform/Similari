@@ -104,6 +104,7 @@ mod python {
     };
     use crate::utils::kalman::kalman_2d_point_vec::python::PyVec2DKalmanFilter;
     use crate::utils::nms::nms_py::nms_py;
+    use crate::utils::point_2d::Point2D;
     use pyo3::prelude::*;
 
     #[pymodule]
@@ -117,6 +118,8 @@ mod python {
 
         m.add_class::<PyUniversal2DBoxKalmanFilterState>()?;
         m.add_class::<PyUniversal2DBoxKalmanFilter>()?;
+
+        m.add_class::<Point2D>()?;
 
         m.add_class::<PyPoint2DKalmanFilterState>()?;
         m.add_class::<PyPoint2DKalmanFilter>()?;

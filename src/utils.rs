@@ -17,5 +17,6 @@ pub mod nms;
 /// Kalman filter related stuff
 pub mod kalman;
 
-/// 2D Points stuff
-pub mod point;
+/// 2D-point implementation
+///
+pub mod point_2d;

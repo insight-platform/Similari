@@ -51,6 +51,10 @@ impl<const X: usize> KalmanState<X> {
         eprintln!("Mean={}", pretty_print!(self.mean.transpose()));
         eprintln!("Covariance={}", pretty_print!(self.covariance));
     }
+
+    pub fn mean(&self) -> &SVector<f32, X> {
+        &self.mean
+    }
 }
 
 impl<const X: usize> TryFrom<KalmanState<X>> for Universal2DBox {

@@ -1,6 +1,6 @@
 use crate::utils::kalman::kalman_2d_point::{Point2DKalmanFilter, DIM_2D_POINT_X2};
 use crate::utils::kalman::KalmanState;
-use nalgebra::Point2;
+use crate::utils::point_2d::Point2D;
 
 #[derive(Debug)]
 pub struct Vec2DKalmanFilter {
@@ -23,7 +23,7 @@ impl Vec2DKalmanFilter {
         }
     }
 
-    pub fn initiate(&self, points: &[Point2<f32>]) -> Vec<KalmanState<DIM_2D_POINT_X2>> {
+    pub fn initiate(&self, points: &[Point2D]) -> Vec<KalmanState<DIM_2D_POINT_X2>> {
         points.iter().map(|p| self.f.initiate(p)).collect()
     }
 
@@ -37,7 +37,7 @@ impl Vec2DKalmanFilter {
     pub fn update(
         &self,
         state: &[KalmanState<DIM_2D_POINT_X2>],
-        points: &[Point2<f32>],
+        points: &[Point2D],
     ) -> Vec<KalmanState<DIM_2D_POINT_X2>> {
         assert_eq!(
             state.len(),
@@ -51,11 +51,7 @@ impl Vec2DKalmanFilter {
             .collect()
     }
 
-    pub fn distance(
-        &self,
-        state: &[KalmanState<DIM_2D_POINT_X2>],
-        points: &[Point2<f32>],
-    ) -> Vec<f32> {
+    pub fn distance(&self, state: &[KalmanState<DIM_2D_POINT_X2>], points: &[Point2D]) -> Vec<f32> {
         assert_eq!(
             state.len(),
             points.len(),
@@ -79,7 +75,7 @@ impl Vec2DKalmanFilter {
 pub mod python {
     use crate::utils::kalman::kalman_2d_point::python::PyPoint2DKalmanFilterState;
     use crate::utils::kalman::kalman_2d_point_vec::Vec2DKalmanFilter;
-    use nalgebra::Point2;
+    use crate::utils::point_2d::Point2D;
     use pyo3::prelude::*;
 
     #[pyclass]
@@ -99,14 +95,9 @@ pub mod python {
         }
 
         #[pyo3(text_signature = "($self, points)")]
-        pub fn initiate(&self, points: Vec<(f32, f32)>) -> Vec<PyPoint2DKalmanFilterState> {
-            let args = points
-                .iter()
-                .map(|(x, y)| Point2::from([*x, *y]))
-                .collect::<Vec<_>>();
-
+        pub fn initiate(&self, points: Vec<Point2D>) -> Vec<PyPoint2DKalmanFilterState> {
             self.filter
-                .initiate(&args)
+                .initiate(&points)
                 .into_iter()
                 .map(PyPoint2DKalmanFilterState::new)
                 .collect()
@@ -129,15 +120,11 @@ pub mod python {
         pub fn update(
             &self,
             state: Vec<PyPoint2DKalmanFilterState>,
-            points: Vec<(f32, f32)>,
+            points: Vec<Point2D>,
         ) -> Vec<PyPoint2DKalmanFilterState> {
-            let point_args = points
-                .iter()
-                .map(|(x, y)| Point2::from([*x, *y]))
-                .collect::<Vec<_>>();
             let state_args = state.iter().map(|s| *s.inner()).collect::<Vec<_>>();
             self.filter
-                .update(&state_args, &point_args)
+                .update(&state_args, &points)
                 .into_iter()
                 .map(PyPoint2DKalmanFilterState::new)
                 .collect()
@@ -147,14 +134,10 @@ pub mod python {
         pub fn distance(
             &self,
             state: Vec<PyPoint2DKalmanFilterState>,
-            points: Vec<(f32, f32)>,
+            points: Vec<Point2D>,
         ) -> Vec<f32> {
-            let point_args = points
-                .iter()
-                .map(|(x, y)| Point2::from([*x, *y]))
-                .collect::<Vec<_>>();
             let state_args = state.iter().map(|s| *s.inner()).collect::<Vec<_>>();
-            self.filter.distance(&state_args, &point_args)
+            self.filter.distance(&state_args, &points)
         }
 
         #[staticmethod]
