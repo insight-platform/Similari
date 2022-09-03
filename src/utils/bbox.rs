@@ -246,6 +246,17 @@ impl Universal2DBox {
         let w = self.height * self.aspect;
         w * self.height
     }
+
+    pub fn lossy_ltwh(&self) -> BoundingBox {
+        let width = self.height * self.aspect;
+        BoundingBox {
+            left: self.xc - width / 2.0,
+            top: self.yc - self.height / 2.0,
+            width,
+            height: self.height,
+            confidence: self.confidence,
+        }
+    }
 }
 
 impl Universal2DBox {
@@ -539,7 +550,7 @@ impl Universal2DBox {
         if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
             < EPS
         {
-            BoundingBox::intersection(&l.try_into().unwrap(), &r.try_into().unwrap())
+            BoundingBox::intersection(&l.lossy_ltwh(), &r.lossy_ltwh())
         } else if Universal2DBox::too_far(l, r) {
             0.0
         } else {

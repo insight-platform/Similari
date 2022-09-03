@@ -1,10 +1,9 @@
 #![feature(test)]
 
 extern crate test;
-
-use nalgebra::Point2;
 use similari::examples::FeatGen2;
 use similari::utils::kalman::kalman_2d_point::Point2DKalmanFilter;
+use similari::utils::point_2d::Point2D;
 use test::Bencher;
 
 #[bench]
@@ -17,13 +16,13 @@ fn kalman_2d_point_100k(b: &mut Bencher) {
         let v = pt.next().unwrap().feature().as_ref().unwrap().clone();
         let n = v[0].as_array_ref();
 
-        let mut state = f.initiate(&Point2::from([n[0], n[1]]));
+        let mut state = f.initiate(&Point2D::new(n[0], n[1]));
         for _i in 0..N {
             let v = pt.next().unwrap().feature().as_ref().unwrap().clone();
             let n = v[0].as_array_ref();
             state = f.predict(&state);
 
-            let p = Point2::from([n[0], n[1]]);
+            let p = Point2D::new(n[0], n[1]);
             state = f.update(&state, &p);
         }
     });

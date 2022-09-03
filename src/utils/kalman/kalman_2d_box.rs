@@ -43,11 +43,13 @@ impl Universal2DBoxKalmanFilter {
         }
     }
 
+    #[inline]
     fn std_position(&self, k: f32, cnst: f32, p: f32) -> [f32; DIM_2D_BOX] {
         let pos_weight = k * self.std_position_weight * p;
         [pos_weight, pos_weight, pos_weight, cnst, pos_weight]
     }
 
+    #[inline]
     fn std_velocity(&self, k: f32, cnst: f32, p: f32) -> [f32; DIM_2D_BOX] {
         let vel_weight = k * self.std_velocity_weight * p;
         [vel_weight, vel_weight, vel_weight, cnst, vel_weight]

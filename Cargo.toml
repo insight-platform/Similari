@@ -39,11 +39,15 @@ wide = "0.7.4"
 
 [profile.dev]
 opt-level = 3
+incremental = true
 
 [profile.release]
 opt-level = 3
+lto = true
+incremental = true
 
 [profile.bench]
 opt-level = 3
-
+lto = true
+incremental = true
 

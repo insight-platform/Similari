@@ -39,11 +39,13 @@ impl Point2DKalmanFilter {
         }
     }
 
+    #[inline]
     fn std_position(&self, k: f32) -> [f32; DIM_2D_POINT] {
         let pos_weight = k * self.std_position_weight;
         [pos_weight, pos_weight]
     }
 
+    #[inline]
     fn std_velocity(&self, k: f32) -> [f32; DIM_2D_POINT] {
         let vel_weight = k * self.std_velocity_weight;
         [vel_weight, vel_weight]
