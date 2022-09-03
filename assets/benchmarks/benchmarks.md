@@ -6,24 +6,25 @@ Version: v0.22.5
 
 **Non-Maximum Suppression (non-oriented boxes)**. Benchmark for filtering out of bounding boxes without orientation. 
 
-| Objects |  Time (ns/iter) |     FPS |
-|---------|----------------:|--------:|
-| 10      |           1,586 |  632000 |
-| 100     |         148,906 |    6711 |
-| 500     |       4,082,791 |     250 |
-| 1000    |      13,773,713 |      72 |
+| Objects |          Time (ns/iter) |     FPS |
+|---------|------------------------:|--------:|
+| 10      |                     968 | 1000000 |
+| 100     |                 101,904 |    9803 |
+| 300     |               1,192,594 |     838 |
+| 500     |               3,110,681 |     321 |
+| 1000    |              10,978,617 |      90 |
 
 The benchmark is located at [benches/nms.rs](benches/nms.rs).
 
 **Non-Maximum Suppression (oriented boxes)**. Benchmark for filtering out of bounding boxes with angular orientation. 
 
-| Objects |   Time (ns/iter) |     FPS |
-|---------|-----------------:|--------:|
-| 10      |            2,169 |  461000 |
-| 100     |          139,204 |    7100 |
-| 300     |        1,752,410 |     570 |
-| 500     |        4,571,784 |     218 |
-| 1000    |       18,155,136 |      54 |
+| Objects | Time (ns/iter) |    FPS |
+|---------|---------------:|-------:|
+| 10      |          2,169 | 461000 |
+| 100     |        124,306 |   8045 |
+| 300     |      1,572,835 |    635 |
+| 500     |      4,321,719 |    231 |
+| 1000    |     14,887,268 |     67 |
 
 
 The benchmark is located at [benches/nms_oriented.rs](benches/nms_oriented.rs).
@@ -90,23 +91,23 @@ that separate the observed objects based on object distances. Every track holds 
 
 The benchmark is located at [benches/simple_visual_sort_tracker.rs](benches/simple_visual_sort_tracker.rs).
 
-| Objects |  Vector Len |  Time (ns/iter) |   FPS |
-|---------|------------:|----------------:|------:|
-| 10      |         128 |         356,237 |  2800 |
-| 10      |         256 |         404,416 |  2460 |
-| 10      |         512 |         447,903 |  2230 |
-| 10      |        1024 |         573,197 |  1740 |
-| 10      |        2048 |         767,031 |  1300 |
-| 50      |         128 |       1,923,861 |   519 |
-| 50      |         256 |       2,105,886 |   474 |
-| 50      |         512 |       2,249,694 |   444 |
-| 50      |        1024 |       2,958,547 |   337 |
-| 50      |        2048 |       4,563,691 |   218 |
-| 100     |         128 |       3,807,716 |   262 |
-| 100     |         256 |       4,717,401 |   211 |
-| 100     |         512 |       5,775,469 |   173 |
-| 100     |        1024 |       7,497,783 |   133 |
-| 100     |        2048 |      10,527,237 |    94 |
+| Objects |  Vector Len | Time (ns/iter) |  FPS |
+|---------|------------:|---------------:|-----:|
+| 10      |         128 |        214,740 | 4650 |
+| 10      |         256 |        253,723 | 3940 |
+| 10      |         512 |        305,891 | 3267 |
+| 10      |        1024 |        368,687 | 2710 |
+| 10      |        2048 |        488,885 | 2044 |
+| 50      |         128 |      1,064,779 |  938 |
+| 50      |         256 |      1,372,285 |  728 |
+| 50      |         512 |      1,654,183 |  604 |
+| 50      |        1024 |      2,203,557 |  453 |
+| 50      |        2048 |      3,194,354 |  312 |
+| 100     |         128 |      2,384,783 |  419 |
+| 100     |         256 |      2,795,945 |  357 |
+| 100     |         512 |      3,410,891 |  293 |
+| 100     |        1024 |      3,994,822 |  250 |
+| 100     |        2048 |      5,775,238 |  173 |
 
 **BatchSORT tracking (IoU)**. Benchmark for N simultaneously observed objects. The benchmark uses the heuristics that 
 separate the observed objects based on object distances.
@@ -117,7 +118,7 @@ The benchmark is located at [benches/batch_sort_iou_tracker.rs](benches/batch_so
 |---------|-----------------:|-----:|
 | 10      |          106,876 | 9300 |
 | 100     |        1,616,542 |  618 |
-| 500     |       20,454,230 |   48 |
+| 500     |       18,204,723 |   54 |
 
 **BatchSORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark uses heuristics 
 that separate the observed objects based on object distances.
@@ -128,5 +129,5 @@ The benchmark is located at [benches/batch_sort_maha_tracker.rs](benches/batch_s
 |---------|---------------:|-----:|
 | 10      |        114,592 | 8695 |
 | 100     |      1,533,445 |  649 |
-| 500     |     18,270,742 |   54 |
+| 500     |     17,905,566 |   55 |
 
