@@ -1,4 +1,4 @@
-FROM python:3.11-rc-bullseye as base
+FROM python:3.11-bullseye as base
 
 WORKDIR /opt
 COPY docker/common/install-basic-deps.sh .
