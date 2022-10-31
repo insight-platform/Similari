@@ -46,4 +46,5 @@ opt-level = 3
 [profile.bench]
 opt-level = 3
 
-
+[package.metadata.maturin]
+python-source = "python"
