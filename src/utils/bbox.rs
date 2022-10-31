@@ -536,11 +536,16 @@ impl Universal2DBox {
     }
 
     pub fn intersection(l: &Universal2DBox, r: &Universal2DBox) -> f64 {
-        if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
-            < EPS
-        {
-            BoundingBox::intersection(&l.try_into().unwrap(), &r.try_into().unwrap())
-        } else if Universal2DBox::too_far(l, r) {
+        // REMOVED DUE TO: Github #84
+        // need to implement better way to run simplified IoU
+        // now it runs in a general way
+        //
+        // if (normalize_angle(l.angle.unwrap_or(0.0)) - normalize_angle(r.angle.unwrap_or(0.0))).abs()
+        //     < EPS
+        // {
+        //     BoundingBox::intersection(&new_l.try_into().unwrap(), &new_r.try_into().unwrap())
+        // } else
+        if Universal2DBox::too_far(l, r) {
             0.0
         } else {
             let mut l = l.clone();
