@@ -176,10 +176,10 @@ impl Iterator for FeatGen2 {
     type Item = Observation<f32>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.x += self.gen.sample(&self.dist);
-        self.y += self.gen.sample(&self.dist);
+        self.x += self.gen.sample(self.dist);
+        self.y += self.gen.sample(self.dist);
         Some(Observation::new(
-            Some(self.gen.sample(&self.dist) + 0.7),
+            Some(self.gen.sample(self.dist) + 0.7),
             Some(vec2(self.x, self.y)),
         ))
     }
@@ -231,11 +231,11 @@ impl Iterator for BoxGen2 {
     type Item = BoundingBox;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.x += self.gen.sample(&self.dist_pos);
-        self.y += self.gen.sample(&self.dist_pos);
+        self.x += self.gen.sample(self.dist_pos);
+        self.y += self.gen.sample(self.dist_pos);
 
-        self.width += self.gen.sample(&self.dist_box);
-        self.height += self.gen.sample(&self.dist_box);
+        self.width += self.gen.sample(self.dist_box);
+        self.height += self.gen.sample(self.dist_box);
 
         if self.width < 1.0 {
             self.width = 1.0;
@@ -287,7 +287,7 @@ impl Iterator for FeatGen {
     fn next(&mut self) -> Option<Self::Item> {
         let v = (0..self.len)
             .into_iter()
-            .map(|_| self.x + self.gen.sample(&self.dist))
+            .map(|_| self.x + self.gen.sample(self.dist))
             .collect::<Vec<_>>();
         Some(Observation::<()>::new(None, Some(Feature::from_vec(v))))
     }

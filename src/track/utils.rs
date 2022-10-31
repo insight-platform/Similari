@@ -45,11 +45,7 @@ impl FromVec<Vec<f32>, Feature> for Feature {
 impl FromVec<&Vec<f32>, Feature> for Feature {
     fn from_vec(vec: &Vec<f32>) -> Feature {
         let mut feature = {
-            let one_more = if vec.len() % FEATURE_LANES_SIZE > 0 {
-                1
-            } else {
-                0
-            };
+            let one_more = usize::from(vec.len() % FEATURE_LANES_SIZE > 0);
             Feature::with_capacity(vec.len() / FEATURE_LANES_SIZE + one_more)
         };
 

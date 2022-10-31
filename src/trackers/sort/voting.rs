@@ -58,27 +58,21 @@ impl Voting<Universal2DBox> for SortVoting {
 
             let weight = (attribute_metric.unwrap_or(0.0) * F32_U64_MULT) as i64;
 
-            let row = tracks_r_index
-                .get(&from)
-                .map(|x| *x as usize)
-                .unwrap_or_else(|| {
-                    let index = candidates_index;
-                    candidates_index += 1;
+            let row = tracks_r_index.get(&from).copied().unwrap_or_else(|| {
+                let index = candidates_index;
+                candidates_index += 1;
 
-                    tracks_index[index] = from;
-                    tracks_r_index.insert(from, index);
-                    index
-                });
+                tracks_index[index] = from;
+                tracks_r_index.insert(from, index);
+                index
+            });
 
-            let col = tracks_r_index
-                .get(&to)
-                .map(|x| *x as usize)
-                .unwrap_or_else(|| {
-                    let index = tracks_index.len();
-                    tracks_index.push(to);
-                    tracks_r_index.insert(to, index);
-                    index
-                });
+            let col = tracks_r_index.get(&to).copied().unwrap_or_else(|| {
+                let index = tracks_index.len();
+                tracks_index.push(to);
+                tracks_r_index.insert(to, index);
+                index
+            });
 
             let v = cost_matrix.get_mut((row, col)).unwrap();
             *v = weight;
