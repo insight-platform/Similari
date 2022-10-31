@@ -1,4 +1,4 @@
-name: Rust 1.63
+name: Rust 1.64
 
 on:
   push:
@@ -16,6 +16,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: icepuma/rust-action@1.63.0
+    - uses: icepuma/rust-action@1.64.0
       with:
         args: cargo fmt -- --check && cargo clippy -- -Dwarnings && cargo test

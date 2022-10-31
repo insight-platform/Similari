@@ -90,4 +90,5 @@ fn bench_batch_sort(objects: usize, b: &mut Bencher) {
     for w in wasted {
         assert_eq!(w.get_attributes().track_length, count);
     }
+    eprintln!("Benchmark complete");
 }
