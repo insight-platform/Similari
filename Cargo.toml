@@ -33,6 +33,9 @@ geo = "0.22"
 version = "0.16"
 features = ["extension-module"]
 
+[build-dependencies]
+pyo3-build-config = "0.16"
+
 [dev-dependencies]
 wide = "0.7.4"
 
