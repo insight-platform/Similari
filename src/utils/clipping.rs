@@ -6,31 +6,31 @@ pub mod clipping_py;
 ///
 pub mod bbox_own_areas;
 
-use geo::{Coordinate, CoordsIter, LineString, Polygon};
+use geo::{Coord, CoordsIter, LineString, Polygon};
 
-fn is_inside(q: &Coordinate<f64>, p1: &Coordinate<f64>, p2: &Coordinate<f64>) -> bool {
+fn is_inside(q: &Coord<f64>, p1: &Coord<f64>, p2: &Coord<f64>) -> bool {
     let r = (p2.x - p1.x) * (q.y - p1.y) - (p2.y - p1.y) * (q.x - p1.x);
     r <= 0.0
 }
 
 fn compute_intersection(
-    cp1: &Coordinate<f64>,
-    cp2: &Coordinate<f64>,
-    s: &Coordinate<f64>,
-    e: &Coordinate<f64>,
-) -> Coordinate<f64> {
-    let dc = Coordinate {
+    cp1: &Coord<f64>,
+    cp2: &Coord<f64>,
+    s: &Coord<f64>,
+    e: &Coord<f64>,
+) -> Coord<f64> {
+    let dc = Coord {
         x: cp1.x - cp2.x,
         y: cp1.y - cp2.y,
     };
-    let dp = Coordinate {
+    let dp = Coord {
         x: s.x - e.x,
         y: s.y - e.y,
     };
     let n1 = cp1.x * cp2.y - cp1.y * cp2.x;
     let n2 = s.x * e.y - s.y * e.x;
     let n3 = 1.0 / (dc.x * dp.y - dc.y * dp.x);
-    Coordinate {
+    Coord {
         x: (n1 * dp.x - n2 * dc.x) * n3,
         y: (n1 * dp.y - n2 * dc.y) * n3,
     }

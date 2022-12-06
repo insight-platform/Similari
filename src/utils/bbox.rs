@@ -5,7 +5,7 @@ use crate::voting::topn::TopNVotingElt;
 use crate::voting::Voting;
 use crate::Errors::GenericBBoxConversionError;
 use crate::{Errors, EPS};
-use geo::{Area, Coordinate, LineString, Polygon};
+use geo::{Area, Coord, LineString, Polygon};
 use itertools::Itertools;
 use pyo3::exceptions::PyAttributeError;
 use pyo3::prelude::*;
@@ -345,19 +345,19 @@ impl From<&Universal2DBox> for Polygon<f64> {
 
         Polygon::new(
             LineString(vec![
-                Coordinate {
+                Coord {
                     x: x + r1x,
                     y: y + r1y,
                 },
-                Coordinate {
+                Coord {
                     x: x + r2x,
                     y: y + r2y,
                 },
-                Coordinate {
+                Coord {
                     x: x - r1x,
                     y: y - r1y,
                 },
-                Coordinate {
+                Coord {
                     x: x - r2x,
                     y: y - r2y,
                 },
