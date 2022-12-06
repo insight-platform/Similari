@@ -26,13 +26,16 @@ crossbeam = "0.8.1"
 rand = "0.8.5"
 log = "0.4.17"
 nalgebra = "0.31.0"
-pathfinding = "3.0.13"
+pathfinding = "3.0.14"
 geo = "0.23"
 rayon = "1.5.3"
 
 [dependencies.pyo3]
 version = "0.16"
 features = ["extension-module"]
+
+[build-dependencies]
+pyo3-build-config = "0.16"
 
 [dev-dependencies]
 wide = "0.7.4"
