@@ -63,11 +63,11 @@ impl PyVisualSortObservation {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
-        format!("{:#?}", self)
+        format!("{self:#?}")
     }
 }
 
@@ -98,10 +98,10 @@ impl PyVisualSortObservationSet {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
-        format!("{:#?}", self)
+        format!("{self:#?}")
     }
 }

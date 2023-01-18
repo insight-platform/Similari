@@ -7,10 +7,10 @@ repository = "https://github.com/insight-platform/Similari"
 readme = "README.md"
 keywords = ["machine-learning", "similarity", "tracking", "SORT", "DeepSORT"]
 categories = ["algorithms", "data-structures", "computer-vision", "science"]
-version = "0.23.0"
+version = "0.24.0"
 edition = "2021"
 license="Apache-2.0"
-rust-version = "1.65"
+rust-version = "1.66"
 
 [lib]
 crate-type = ["cdylib", "lib"]

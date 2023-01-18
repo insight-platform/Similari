@@ -296,7 +296,7 @@ mod track_tests {
             observation_bb_0.into()
         );
 
-        let predicted_state = f.predict(init_state);
+        let predicted_state = f.predict(&init_state);
         assert_eq!(
             BoundingBox::try_from(predicted_state).unwrap(),
             observation_bb_0
@@ -323,7 +323,7 @@ mod track_tests {
         assert_eq!(t1.get_attributes().predicted_boxes.len(), 2);
         assert_eq!(t1.get_attributes().observed_boxes.len(), 2);
 
-        let predicted_state = f.predict(f.update(predicted_state, observation_bb_1.into()));
+        let predicted_state = f.predict(&f.update(&predicted_state, observation_bb_1.into()));
         assert_eq!(
             t1.get_attributes().predicted_boxes[1],
             predicted_state.try_into().unwrap()
@@ -416,11 +416,11 @@ impl SortTrack {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
-        format!("{:#?}", self)
+        format!("{self:#?}")
     }
 }
 
@@ -430,11 +430,11 @@ impl PyWastedSortTrack {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
-        format!("{:#?}", self)
+        format!("{self:#?}")
     }
 }
 
@@ -452,11 +452,11 @@ impl VotingType {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
-        format!("{:#?}", self)
+        format!("{self:#?}")
     }
 }
 
@@ -492,11 +492,11 @@ impl PyPositionalMetricType {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
-        format!("{:#?}", self)
+        format!("{self:#?}")
     }
 }
 

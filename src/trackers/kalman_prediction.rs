@@ -10,12 +10,12 @@ pub trait TrackAttributesKalmanPrediction {
         let f = Universal2DBoxKalmanFilter::default();
 
         let state = if let Some(state) = self.get_state() {
-            f.update(state, observation_bbox.clone())
+            f.update(&state, observation_bbox.clone())
         } else {
             f.initiate(observation_bbox.clone())
         };
 
-        let prediction = f.predict(state);
+        let prediction = f.predict(&state);
         self.set_state(prediction);
         let mut res = Universal2DBox::try_from(prediction).unwrap();
         res.confidence = observation_bbox.confidence;

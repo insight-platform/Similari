@@ -13,7 +13,7 @@ Version: v0.22.5
 | 500     |       4,082,791 |     250 |
 | 1000    |      13,773,713 |      72 |
 
-The benchmark is located at [benches/nms.rs](benches/nms.rs).
+The benchmark is located at [/benches/nms.rs](/benches/nms.rs).
 
 **Non-Maximum Suppression (oriented boxes)**. Benchmark for filtering out of bounding boxes with angular orientation. 
 
@@ -26,12 +26,12 @@ The benchmark is located at [benches/nms.rs](benches/nms.rs).
 | 1000    |       18,155,136 |      54 |
 
 
-The benchmark is located at [benches/nms_oriented.rs](benches/nms_oriented.rs).
+The benchmark is located at [/benches/nms_oriented.rs](/benches/nms_oriented.rs).
 
 **SORT tracking (IoU)**. Benchmark for N simultaneously observed objects. The benchmark uses the heuristics that 
 separate the observed objects based on object distances.
 
-The benchmark is located at [benches/simple_sort_iou_tracker.rs](benches/simple_sort_iou_tracker.rs).
+The benchmark is located at [/benches/simple_sort_iou_tracker.rs](/benches/simple_sort_iou_tracker.rs).
 
 | Objects |   Time (ns/iter) |     FPS |
 |---------|-----------------:|--------:|
@@ -43,7 +43,7 @@ The benchmark is located at [benches/simple_sort_iou_tracker.rs](benches/simple_
 **Oriented SORT tracking (IoU)**. Benchmark for N simultaneously observed **oriented** objects. The benchmark uses 
 the heuristics that separate the observed objects based on object distances.
 
-The benchmark is located at [benches/simple_sort_iou_tracker_oriented.rs](benches/simple_sort_iou_tracker_oriented.rs).
+The benchmark is located at [/benches/simple_sort_iou_tracker_oriented.rs](/benches/simple_sort_iou_tracker_oriented.rs).
 
 | Objects |   Time (ns/iter) |  FPS |
 |---------|-----------------:|-----:|
@@ -54,7 +54,7 @@ The benchmark is located at [benches/simple_sort_iou_tracker_oriented.rs](benche
 **SORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark uses heuristics 
 that separate the observed objects based on object distances.
 
-The benchmark is located at [benches/simple_sort_maha_tracker.rs](benches/simple_sort_maha_tracker.rs).
+The benchmark is located at [/benches/simple_sort_maha_tracker.rs](/benches/simple_sort_maha_tracker.rs).
 
 | Objects | Time (ns/iter) |  FPS |
 |---------|---------------:|-----:|
@@ -65,7 +65,7 @@ The benchmark is located at [benches/simple_sort_maha_tracker.rs](benches/simple
 **Oriented SORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed **oriented** objects. The benchmark 
 uses the heuristics that separate the observed objects based on object distances.
 
-The benchmark is located at [benches/simple_sort_maha_tracker_oriented.rs](benches/simple_sort_maha_tracker_oriented.rs).
+The benchmark is located at [/benches/simple_sort_maha_tracker_oriented.rs](/benches/simple_sort_maha_tracker_oriented.rs).
 
 | Objects |  Time (ns/iter) |  FPS |
 |---------|----------------:|-----:|
@@ -77,7 +77,7 @@ The benchmark is located at [benches/simple_sort_maha_tracker_oriented.rs](bench
 heuristics that separate the observed objects based on object distances. The 3 last observations are used to select 
 winning track.
 
-The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs).
+The benchmark located at [/benches/feature_tracker.rs](/benches/feature_tracker.rs).
 
 | Objects |  Time (ns/iter) |   FPS |
 |---------|----------------:|------:|
@@ -88,7 +88,7 @@ The benchmark located at [benches/feature_tracker.rs](benches/feature_tracker.rs
 **Visual SORT (aka DeepSORT) tracking**. Benchmark for N simultaneously observed objects with feature vectors. The benchmark uses heuristics 
 that separate the observed objects based on object distances. Every track holds 3 feature vectors for comparison with candidats.
 
-The benchmark is located at [benches/simple_visual_sort_tracker.rs](benches/simple_visual_sort_tracker.rs).
+The benchmark is located at [/benches/simple_visual_sort_tracker.rs](/benches/simple_visual_sort_tracker.rs).
 
 | Objects |  Vector Len |  Time (ns/iter) |   FPS |
 |---------|------------:|----------------:|------:|
@@ -111,7 +111,7 @@ The benchmark is located at [benches/simple_visual_sort_tracker.rs](benches/simp
 **BatchSORT tracking (IoU)**. Benchmark for N simultaneously observed objects. The benchmark uses the heuristics that 
 separate the observed objects based on object distances.
 
-The benchmark is located at [benches/batch_sort_iou_tracker.rs](benches/batch_sort_iou_tracker.rs).
+The benchmark is located at [/benches/batch_sort_iou_tracker.rs](/benches/batch_sort_iou_tracker.rs).
 
 | Objects |   Time (ns/iter) |  FPS |
 |---------|-----------------:|-----:|
@@ -122,7 +122,7 @@ The benchmark is located at [benches/batch_sort_iou_tracker.rs](benches/batch_so
 **BatchSORT tracking (Mahalanobis)**. Benchmark for N simultaneously observed objects. The benchmark uses heuristics 
 that separate the observed objects based on object distances.
 
-The benchmark is located at [benches/batch_sort_maha_tracker.rs](benches/batch_sort_maha_tracker.rs).
+The benchmark is located at [/benches/batch_sort_maha_tracker.rs](/benches/batch_sort_maha_tracker.rs).
 
 | Objects | Time (ns/iter) |  FPS |
 |---------|---------------:|-----:|

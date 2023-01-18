@@ -35,7 +35,7 @@ impl BoundingBox {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
@@ -122,7 +122,7 @@ impl Universal2DBox {
     const __hash__: Option<Py<PyAny>> = None;
 
     fn __repr__(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 
     fn __str__(&self) -> String {
@@ -141,7 +141,7 @@ impl Universal2DBox {
         if let Ok(res) = r {
             Ok(res)
         } else {
-            Err(PyAttributeError::new_err(format!("{:?}", r)))
+            Err(PyAttributeError::new_err(format!("{r:?}")))
         }
     }
 
