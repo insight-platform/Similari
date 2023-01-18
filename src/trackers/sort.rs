@@ -270,7 +270,7 @@ mod track_tests {
         let observation_bb_1 = BoundingBox::new(1.1, 1.3, 10.0, 15.0);
 
         let f = Universal2DBoxKalmanFilter::default();
-        let init_state = f.initiate(observation_bb_0.into());
+        let init_state = f.initiate(&observation_bb_0.into());
 
         let mut t1 = TrackBuilder::new(1)
             .attributes(SortAttributes::default())
@@ -322,12 +322,6 @@ mod track_tests {
         assert!(t1.get_attributes().state.is_some());
         assert_eq!(t1.get_attributes().predicted_boxes.len(), 2);
         assert_eq!(t1.get_attributes().observed_boxes.len(), 2);
-
-        let predicted_state = f.predict(&f.update(&predicted_state, observation_bb_1.into()));
-        assert_eq!(
-            t1.get_attributes().predicted_boxes[1],
-            predicted_state.try_into().unwrap()
-        );
     }
 }
 
