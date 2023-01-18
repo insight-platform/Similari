@@ -9,15 +9,18 @@ pub trait TrackAttributesKalmanPrediction {
     fn make_prediction(&mut self, observation_bbox: &Universal2DBox) -> Universal2DBox {
         let f = Universal2DBoxKalmanFilter::default();
 
-        let state = if let Some(state) = self.get_state() {
-            f.update(&state, observation_bbox.clone())
+        let current_state = if let Some(state) = self.get_state() {
+            state
         } else {
-            f.initiate(observation_bbox.clone())
+            f.initiate(observation_bbox)
         };
 
-        let prediction = f.predict(&state);
-        self.set_state(prediction);
-        let mut res = Universal2DBox::try_from(prediction).unwrap();
+        let prediction = f.predict(&current_state);
+
+        let new_state = f.update(&prediction, observation_bbox);
+        self.set_state(new_state);
+
+        let mut res = Universal2DBox::try_from(new_state).unwrap();
         res.confidence = observation_bbox.confidence;
 
         res
