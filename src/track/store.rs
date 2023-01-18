@@ -291,7 +291,6 @@ where
                     let res = channel.send(Results::BakedStatus(
                         store
                             .values()
-                            .into_iter()
                             .filter(|x| x.lookup(&q))
                             .map(|x| (x.track_id, x.get_attributes().baked(&x.observations)))
                             .collect(),
@@ -319,7 +318,6 @@ where
     pub fn new(metric: M, default_attributes: TA, notifier: N, shards: usize) -> Self {
         let stores = Arc::new(
             (0..shards)
-                .into_iter()
                 .map(|_| Mutex::new(HashMap::default()))
                 .collect::<Vec<_>>(),
         );
@@ -334,7 +332,6 @@ where
             stores: my_stores,
             executors: {
                 (0..shards)
-                    .into_iter()
                     .map(|s| {
                         let (commands_sender, commands_receiver) = crossbeam::channel::unbounded();
                         let stores = stores.clone();

@@ -1,9 +1,9 @@
-FROM rust:1.65-bullseye as chef
+FROM rust:1.66-bullseye as chef
 
 RUN cargo install cargo-chef --locked
-RUN apt-get update && apt-get install -y python3 build-essential python3-dev python3-pip
-RUN /usr/bin/python3 -m pip install --upgrade pip
-RUN /usr/bin/python3 -m pip install --upgrade maturin~=0.13
+#RUN apt-get update && apt-get install -y python3 build-essential python3-dev python3-pip
+#RUN /usr/bin/python3 -m pip install --upgrade pip
+#RUN /usr/bin/python3 -m pip install --upgrade maturin~=0.13
 
 FROM chef AS planner
 WORKDIR /opt
@@ -19,8 +19,9 @@ COPY . .
 
 ENV RUSTFLAGS=" -C target-cpu=native -C opt-level=3"
 
-RUN maturin build --release --out dist
-RUN pip3 install dist/*.whl
+RUN cargo build --release
+#RUN maturin build --release --out dist
+#RUN pip3 install dist/*.whl
 
 
 

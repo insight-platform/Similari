@@ -83,7 +83,7 @@ impl Universal2DBoxKalmanFilter {
 
     /// Predicts the state from the last state
     ///
-    pub fn predict(&self, state: KalmanState<DIM_2D_BOX_X2>) -> KalmanState<DIM_2D_BOX_X2> {
+    pub fn predict(&self, state: &KalmanState<DIM_2D_BOX_X2>) -> KalmanState<DIM_2D_BOX_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
         let std_pos = self.std_position(1.0, 1e-2, mean[4]);
         let std_vel = self.std_velocity(1.0, 1e-5, mean[4]);
@@ -123,7 +123,7 @@ impl Universal2DBoxKalmanFilter {
     ///
     pub fn update(
         &self,
-        state: KalmanState<DIM_2D_BOX_X2>,
+        state: &KalmanState<DIM_2D_BOX_X2>,
         measurement: Universal2DBox,
     ) -> KalmanState<DIM_2D_BOX_X2> {
         let (mean, covariance) = (state.mean, state.covariance);
@@ -206,17 +206,17 @@ mod tests {
         let bbox = BoundingBox::new(-10.0, 2.0, 2.0, 5.0);
 
         let state = f.initiate(bbox.into());
-        let state = f.predict(state);
+        let state = f.predict(&state);
         let p = Universal2DBox::try_from(state).unwrap();
 
         let est_p = Universal2DBox::new(-9.0, 4.5, None, 0.4, 5.0);
         assert_eq!(p, est_p);
 
         let bbox = Universal2DBox::new(8.75, 52.35, None, 0.150_849_15, 100.1);
-        let state = f.update(state, bbox);
+        let state = f.update(&state, bbox);
         let est_p = Universal2DBox::new(10.070248, 55.90909, None, 0.3951147, 107.173546);
 
-        let state = f.predict(state);
+        let state = f.predict(&state);
         let p = Universal2DBox::try_from(state).unwrap();
         assert_eq!(p, est_p);
     }
@@ -233,9 +233,9 @@ mod tests {
         let new_bbox_2 = BoundingBox::new(-5.0, 1.5, 2.2, 5.0);
 
         let state = f.initiate(bbox.into());
-        let state = f.predict(state);
-        let state = f.update(state, upd_bbox.into());
-        let state = f.predict(state);
+        let state = f.predict(&state);
+        let state = f.update(&state, upd_bbox.into());
+        let state = f.predict(&state);
 
         let dist = f.distance(state, &new_bbox_1.into());
         let dist = Universal2DBoxKalmanFilter::calculate_cost(dist, false);
@@ -304,7 +304,7 @@ pub mod python {
             state: PyUniversal2DBoxKalmanFilterState,
         ) -> PyUniversal2DBoxKalmanFilterState {
             PyUniversal2DBoxKalmanFilterState {
-                state: self.filter.predict(state.state),
+                state: self.filter.predict(&state.state),
             }
         }
 
@@ -315,7 +315,7 @@ pub mod python {
             bbox: Universal2DBox,
         ) -> PyUniversal2DBoxKalmanFilterState {
             PyUniversal2DBoxKalmanFilterState {
-                state: self.filter.update(state.state, bbox),
+                state: self.filter.update(&state.state, bbox),
             }
         }
 

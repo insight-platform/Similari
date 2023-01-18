@@ -185,7 +185,6 @@ impl BatchVisualSort {
         let track_id = Arc::new(RwLock::new(0));
 
         let voting_threads = (0..voting_shards)
-            .into_iter()
             .map(|_e| {
                 let (tx, rx) = crossbeam::channel::unbounded();
                 let thread_store = store.clone();

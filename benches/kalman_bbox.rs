@@ -23,10 +23,10 @@ fn kalman_2d_box_100k(b: &mut Bencher) {
         for _i in 0..N {
             let v = pt.next().unwrap().feature().as_ref().unwrap().clone();
             let n = v[0].as_array_ref();
-            state = f.predict(state);
+            state = f.predict(&state);
 
             let bb = Universal2DBox::new(n[0], n[1], Some(0.0), 2.0, 5.0);
-            state = f.update(state, bb);
+            state = f.update(&state, bb);
         }
     });
 }

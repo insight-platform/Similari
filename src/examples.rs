@@ -286,7 +286,6 @@ impl Iterator for FeatGen {
 
     fn next(&mut self) -> Option<Self::Item> {
         let v = (0..self.len)
-            .into_iter()
             .map(|_| self.x + self.gen.sample(self.dist))
             .collect::<Vec<_>>();
         Some(Observation::<()>::new(None, Some(Feature::from_vec(v))))
