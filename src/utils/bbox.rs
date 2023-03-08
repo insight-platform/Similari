@@ -716,7 +716,7 @@ impl Voting<BoundingBox> for IOUTopNVoting {
             .map(|((q, w), c)| TopNVotingElt {
                 query_track: q,
                 winner_track: w,
-                votes: c,
+                weight: c as u128,
             })
             .collect::<Vec<_>>();
 
@@ -732,7 +732,7 @@ impl Voting<BoundingBox> for IOUTopNVoting {
         }
 
         for counts in results.values_mut() {
-            counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
+            counts.sort_by(|l, r| r.weight.partial_cmp(&l.weight).unwrap());
             counts.truncate(self.topn);
         }
 

@@ -177,6 +177,7 @@ impl VisualSort {
                 .write()
                 .unwrap()
                 .foreign_track_distances(tracks.clone(), 0, false);
+
         assert!(errs.all().is_empty());
         let voting = VisualVoting::new(
             match self.metric_opts.positional_kind {

@@ -109,6 +109,8 @@ mod python {
     #[pymodule]
     #[pyo3(name = "similari")]
     fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
+        let _ = env_logger::try_init();
+
         m.add_class::<BoundingBox>()?;
         m.add_class::<Universal2DBox>()?;
         m.add_class::<PyPolygon>()?;
