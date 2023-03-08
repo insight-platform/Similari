@@ -46,17 +46,17 @@ where
 
 /// Return type fot TopN voting engine
 ///
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq)]
 pub struct TopNVotingElt {
     pub query_track: u64,
     /// winning track
     pub winner_track: u64,
     /// number of votes it gathered
-    pub weight: u128,
+    pub weight: f64,
 }
 
 impl TopNVotingElt {
-    pub fn new(query_track: u64, winner_track: u64, weight: u128) -> Self {
+    pub fn new(query_track: u64, winner_track: u64, weight: f64) -> Self {
         Self {
             query_track,
             winner_track,
@@ -75,7 +75,7 @@ where
     where
         T: IntoIterator<Item = ObservationMetricOk<OA>>,
     {
-        let mut max_dist = -1.0;
+        let mut max_dist = -1.0_f32;
         let counts: Vec<_> = distances
             .into_iter()
             .filter(
@@ -106,15 +106,12 @@ where
             .into_iter()
             .filter(|(_, count)| count.len() >= self.min_votes)
             .map(|((q, w), c)| {
-                let votes = c
-                    .into_iter()
-                    .map(|d| ((max_dist - d) * 1000.0) as u128)
-                    .collect::<Vec<_>>();
+                let weight = c.into_iter().map(|d| (max_dist - d) as f64).sum();
 
                 TopNVotingElt {
                     query_track: q,
                     winner_track: w,
-                    weight: votes.iter().sum(),
+                    weight,
                 }
             })
             .collect::<Vec<_>>();
@@ -153,7 +150,7 @@ mod tests {
 
         assert_eq!(
             candidates,
-            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 0)])])
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 0.0)])])
         );
 
         let candidates = v.winners([
@@ -163,7 +160,7 @@ mod tests {
 
         assert_eq!(
             candidates,
-            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 100)])])
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 0.10000000894069672)])])
         );
 
         let candidates = v.winners([
@@ -173,7 +170,7 @@ mod tests {
 
         assert_eq!(
             candidates,
-            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 200)])])
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 0.20000000298023224)])])
         );
 
         let mut candidates = v.winners([
@@ -190,7 +187,7 @@ mod tests {
             candidates,
             HashMap::from([(
                 0,
-                vec![TopNVotingElt::new(0, 1, 0), TopNVotingElt::new(0, 2, 0)]
+                vec![TopNVotingElt::new(0, 1, 0.0), TopNVotingElt::new(0, 2, 0.0)]
             )])
         );
 
@@ -219,11 +216,11 @@ mod tests {
             HashMap::from([(
                 0,
                 vec![
-                    TopNVotingElt::new(0, 1, 580),
-                    TopNVotingElt::new(0, 2, 590),
-                    TopNVotingElt::new(0, 3, 580),
-                    TopNVotingElt::new(0, 4, 468),
-                    TopNVotingElt::new(0, 5, 459)
+                    TopNVotingElt::new(0, 1, 0.5800000131130219),
+                    TopNVotingElt::new(0, 2, 0.5900000333786011),
+                    TopNVotingElt::new(0, 3, 0.5800000131130219),
+                    TopNVotingElt::new(0, 4, 0.4699999690055847),
+                    TopNVotingElt::new(0, 5, 0.4599999785423279)
                 ]
             )])
         );
@@ -264,17 +261,17 @@ mod tests {
                 (
                     0,
                     vec![
-                        TopNVotingElt::new(0, 1, 580),
-                        TopNVotingElt::new(0, 2, 590),
-                        TopNVotingElt::new(0, 3, 580),
+                        TopNVotingElt::new(0, 1, 0.5800000131130219),
+                        TopNVotingElt::new(0, 2, 0.5900000333786011),
+                        TopNVotingElt::new(0, 3, 0.5800000131130219),
                     ]
                 ),
                 (
                     7,
                     vec![
-                        TopNVotingElt::new(7, 4, 468),
-                        TopNVotingElt::new(7, 5, 459),
-                        TopNVotingElt::new(7, 6, 250)
+                        TopNVotingElt::new(7, 4, 0.4699999690055847),
+                        TopNVotingElt::new(7, 5, 0.4599999785423279),
+                        TopNVotingElt::new(7, 6, 0.250)
                     ]
                 )
             ])

@@ -276,7 +276,6 @@ Take a look at samples in the repo:
 * [simple.rs](examples/simple.rs) - an idea of simple usage.
 * [track_merging.rs](examples/track_merging.rs) - an idea of intra-cam track merging.
 * [incremental_track_build.rs](examples/incremental_track_build.rs) - very simple feature-based tracker.
-* [iou_tracker.rs](examples/iou_tracker.rs) - very simple IoU tracker (without Kalman filter).
 * [simple_sort_iou_tracker.rs](examples/simple_sort_iou_tracker.rs) - SORT tracker (with Kalman filter, IoU).
 * [simple_sort_iou_tracker_oriented.rs](examples/simple_sort_iou_tracker_oriented.rs) - Oriented (rotated) SORT tracker 
   (with Kalman filter, IoU).
