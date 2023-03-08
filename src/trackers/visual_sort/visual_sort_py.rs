@@ -45,6 +45,7 @@ pub struct PyVisualSortObservation {
 #[pymethods]
 impl PyVisualSortObservation {
     #[new]
+    #[pyo3(signature = (feature, feature_quality, bounding_box, custom_object_id))]
     pub fn new(
         feature: Option<Vec<f32>>,
         feature_quality: Option<f32>,

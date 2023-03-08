@@ -42,37 +42,19 @@ from similari import nms, BoundingBox
 #[pyfunction]
 #[pyo3(
     name = "nms",
-    text_signature = "(detections, nms_threshold, score_threshold)"
+    signature = (detections, nms_threshold, score_threshold)
 )]
 pub fn nms_py(
     detections: Vec<(Universal2DBox, Option<f32>)>,
     nms_threshold: f32,
     score_threshold: Option<f32>,
 ) -> Vec<Universal2DBox> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    py.allow_threads(|| {
-        nms(&detections, nms_threshold, score_threshold)
-            .into_iter()
-            .cloned()
-            .collect()
+    Python::with_gil(|py| {
+        py.allow_threads(|| {
+            nms(&detections, nms_threshold, score_threshold)
+                .into_iter()
+                .cloned()
+                .collect()
+        })
     })
 }
-
-//
-// #[pyfunction]
-// #[pyo3(
-//     name = "parallel_nms",
-//     text_signature = "(detections, nms_threshold, score_threshold)"
-// )]
-// pub fn parallel_nms_py(
-//     detections: Vec<(Universal2DBox, Option<f32>)>,
-//     nms_threshold: f32,
-//     score_threshold: Option<f32>,
-// ) -> Vec<Universal2DBox> {
-//     parallel_nms(&detections, nms_threshold, score_threshold)
-//         .into_iter()
-//         .cloned()
-//         .collect()
-// }

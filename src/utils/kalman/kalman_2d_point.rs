@@ -251,12 +251,12 @@ pub mod python {
 
     #[pymethods]
     impl PyPoint2DKalmanFilterState {
-        #[pyo3(text_signature = "($self)")]
+        #[pyo3(signature = ())]
         pub fn x(&self) -> f32 {
             self.state.mean[0]
         }
 
-        #[pyo3(text_signature = "($self)")]
+        #[pyo3(signature = ())]
         pub fn y(&self) -> f32 {
             self.state.mean[1]
         }
@@ -265,28 +265,28 @@ pub mod python {
     #[pymethods]
     impl PyPoint2DKalmanFilter {
         #[new]
-        #[args(position_weight = "0.05", velocity_weight = "0.00625")]
+        #[pyo3(signature = (position_weight = 0.05, velocity_weight = 0.00625))]
         pub fn new(position_weight: f32, velocity_weight: f32) -> Self {
             Self {
                 filter: Point2DKalmanFilter::new(position_weight, velocity_weight),
             }
         }
 
-        #[pyo3(text_signature = "($self, x, y)")]
+        #[pyo3(signature = (x, y))]
         pub fn initiate(&self, x: f32, y: f32) -> PyPoint2DKalmanFilterState {
             PyPoint2DKalmanFilterState {
                 state: self.filter.initiate(&Point2::from([x, y])),
             }
         }
 
-        #[pyo3(text_signature = "($self, state)")]
+        #[pyo3(signature = (state))]
         pub fn predict(&self, state: PyPoint2DKalmanFilterState) -> PyPoint2DKalmanFilterState {
             PyPoint2DKalmanFilterState {
                 state: self.filter.predict(&state.state),
             }
         }
 
-        #[pyo3(text_signature = "($self, state, x, y)")]
+        #[pyo3(signature = (state, x, y))]
         pub fn update(
             &self,
             state: PyPoint2DKalmanFilterState,
@@ -298,13 +298,13 @@ pub mod python {
             }
         }
 
-        #[pyo3(text_signature = "($self, state, x, y)")]
+        #[pyo3(signature = (state, x, y))]
         pub fn distance(&self, state: PyPoint2DKalmanFilterState, x: f32, y: f32) -> f32 {
             self.filter.distance(&state.state, &Point2::from([x, y]))
         }
 
         #[staticmethod]
-        #[pyo3(text_signature = "(distance, inverted)")]
+        #[pyo3(signature = (distance, inverted))]
         pub fn calculate_cost(distance: f32, inverted: bool) -> f32 {
             Point2DKalmanFilter::calculate_cost(distance, inverted)
         }

@@ -94,7 +94,7 @@ pub struct Universal2DBox {
     pub aspect: f32,
     #[pyo3(get, set)]
     pub height: f32,
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub confidence: f32,
     _vertex_cache: Option<Polygon<f64>>,
 }
@@ -156,14 +156,14 @@ impl Universal2DBox {
 
     /// Sets the angle
     ///
-    #[pyo3(name = "rotate")]
+    #[pyo3(name = "rotate", signature = (angle))]
     pub fn rotate_py(&mut self, angle: f32) {
         self.angle = Some(angle)
     }
 
     /// Sets the angle
     ///
-    #[pyo3(name = "set_confidence")]
+    #[pyo3(name = "set_confidence", signature = (confidence))]
     pub fn set_confidence_py(&mut self, confidence: f32) {
         assert!(
             (0.0..=1.0).contains(&confidence),
@@ -175,6 +175,7 @@ impl Universal2DBox {
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
     ///
     #[new]
+    #[pyo3(signature = (xc, yc, angle, aspect, height))]
     pub fn new(xc: f32, yc: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
             xc,
@@ -190,6 +191,7 @@ impl Universal2DBox {
     /// Constructor. Creates new generic bbox and doesn't generate vertex cache
     ///
     #[staticmethod]
+    #[pyo3(signature = (xc, yc, angle, aspect, height, confidence))]
     pub fn new_with_confidence(
         xc: f32,
         yc: f32,

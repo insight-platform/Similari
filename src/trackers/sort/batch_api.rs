@@ -369,20 +369,21 @@ mod tests {
 #[pymethods]
 impl BatchSort {
     #[new]
-    #[args(
-        distance_shards = "4",
-        voting_shards = "4",
-        bbox_history = "1",
-        max_idle_epochs = "5",
-        spatio_temporal_constraints = "None",
-        min_confidence = "0.05"
-    )]
+    #[pyo3(signature = (
+        distance_shards = 4,
+        voting_shards = 4,
+        bbox_history = 1,
+        max_idle_epochs = 5,
+        method = None,
+        min_confidence = 0.05,
+        spatio_temporal_constraints = None,
+    ))]
     pub fn new_py(
         distance_shards: i64,
         voting_shards: i64,
         bbox_history: i64,
         max_idle_epochs: i64,
-        method: PyPositionalMetricType,
+        method: Option<PyPositionalMetricType>,
         min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
     ) -> Self {
@@ -395,13 +396,13 @@ impl BatchSort {
             max_idle_epochs
                 .try_into()
                 .expect("Positive number expected"),
-            method.0,
+            method.unwrap_or(PyPositionalMetricType::maha()).0,
             min_confidence,
             spatio_temporal_constraints,
         )
     }
 
-    #[pyo3(name = "skip_epochs", text_signature = "($self, n)")]
+    #[pyo3(name = "skip_epochs", signature = (n))]
     fn skip_epochs_py(&mut self, n: i64) {
         assert!(n > 0);
         self.skip_epochs(n.try_into().unwrap())
@@ -409,7 +410,7 @@ impl BatchSort {
 
     #[pyo3(
         name = "skip_epochs_for_scene",
-        text_signature = "($self, scene_id, n)"
+        signature = (scene_id, n)
     )]
     fn skip_epochs_for_scene_py(&mut self, scene_id: i64, n: i64) {
         assert!(n > 0 && scene_id >= 0);
@@ -418,25 +419,24 @@ impl BatchSort {
 
     /// Get the amount of stored tracks per shard
     ///
-    #[pyo3(name = "shard_stats", text_signature = "($self)")]
+    #[pyo3(name = "shard_stats", signature = ())]
     fn shard_stats_py(&self) -> Vec<i64> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        py.allow_threads(|| {
-            self.store
-                .read()
-                .unwrap()
-                .shard_stats()
-                .into_iter()
-                .map(|e| i64::try_from(e).unwrap())
-                .collect()
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                self.store
+                    .read()
+                    .unwrap()
+                    .shard_stats()
+                    .into_iter()
+                    .map(|e| i64::try_from(e).unwrap())
+                    .collect()
+            })
         })
     }
 
     /// Get the current epoch for `scene_id` == 0
     ///
-    #[pyo3(name = "current_epoch", text_signature = "($self)")]
+    #[pyo3(name = "current_epoch", signature = ())]
     fn current_epoch_py(&self) -> i64 {
         self.current_epoch_with_scene(0).try_into().unwrap()
     }
@@ -448,7 +448,7 @@ impl BatchSort {
     ///
     #[pyo3(
         name = "current_epoch_with_scene",
-        text_signature = "($self, scene_id)"
+        signature = (scene_id)
     )]
     fn current_epoch_with_scene_py(&self, scene_id: i64) -> isize {
         assert!(scene_id >= 0);
@@ -462,7 +462,7 @@ impl BatchSort {
     /// # Parameters
     /// * `bboxes` - bounding boxes received from a detector
     ///
-    #[pyo3(name = "predict", text_signature = "($self, batch)")]
+    #[pyo3(name = "predict", signature = (batch))]
     fn predict_py(&mut self, mut batch: PySortPredictionBatchRequest) -> PredictionBatchResult {
         self.predict(batch.batch);
         batch.result.take().unwrap()
@@ -470,34 +470,33 @@ impl BatchSort {
 
     /// Remove all the tracks with expired life
     ///
-    #[pyo3(name = "wasted", text_signature = "($self)")]
+    #[pyo3(name = "wasted", signature = ())]
     fn wasted_py(&mut self) -> Vec<PyWastedSortTrack> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        py.allow_threads(|| {
-            self.wasted()
-                .into_iter()
-                .map(PyWastedSortTrack::from)
-                .collect()
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                self.wasted()
+                    .into_iter()
+                    .map(PyWastedSortTrack::from)
+                    .collect()
+            })
         })
     }
 
     /// Clear all tracks with expired life
     ///
-    #[pyo3(name = "clear_wasted", text_signature = "($self)")]
+    #[pyo3(name = "clear_wasted", signature = ())]
     pub fn clear_wasted_py(&mut self) {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        py.allow_threads(|| self.clear_wasted());
+        Python::with_gil(|py| {
+            py.allow_threads(|| self.clear_wasted());
+        })
     }
 
     /// Get idle tracks with not expired life
     ///
-    #[pyo3(name = "idle_tracks", text_signature = "($self)")]
+    #[pyo3(name = "idle_tracks", signature = (scene_id))]
     pub fn idle_tracks_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
+        Python::with_gil(|py| {
+            py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
+        })
     }
 }
