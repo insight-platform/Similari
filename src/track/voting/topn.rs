@@ -46,21 +46,21 @@ where
 
 /// Return type fot TopN voting engine
 ///
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq)]
 pub struct TopNVotingElt {
     pub query_track: u64,
     /// winning track
     pub winner_track: u64,
     /// number of votes it gathered
-    pub votes: usize,
+    pub weight: f64,
 }
 
 impl TopNVotingElt {
-    pub fn new(query_track: u64, winner_track: u64, votes: usize) -> Self {
+    pub fn new(query_track: u64, winner_track: u64, weight: f64) -> Self {
         Self {
             query_track,
             winner_track,
-            votes,
+            weight,
         }
     }
 }
@@ -75,6 +75,7 @@ where
     where
         T: IntoIterator<Item = ObservationMetricOk<OA>>,
     {
+        let mut max_dist = -1.0_f32;
         let counts: Vec<_> = distances
             .into_iter()
             .filter(
@@ -84,7 +85,12 @@ where
                      attribute_metric: _f_attr_dist,
                      feature_distance: feat_dist,
                  }| match feat_dist {
-                    Some(e) => *e <= self.max_distance,
+                    Some(e) => {
+                        if max_dist < *e {
+                            max_dist = *e;
+                        }
+                        *e <= self.max_distance
+                    }
                     _ => false,
                 },
             )
@@ -92,17 +98,21 @@ where
                 |ObservationMetricOk {
                      from: src_track,
                      to: dest_track,
-                     attribute_metric: _f_attr_dist,
-                     feature_distance: _feat_dist,
-                 }| (src_track, dest_track),
+                     attribute_metric: _,
+                     feature_distance: dist,
+                 }| { ((src_track, dest_track), dist.unwrap()) },
             )
-            .counts()
+            .into_group_map()
             .into_iter()
-            .filter(|(_, count)| *count >= self.min_votes)
-            .map(|((q, w), c)| TopNVotingElt {
-                query_track: q,
-                winner_track: w,
-                votes: c,
+            .filter(|(_, count)| count.len() >= self.min_votes)
+            .map(|((q, w), c)| {
+                let weight = c.into_iter().map(|d| (max_dist - d) as f64).sum();
+
+                TopNVotingElt {
+                    query_track: q,
+                    winner_track: w,
+                    weight,
+                }
             })
             .collect::<Vec<_>>();
 
@@ -118,7 +128,7 @@ where
         }
 
         for counts in results.values_mut() {
-            counts.sort_by(|l, r| r.votes.partial_cmp(&l.votes).unwrap());
+            counts.sort_by(|l, r| r.weight.partial_cmp(&l.weight).unwrap());
             counts.truncate(self.topn);
         }
 
@@ -140,7 +150,7 @@ mod tests {
 
         assert_eq!(
             candidates,
-            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 1)])])
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 0.0)])])
         );
 
         let candidates = v.winners([
@@ -150,7 +160,7 @@ mod tests {
 
         assert_eq!(
             candidates,
-            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 2)])])
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 0.10000000894069672)])])
         );
 
         let candidates = v.winners([
@@ -160,7 +170,7 @@ mod tests {
 
         assert_eq!(
             candidates,
-            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 1)])])
+            HashMap::from([(0, vec![TopNVotingElt::new(0, 1, 0.20000000298023224)])])
         );
 
         let mut candidates = v.winners([
@@ -177,7 +187,7 @@ mod tests {
             candidates,
             HashMap::from([(
                 0,
-                vec![TopNVotingElt::new(0, 1, 1), TopNVotingElt::new(0, 2, 1)]
+                vec![TopNVotingElt::new(0, 1, 0.0), TopNVotingElt::new(0, 2, 0.0)]
             )])
         );
 
@@ -206,11 +216,11 @@ mod tests {
             HashMap::from([(
                 0,
                 vec![
-                    TopNVotingElt::new(0, 1, 2),
-                    TopNVotingElt::new(0, 2, 2),
-                    TopNVotingElt::new(0, 3, 2),
-                    TopNVotingElt::new(0, 4, 2),
-                    TopNVotingElt::new(0, 5, 2)
+                    TopNVotingElt::new(0, 1, 0.5800000131130219),
+                    TopNVotingElt::new(0, 2, 0.5900000333786011),
+                    TopNVotingElt::new(0, 3, 0.5800000131130219),
+                    TopNVotingElt::new(0, 4, 0.4699999690055847),
+                    TopNVotingElt::new(0, 5, 0.4599999785423279)
                 ]
             )])
         );
@@ -251,17 +261,17 @@ mod tests {
                 (
                     0,
                     vec![
-                        TopNVotingElt::new(0, 1, 2),
-                        TopNVotingElt::new(0, 2, 2),
-                        TopNVotingElt::new(0, 3, 2),
+                        TopNVotingElt::new(0, 1, 0.5800000131130219),
+                        TopNVotingElt::new(0, 2, 0.5900000333786011),
+                        TopNVotingElt::new(0, 3, 0.5800000131130219),
                     ]
                 ),
                 (
                     7,
                     vec![
-                        TopNVotingElt::new(7, 4, 2),
-                        TopNVotingElt::new(7, 5, 2),
-                        TopNVotingElt::new(7, 6, 1)
+                        TopNVotingElt::new(7, 4, 0.4699999690055847),
+                        TopNVotingElt::new(7, 5, 0.4599999785423279),
+                        TopNVotingElt::new(7, 6, 0.250)
                     ]
                 )
             ])

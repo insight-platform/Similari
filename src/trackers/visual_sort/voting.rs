@@ -6,6 +6,7 @@ use crate::utils::bbox::Universal2DBox;
 use crate::voting::topn::TopNVoting;
 use crate::voting::Voting;
 use itertools::Itertools;
+use log::debug;
 use std::collections::{HashMap, HashSet};
 
 pub struct VisualVoting {
@@ -53,10 +54,10 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
             self.max_allowed_feature_distance,
             self.min_winner_feature_votes,
         );
-
         let (distances, distances_clone) = distances.into_iter().tee();
 
         let feature_winners = topn_feature_voting.winners(distances);
+        debug!("TopN winners: {:#?}", &feature_winners);
 
         let mut excluded_tracks = HashSet::new();
         let mut feature_winners = feature_winners

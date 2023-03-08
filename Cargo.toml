@@ -7,7 +7,7 @@ repository = "https://github.com/insight-platform/Similari"
 readme = "README.md"
 keywords = ["machine-learning", "similarity", "tracking", "SORT", "DeepSORT"]
 categories = ["algorithms", "data-structures", "computer-vision", "science"]
-version = "0.24.1"
+version = "0.24.2"
 edition = "2021"
 license="Apache-2.0"
 rust-version = "1.66"
@@ -29,6 +29,7 @@ nalgebra = "0.31.0"
 pathfinding = "4.0.0"
 geo = "0.23"
 rayon = "1.5.3"
+env_logger = "0.10.0"
 
 [dependencies.pyo3]
 version = "0.16"

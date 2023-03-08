@@ -1,4 +1,4 @@
-name: Docker Rust 1.66
+name: Docker Rust 1.67
 
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
@@ -63,7 +63,7 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
-          file: docker/rust_1.66/Dockerfile
+          file: docker/rust_1.67/Dockerfile
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

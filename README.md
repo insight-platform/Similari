@@ -5,7 +5,7 @@
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
-[![Docker Rust 1.66](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_66.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_66.yml)
+[![Docker Rust 1.67](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_67.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_67.yml)
 [![Docker Python 3.8](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml)
 [![Docker Python 3.9](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_9.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_9.yml)
 [![Docker Python 3.10](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml)
@@ -176,13 +176,13 @@ performance and metrics.
 You can build the wheel in the Docker and if you want to install it in the host system, 
 copy the resulting package to the host system as demonstrated by the following examples.
 
-#### Rust 1.66 Base Image
+#### Rust 1.67 Base Image
 
 If you use other rust libraries you may find it beneficial to build with base Rust 
 container (and Python 3.8):  
 
 ```
-docker build -t similari_py -f docker/rust_1.66/Dockerfile .
+docker build -t similari_py -f docker/rust_1.67/Dockerfile .
 
 # optional: copy and install to host system
 docker run --rm -it -v $(pwd)/distfiles:/tmp similari_py cp -R /opt/dist /tmp
@@ -276,7 +276,6 @@ Take a look at samples in the repo:
 * [simple.rs](examples/simple.rs) - an idea of simple usage.
 * [track_merging.rs](examples/track_merging.rs) - an idea of intra-cam track merging.
 * [incremental_track_build.rs](examples/incremental_track_build.rs) - very simple feature-based tracker.
-* [iou_tracker.rs](examples/iou_tracker.rs) - very simple IoU tracker (without Kalman filter).
 * [simple_sort_iou_tracker.rs](examples/simple_sort_iou_tracker.rs) - SORT tracker (with Kalman filter, IoU).
 * [simple_sort_iou_tracker_oriented.rs](examples/simple_sort_iou_tracker_oriented.rs) - Oriented (rotated) SORT tracker 
   (with Kalman filter, IoU).
