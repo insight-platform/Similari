@@ -702,7 +702,7 @@ impl VisualSort {
         Self::new(shards.try_into().unwrap(), opts)
     }
 
-    #[pyo3(name = "skip_epochs", text_signature = "($self, n)")]
+    #[pyo3(name = "skip_epochs", signature = (n))]
     pub fn skip_epochs_py(&mut self, n: i64) {
         assert!(n > 0);
         self.skip_epochs(n.try_into().unwrap())
@@ -710,7 +710,7 @@ impl VisualSort {
 
     #[pyo3(
         name = "skip_epochs_for_scene",
-        text_signature = "($self, scene_id, n)"
+        signature = (scene_id, n)
     )]
     pub fn skip_epochs_for_scene_py(&mut self, scene_id: i64, n: i64) {
         assert!(n > 0 && scene_id >= 0);
@@ -719,22 +719,21 @@ impl VisualSort {
 
     /// Get the amount of stored tracks per shard
     ///
-    #[pyo3(name = "shard_stats", text_signature = "($self)")]
+    #[pyo3(name = "shard_stats", signature = ())]
     pub fn shard_stats_py(&self) -> Vec<i64> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        py.allow_threads(|| {
-            self.active_shard_stats()
-                .into_iter()
-                .map(|e| i64::try_from(e).unwrap())
-                .collect()
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                self.active_shard_stats()
+                    .into_iter()
+                    .map(|e| i64::try_from(e).unwrap())
+                    .collect()
+            })
         })
     }
 
     /// Get the current epoch for `scene_id` == 0
     ///
-    #[pyo3(name = "current_epoch", text_signature = "($self)")]
+    #[pyo3(name = "current_epoch", signature = ())]
     pub fn current_epoch_py(&self) -> i64 {
         self.current_epoch_with_scene(0).try_into().unwrap()
     }
@@ -746,7 +745,7 @@ impl VisualSort {
     ///
     #[pyo3(
         name = "current_epoch_with_scene",
-        text_signature = "($self, scene_id)"
+        signature = (scene_id)
     )]
     pub fn current_epoch_with_scene_py(&self, scene_id: i64) -> isize {
         assert!(scene_id >= 0);
@@ -760,7 +759,7 @@ impl VisualSort {
     /// # Parameters
     /// * `bboxes` - bounding boxes received from a detector
     ///
-    #[pyo3(name = "predict", text_signature = "($self, observation_set)")]
+    #[pyo3(name = "predict", signature = (observation_set))]
     pub fn predict_py(&mut self, observation_set: &PyVisualSortObservationSet) -> Vec<SortTrack> {
         self.predict_with_scene_py(0, observation_set)
     }
@@ -773,7 +772,7 @@ impl VisualSort {
     ///
     #[pyo3(
         name = "predict_with_scene",
-        text_signature = "($self, scene_id, observations)"
+        signature = (scene_id, observation_set)
     )]
     pub fn predict_with_scene_py(
         &mut self,
@@ -781,8 +780,6 @@ impl VisualSort {
         observation_set: &PyVisualSortObservationSet,
     ) -> Vec<SortTrack> {
         assert!(scene_id >= 0);
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let observations = observation_set
             .inner
             .iter()
@@ -795,46 +792,48 @@ impl VisualSort {
                 )
             })
             .collect::<Vec<_>>();
-        py.allow_threads(|| self.predict_with_scene(scene_id.try_into().unwrap(), &observations))
+
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                self.predict_with_scene(scene_id.try_into().unwrap(), &observations)
+            })
+        })
     }
 
     /// Remove all the tracks with expired life
     ///
-    #[pyo3(name = "wasted", text_signature = "($self)")]
+    #[pyo3(name = "wasted", signature = ())]
     pub fn wasted_py(&mut self) -> Vec<PyWastedVisualSortTrack> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        py.allow_threads(|| {
-            self.wasted()
-                .into_iter()
-                .map(PyWastedVisualSortTrack::from)
-                .collect()
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                self.wasted()
+                    .into_iter()
+                    .map(PyWastedVisualSortTrack::from)
+                    .collect()
+            })
         })
     }
 
     /// Clear all tracks with expired life
     ///
-    #[pyo3(name = "clear_wasted", text_signature = "($self)")]
+    #[pyo3(name = "clear_wasted", signature = ())]
     pub fn clear_wasted_py(&mut self) {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        py.allow_threads(|| self.clear_wasted());
+        Python::with_gil(|py| py.allow_threads(|| self.clear_wasted()));
     }
 
     /// Get idle tracks with not expired life
     ///
-    #[pyo3(name = "idle_tracks", text_signature = "($self)")]
+    #[pyo3(name = "idle_tracks", signature = ())]
     pub fn idle_tracks_py(&mut self) -> Vec<SortTrack> {
         self.idle_tracks_with_scene_py(0)
     }
 
     /// Get idle tracks with not expired life
     ///
-    #[pyo3(name = "idle_tracks_with_scene", text_signature = "($self)")]
+    #[pyo3(name = "idle_tracks_with_scene", signature = (scene_id))]
     pub fn idle_tracks_with_scene_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
+        Python::with_gil(|py| {
+            py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
+        })
     }
 }
