@@ -3,7 +3,7 @@ use crate::trackers::sort::voting::SortVoting;
 use crate::trackers::sort::VotingType;
 use crate::trackers::visual_sort::observation_attributes::VisualObservationAttributes;
 use crate::utils::bbox::Universal2DBox;
-use crate::voting::topn::TopNVoting;
+use crate::voting::best::BestFitVoting;
 use crate::voting::Voting;
 use itertools::Itertools;
 use log::debug;
@@ -49,11 +49,11 @@ impl Voting<VisualObservationAttributes> for VisualVoting {
     where
         T: IntoIterator<Item = ObservationMetricOk<VisualObservationAttributes>>,
     {
-        let topn_feature_voting: TopNVoting<VisualObservationAttributes> = TopNVoting::new(
-            1,
+        let topn_feature_voting: BestFitVoting<VisualObservationAttributes> = BestFitVoting::new(
             self.max_allowed_feature_distance,
             self.min_winner_feature_votes,
         );
+
         let (distances, distances_clone) = distances.into_iter().tee();
 
         let feature_winners = topn_feature_voting.winners(distances);

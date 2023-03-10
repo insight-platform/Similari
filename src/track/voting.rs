@@ -1,3 +1,4 @@
+pub mod best;
 pub mod topn;
 
 use crate::track::{ObservationAttributes, ObservationMetricOk};
