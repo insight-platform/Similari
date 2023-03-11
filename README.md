@@ -57,8 +57,8 @@ feature vectors.
 
 ## Applicability Notes
 
-Although Similari allows building various tracking and similarity engines, there are competitive tools that sometime 
-(or often) may be more desirable. The section will explain where it is applicable and what alternatives exist.
+Although Similari allows building various tracking and similarity engines, there are competitive tools that sometimes 
+may fit better. The section will explain where it is applicable and what alternatives exist.
 
 Similari fits best for the tracking tasks where objects are described by multiple observations for a certain feature 
 class, not a single feature vector. Also, their behavior is dynamic - you remove them from the index or modify them as 
