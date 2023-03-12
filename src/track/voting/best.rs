@@ -31,7 +31,6 @@ where
     /// Constructs new engine
     ///
     /// # Arguments
-    /// * `topn` - top winners
     /// * `max_distance` - max distance permitted to participate
     /// * `min_votes` - minimal amount of votes required the track to participate
     ///
