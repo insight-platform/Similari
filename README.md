@@ -11,7 +11,7 @@
 [![Docker Python 3.10](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_10.yml)
 [![Docker Python 3.11](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_11.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_11.yml)
 
-Similari is a Rust framework with Python bindings that helps build sophisticated tracking systems. With Similari one 
+Similari is a Rust framework with Python bindings that helps building sophisticated tracking systems. With Similari one 
 can develop highly efficient parallelized [SORT](https://github.com/abewley/sort), [DeepSORT](https://github.com/nwojke/deep_sort), and 
 other sophisticated single observer (e.g. Cam) or multi-observer tracking engines.
 
