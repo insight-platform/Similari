@@ -19,7 +19,7 @@ other sophisticated single observer (e.g. Cam) or multi-observer tracking engine
 
 The primary purpose of Similari is to provide means to build sophisticated in-memory multiple object tracking engines.
 
-The framework helps to build various kinds of tracking and similarity search engines - the simplest one that holds 
+The framework helps building various kinds of tracking and similarity search engines - the simplest one that holds 
 vector features and allows comparing new vectors against the ones kept in the database. More sophisticated engines 
 operate over tracks - a series of observations for the same feature collected during the lifecycle. Such systems are 
 often used in video processing or other systems where the observer receives fuzzy or changing observation results.
