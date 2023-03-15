@@ -16,6 +16,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: icepuma/rust-action@1.67.1
+    - uses: insight-platform/rust-action@1.67.1
       with:
         args: cargo fmt -- --check && cargo clippy -- -Dwarnings && cargo test
