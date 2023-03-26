@@ -271,7 +271,8 @@ Collected articles about how the Similari can be used to solve specific problems
 * Re-ID object tracker [example](https://medium.com/@kudryavtsev_ia/feature-based-object-tracker-with-similari-and-rust-25d72d01d2e2);
 * SORT object tracker [example](https://medium.com/p/9a1dd18c259c);
 * Python SORT object tracker [example](https://medium.com/@kudryavtsev_ia/high-performance-python-sort-tracker-225c2b507562);
-* Python Rotated SORT object tracker [example](https://medium.com/inside-in-sight/rotated-objects-tracking-with-angle-aware-detection-model-and-sort-tracker-42a96429898d).
+* Python Rotated SORT object tracker [example](https://medium.com/inside-in-sight/rotated-objects-tracking-with-angle-aware-detection-model-and-sort-tracker-42a96429898d);
+* [Why You Need a High-Performance Tracking Systems For Multiple Object Tracking](https://medium.com/inside-in-sight/why-you-need-a-high-performance-tracking-systems-for-multiple-object-tracking-d1ffd56ca8b7?source=friends_link&sk=7685979b41a112709eab8386c8e56e08).
 
 ## Usage Examples
 
