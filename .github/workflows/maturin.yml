@@ -3,7 +3,7 @@
 #
 #    maturin generate-ci github -o .github/maturin.yml
 #
-name: CI
+name: Maturin CI
 
 on:
   push:

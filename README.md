@@ -173,6 +173,18 @@ Python API classes and functions can be explored in the python
 There is also [MOTChallenge](python/motchallenge) evaluation kit provided which you can use to simply evaluate trackers 
 performance and metrics.
 
+### Install Python API from PyPi
+
+Platforms:
+
+* Linux: X86_64, ARM64, ARMv7;
+* Windows: X86_64;
+* MacOS: X86_64, ARM64.
+
+```
+pip3 install similari
+```
+
 ### Build Python API in Docker
 
 You can build the wheel in the Docker and if you want to install it in the host system, 
