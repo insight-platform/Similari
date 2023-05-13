@@ -3,7 +3,7 @@ requires = ["maturin>=0.14,<0.16"]
 build-backend = "maturin"
 
 [project]
-name = "similari-py"
+name = "similari-trackers-rs"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",

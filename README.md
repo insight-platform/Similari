@@ -175,6 +175,8 @@ performance and metrics.
 
 ### Install Python API from PyPi
 
+*Please, keep in mind that the  PyPi package is built to conform broad range of platforms, so it may not be as fast as the one you build locally for your platform (see the following sections).* 
+
 Platforms:
 
 * Linux: X86_64, ARM64, ARMv7;
@@ -182,7 +184,7 @@ Platforms:
 * MacOS: X86_64, ARM64.
 
 ```
-pip3 install similari
+pip3 install similari-trackers-rs
 ```
 
 ### Build Python API in Docker
