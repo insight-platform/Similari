@@ -4,17 +4,17 @@ Newer versions (renamed):
 
 [![Rust](https://img.shields.io/crates/v/similari-trackers-rs.svg)](https://img.shields.io/crates/v/similari-trackers-rs.svg)
 [![Rust](https://img.shields.io/crates/d/similari-trackers-rs.svg)](https://crates.io/crates/similari-trackers-rs)
+[![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
 Older versions:
 
 [![Rust](https://img.shields.io/crates/v/similari.svg)](https://img.shields.io/crates/v/similari.svg)
 [![Rust](https://img.shields.io/crates/d/similari.svg)](https://crates.io/crates/similari)
+[![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
 Build status:
 
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
-[![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
-
 [![Docker Rust 1.67](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_67.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-rust-1_67.yml)
 [![Docker Python 3.8](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_8.yml)
 [![Docker Python 3.9](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_9.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/docker-maturin-python-3_9.yml)
