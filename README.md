@@ -208,10 +208,10 @@ If you use other rust libraries you may find it beneficial to build with base Ru
 container (and Python 3.8):  
 
 ```
-docker build -t similari_py -f docker/rust_1.67/Dockerfile .
+docker build -t similari-trackers-rs -f docker/rust_1.67/Dockerfile .
 
 # optional: copy and install to host system
-docker run --rm -it -v $(pwd)/distfiles:/tmp similari_py cp -R /opt/dist /tmp
+docker run --rm -it -v $(pwd)/distfiles:/tmp similari-trackers-rs cp -R /opt/dist /tmp
 pip3 install --force-reinstall distfiles/dist/*.whl
 ```
 
@@ -220,10 +220,10 @@ pip3 install --force-reinstall distfiles/dist/*.whl
 Python 3.8 is still a very frequently used. Here is how to build Similari with it:
 
 ```
-docker build -t similari_py -f docker/python_3.8/Dockerfile .
+docker build -t similari-trackers-rs -f docker/python_3.8/Dockerfile .
 
 # optional: copy and install to host system
-docker run --rm -it -v $(pwd)/distfiles:/tmp similari_py cp -R /opt/dist /tmp
+docker run --rm -it -v $(pwd)/distfiles:/tmp similari-trackers-rs cp -R /opt/dist /tmp
 pip3 install --force-reinstall distfiles/dist/*.whl
 ```
 
@@ -232,17 +232,17 @@ pip3 install --force-reinstall distfiles/dist/*.whl
 If you use the most recent Python environment, you can build with base Python container:
 
 ```
-docker build -t similari_py -f docker/python_3.10/Dockerfile .
+docker build -t similari-trackers-rs -f docker/python_3.10/Dockerfile .
 
 # optional: copy and install to host system
-docker run --rm -it -v $(pwd)/distfiles:/tmp similari_py cp -R /opt/dist /tmp
+docker run --rm -it -v $(pwd)/distfiles:/tmp similari-trackers-rs cp -R /opt/dist /tmp
 pip3 install --force-reinstall distfiles/dist/*.whl
 ```
 
 **NOTE**: If you are getting the `pip3` error like:
 
 ```
-ERROR: similari_py-0.22.5-cp38-cp38-manylinux_2_28_x86_64.whl is not a supported wheel on this platform.
+ERROR: similari-trackers-rs-0.26.4-cp38-cp38-manylinux_2_28_x86_64.whl is not a supported wheel on this platform.
 ```
 
 It means that the Python version in the host system doesn't match to the one that is in the image used
@@ -266,7 +266,7 @@ rustup update
 
 3. Install Maturin:
 ```
-pip3 install --upgrade maturin~=0.13
+pip3 install --upgrade maturin~=0.15
 ```
 
 4. **Not in VENV**. Build the python module: 
