@@ -1,5 +1,5 @@
 [package]
-name = "similari"
+name = "similari-trackers-rs"
 authors = ["Ivan Kudriavtsev <ivan.a.kudryavtsev@gmail.com>"]
 description = "Machine learning framework for building object trackers and similarity search engines"
 homepage = "https://github.com/insight-platform/Similari"
@@ -7,13 +7,14 @@ repository = "https://github.com/insight-platform/Similari"
 readme = "README.md"
 keywords = ["machine-learning", "similarity", "tracking", "SORT", "DeepSORT"]
 categories = ["algorithms", "data-structures", "computer-vision", "science"]
-version = "0.26.2"
+version = "0.26.3"
 edition = "2021"
 license="Apache-2.0"
 rust-version = "1.66"
 
 [lib]
 crate-type = ["cdylib", "lib"]
+name = "similari"
 
 [dependencies]
 itertools = "0.10"

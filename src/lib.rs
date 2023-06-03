@@ -106,6 +106,11 @@ mod python {
     use crate::utils::nms::nms_py::nms_py;
     use pyo3::prelude::*;
 
+    #[pyfunction]
+    pub fn version() -> String {
+        env!("CARGO_PKG_VERSION").to_string()
+    }
+
     #[pymodule]
     #[pyo3(name = "similari")]
     fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -146,6 +151,7 @@ mod python {
         m.add_class::<PyVisualSortPredictionBatchRequest>()?;
         m.add_class::<BatchVisualSort>()?;
 
+        m.add_function(wrap_pyfunction!(version, m)?)?;
         m.add_function(wrap_pyfunction!(nms_py, m)?)?;
         m.add_function(wrap_pyfunction!(sutherland_hodgman_clip_py, m)?)?;
         m.add_function(wrap_pyfunction!(intersection_area_py, m)?)?;
