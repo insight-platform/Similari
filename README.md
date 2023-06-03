@@ -1,9 +1,17 @@
 # Similari
 
-[![Rust](https://img.shields.io/crates/d/similari-trackers-rs.svg)](https://crates.io/crates/similari-trackers-rs)
-[![Rust](https://img.shields.io/crates/d/similari.svg)](https://crates.io/crates/similari)
+Newer versions (renamed):
+
 [![Rust](https://img.shields.io/crates/v/similari-trackers-rs.svg)](https://img.shields.io/crates/v/similari-trackers-rs.svg)
+[![Rust](https://img.shields.io/crates/d/similari-trackers-rs.svg)](https://crates.io/crates/similari-trackers-rs)
+
+Older versions:
+
 [![Rust](https://img.shields.io/crates/v/similari.svg)](https://img.shields.io/crates/v/similari.svg)
+[![Rust](https://img.shields.io/crates/d/similari.svg)](https://crates.io/crates/similari)
+
+Build status:
+
 [![Rust](https://github.com/insight-platform/Similari/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/insight-platform/Similari/actions/workflows/rust.yml)
 [![Rust](https://img.shields.io/github/license/insight-platform/Similari.svg)](https://img.shields.io/github/license/insight-platform/Similari.svg)
 
