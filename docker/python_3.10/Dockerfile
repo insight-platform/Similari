@@ -22,6 +22,6 @@ COPY . .
 
 ENV RUSTFLAGS=" -C target-cpu=native -C opt-level=3"
 
-RUN maturin build --release --out dist --find-interpreter
+RUN maturin build --release --out dist
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install dist/*.whl
