@@ -1,3 +1,4 @@
+#[cfg(feature = "python")]
 pub mod nms_py;
 
 use crate::utils::bbox::Universal2DBox;

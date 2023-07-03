@@ -1,7 +1,7 @@
 use crate::prelude::SortTrack;
 use crossbeam::channel::{Receiver, Sender};
 use log::debug;
-use pyo3::prelude::*;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -15,22 +15,21 @@ pub struct PredictionBatchRequest<T> {
     batch_size: Arc<Mutex<usize>>,
 }
 
-#[pyclass]
 #[derive(Clone, Debug)]
 pub struct PredictionBatchResult {
     receiver: Receiver<SceneTracks>,
     batch_size: Arc<Mutex<usize>>,
 }
 
-#[pymethods]
 impl PredictionBatchResult {
     pub fn ready(&self) -> bool {
         !self.receiver.is_empty()
     }
 
-    #[pyo3(name = "get", signature = ())]
-    fn get_py(&self) -> SceneTracks {
-        Python::with_gil(|py| py.allow_threads(|| self.get()))
+    pub fn get(&self) -> SceneTracks {
+        self.receiver
+            .recv()
+            .expect("Receiver must always receive batch computation result")
     }
 
     pub fn batch_size(&self) -> usize {
@@ -38,11 +37,34 @@ impl PredictionBatchResult {
     }
 }
 
-impl PredictionBatchResult {
-    pub fn get(&self) -> SceneTracks {
-        self.receiver
-            .recv()
-            .expect("Receiver must always receive batch computation result")
+#[cfg(feature = "python")]
+pub mod python {
+    use crate::trackers::sort::python::PySortTrack;
+
+    use super::PredictionBatchResult;
+    use pyo3::prelude::*;
+
+    pub type PySceneTracks = (u64, Vec<PySortTrack>);
+
+    #[pyclass]
+    #[derive(Clone, Debug)]
+    #[pyo3(name = "PredictionBatchResult")]
+    pub struct PyPredictionBatchResult(pub(crate) PredictionBatchResult);
+
+    #[pymethods]
+    impl PyPredictionBatchResult {
+        pub fn ready(&self) -> bool {
+            self.0.ready()
+        }
+
+        #[pyo3(signature = ())]
+        fn get(&self) -> PySceneTracks {
+            Python::with_gil(|py| py.allow_threads(|| unsafe { std::mem::transmute(self.0.get()) }))
+        }
+
+        pub fn batch_size(&self) -> usize {
+            self.0.batch_size()
+        }
     }
 }
 

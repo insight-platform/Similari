@@ -86,12 +86,15 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
         let observation_bbox = observation.attr().as_ref().unwrap();
         features.clear();
 
-        let predicted_bbox = attrs.make_prediction(observation_bbox);
+        let mut predicted_bbox = attrs.make_prediction(observation_bbox);
         attrs.update_history(observation_bbox, &predicted_bbox);
 
         *observation.attr_mut() = Some(match self.method {
             PositionalMetricType::Mahalanobis => predicted_bbox,
-            PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
+            PositionalMetricType::IoU(_) => {
+                predicted_bbox.gen_vertices();
+                predicted_bbox
+            }
         });
 
         features.push(observation);

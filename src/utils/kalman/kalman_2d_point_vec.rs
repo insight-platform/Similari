@@ -76,6 +76,7 @@ impl Vec2DKalmanFilter {
     }
 }
 
+#[cfg(feature = "python")]
 pub mod python {
     use crate::utils::kalman::kalman_2d_point::python::PyPoint2DKalmanFilterState;
     use crate::utils::kalman::kalman_2d_point_vec::Vec2DKalmanFilter;
