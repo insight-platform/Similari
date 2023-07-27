@@ -134,8 +134,7 @@ mod tests {
         request.add(0, Universal2DBox::new(0.0, 0.0, Some(0.5), 1.0, 5.0));
         request.add(0, Universal2DBox::new(5.0, 5.0, Some(0.0), 1.5, 10.0));
         request.add(1, Universal2DBox::new(0.0, 0.0, Some(1.0), 0.7, 5.1));
-        let batch = request.get_batch();
-        drop(batch);
+        let _batch = request.get_batch();
         assert_eq!(result.batch_size(), 2);
 
         assert!(request.send((0, vec![])));

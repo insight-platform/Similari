@@ -176,7 +176,7 @@ impl Universal2DBox {
     }
 
     #[inline]
-    pub fn gen_vertices(&mut self) -> &mut Self {
+    pub fn gen_vertices(&mut self) -> &Self {
         if self.angle.is_some() {
             self._vertex_cache = Some(self.get_vertices());
         }

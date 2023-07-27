@@ -42,6 +42,7 @@ def get_opts():
 tracker = VisualSort(shards=1, opts=get_opts())
 
 
+assert False
 
 # let's say frame_objs is a list of objs detected in a frame
 for frame_objs in frames:
