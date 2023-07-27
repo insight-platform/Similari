@@ -1,3 +1,4 @@
+use crate::utils::bbox::python::PyUniversal2DBox;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::nms::nms;
 use pyo3::prelude::*;
@@ -45,15 +46,19 @@ from similari import nms, BoundingBox
     signature = (detections, nms_threshold, score_threshold)
 )]
 pub fn nms_py(
-    detections: Vec<(Universal2DBox, Option<f32>)>,
+    detections: Vec<(PyUniversal2DBox, Option<f32>)>,
     nms_threshold: f32,
     score_threshold: Option<f32>,
-) -> Vec<Universal2DBox> {
+) -> Vec<PyUniversal2DBox> {
     Python::with_gil(|py| {
         py.allow_threads(|| {
+            let detections: Vec<(Universal2DBox, Option<f32>)> =
+                unsafe { std::mem::transmute(detections) };
+
             nms(&detections, nms_threshold, score_threshold)
                 .into_iter()
                 .cloned()
+                .map(PyUniversal2DBox)
                 .collect()
         })
     })

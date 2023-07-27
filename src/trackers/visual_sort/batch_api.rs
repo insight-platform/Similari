@@ -18,16 +18,13 @@ use crate::trackers::visual_sort::observation_attributes::VisualObservationAttri
 use crate::trackers::visual_sort::track_attributes::{
     VisualAttributes, VisualAttributesUpdate, VisualSortLookup,
 };
-use crate::trackers::visual_sort::visual_sort_py::PyVisualSortPredictionBatchRequest;
 use crate::trackers::visual_sort::voting::VisualVoting;
-use crate::trackers::visual_sort::PyWastedVisualSortTrack;
 use crate::utils::clipping::bbox_own_areas::{
     exclusively_owned_areas, exclusively_owned_areas_normalized_shares,
 };
 use crate::voting::Voting;
 use crossbeam::channel::{Receiver, Sender};
 use log::warn;
-use pyo3::prelude::*;
 use rand::Rng;
 use std::mem;
 use std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -54,7 +51,6 @@ enum VotingCommands {
 
 // /// Easy to use Visual SORT tracker implementation
 // ///
-#[pyclass(text_signature = "(distance_shards, voting_shards, opts)")]
 pub struct BatchVisualSort {
     monitor: Option<BatchBusyMonitor>,
     store: Arc<RwLock<MiddlewareVisualSortTrackStore>>,
@@ -279,8 +275,8 @@ impl BatchVisualSort {
                                 },
                             );
 
-                            if let Some(feature) = o.feature {
-                                obs = obs.observation(Feature::from_vec(feature));
+                            if let Some(feature) = &o.feature {
+                                obs = obs.observation(Feature::from_vec(feature.to_vec()));
                             }
 
                             obs.track_attributes_update(
@@ -457,131 +453,213 @@ mod tests {
     }
 }
 
-#[pymethods]
-impl BatchVisualSort {
-    #[new]
-    #[pyo3(signature = (distance_shards, voting_shards, opts))]
-    pub fn new_py(distance_shards: i64, voting_shards: i64, opts: &VisualSortOptions) -> Self {
-        Self::new(
-            distance_shards
-                .try_into()
-                .expect("Positive number expected"),
-            voting_shards.try_into().expect("Positive number expected"),
-            opts,
-        )
+#[derive(Debug, Clone)]
+pub struct VisualSortPredictionBatchRequest<'a> {
+    pub batch: PredictionBatchRequest<VisualSortObservation<'a>>,
+    pub result: Option<PredictionBatchResult>,
+}
+
+impl<'a> VisualSortPredictionBatchRequest<'a> {
+    pub fn new() -> Self {
+        let (batch, result) = PredictionBatchRequest::new();
+        Self {
+            batch,
+            result: Some(result),
+        }
     }
 
-    #[pyo3(name = "skip_epochs", signature = (n))]
-    fn skip_epochs_py(&mut self, n: i64) {
-        assert!(n > 0);
-        self.skip_epochs(n.try_into().unwrap())
+    pub fn prediction(&mut self) -> Option<PredictionBatchResult> {
+        self.result.take()
     }
 
-    #[pyo3(
-        name = "skip_epochs_for_scene",
-        signature = (scene_id, n)
-    )]
-    fn skip_epochs_for_scene_py(&mut self, scene_id: i64, n: i64) {
-        assert!(n > 0 && scene_id >= 0);
-        self.skip_epochs_for_scene(scene_id.try_into().unwrap(), n.try_into().unwrap())
+    pub fn add(&mut self, scene_id: u64, elt: VisualSortObservation<'a>) {
+        self.batch.add(scene_id, elt);
     }
+}
 
-    /// Get the amount of stored tracks per shard
-    ///
-    #[pyo3(name = "shard_stats", signature = ())]
-    fn shard_stats_py(&self) -> Vec<i64> {
-        Python::with_gil(|py| {
-            py.allow_threads(|| {
-                self.store
-                    .read()
-                    .unwrap()
-                    .shard_stats()
-                    .into_iter()
-                    .map(|e| i64::try_from(e).unwrap())
-                    .collect()
+impl<'a> Default for VisualSortPredictionBatchRequest<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "python")]
+pub mod python {
+    use pyo3::prelude::*;
+
+    use crate::{
+        prelude::VisualSortObservation,
+        trackers::{
+            batch::{python::PyPredictionBatchResult, PredictionBatchRequest},
+            sort::python::PySortTrack,
+            tracker_api::TrackerAPI,
+            visual_sort::{
+                options::python::PyVisualSortOptions,
+                python::{PyVisualSortObservation, PyWastedVisualSortTrack},
+                WastedVisualSortTrack,
+            },
+        },
+    };
+
+    use super::{BatchVisualSort, VisualSortPredictionBatchRequest};
+
+    #[pyclass(text_signature = "(distance_shards, voting_shards, opts)")]
+    #[pyo3(name = "BatchVisualSort")]
+    pub struct PyBatchVisualSort(pub(crate) BatchVisualSort);
+
+    #[pymethods]
+    impl PyBatchVisualSort {
+        #[new]
+        #[pyo3(signature = (distance_shards, voting_shards, opts))]
+        pub fn new(distance_shards: i64, voting_shards: i64, opts: &PyVisualSortOptions) -> Self {
+            Self(BatchVisualSort::new(
+                distance_shards
+                    .try_into()
+                    .expect("Positive number expected"),
+                voting_shards.try_into().expect("Positive number expected"),
+                &opts.0,
+            ))
+        }
+
+        #[pyo3(signature = (n))]
+        fn skip_epochs(&mut self, n: i64) {
+            assert!(n > 0);
+            self.0.skip_epochs(n.try_into().unwrap())
+        }
+
+        #[pyo3(signature = (scene_id, n))]
+        fn skip_epochs_for_scene(&mut self, scene_id: i64, n: i64) {
+            assert!(n > 0 && scene_id >= 0);
+            self.0
+                .skip_epochs_for_scene(scene_id.try_into().unwrap(), n.try_into().unwrap())
+        }
+
+        /// Get the amount of stored tracks per shard
+        ///
+        #[pyo3(signature = ())]
+        fn shard_stats(&self) -> Vec<i64> {
+            Python::with_gil(|py| {
+                py.allow_threads(|| {
+                    self.0
+                        .store
+                        .read()
+                        .unwrap()
+                        .shard_stats()
+                        .into_iter()
+                        .map(|e| i64::try_from(e).unwrap())
+                        .collect()
+                })
             })
-        })
-    }
+        }
 
-    /// Get the current epoch for `scene_id` == 0
-    ///
-    #[pyo3(name = "current_epoch", signature = ())]
-    fn current_epoch_py(&self) -> i64 {
-        self.current_epoch_with_scene(0).try_into().unwrap()
-    }
+        /// Get the current epoch for `scene_id` == 0
+        ///
+        #[pyo3( signature = ())]
+        fn current_epoch(&self) -> i64 {
+            self.current_epoch_with_scene(0).try_into().unwrap()
+        }
 
-    /// Get the current epoch for `scene_id`
-    ///
-    /// # Parameters
-    /// * `scene_id` - scene id
-    ///
-    #[pyo3(
-        name = "current_epoch_with_scene",
+        /// Get the current epoch for `scene_id`
+        ///
+        /// # Parameters
+        /// * `scene_id` - scene id
+        ///
+        #[pyo3(
         signature = (scene_id)
     )]
-    fn current_epoch_with_scene_py(&self, scene_id: i64) -> isize {
-        assert!(scene_id >= 0);
-        self.current_epoch_with_scene(scene_id.try_into().unwrap())
-            .try_into()
-            .unwrap()
-    }
-
-    /// Receive tracking information for observed bboxes of `scene_id` == 0
-    ///
-    /// # Parameters
-    /// * `bboxes` - bounding boxes received from a detector
-    ///
-    #[pyo3(name = "predict", signature = (py_batch))]
-    fn predict_py(
-        &mut self,
-        py_batch: PyVisualSortPredictionBatchRequest,
-    ) -> PredictionBatchResult {
-        let (mut batch, res) = PredictionBatchRequest::<VisualSortObservation>::new();
-        for (scene_id, observations) in py_batch.batch.get_batch() {
-            for o in observations {
-                let f = o.feature.as_ref();
-                batch.add(
-                    *scene_id,
-                    VisualSortObservation::new(
-                        f,
-                        o.feature_quality,
-                        o.bounding_box.clone(),
-                        o.custom_object_id,
-                    ),
-                );
-            }
+        fn current_epoch_with_scene(&self, scene_id: i64) -> isize {
+            assert!(scene_id >= 0);
+            self.0
+                .current_epoch_with_scene(scene_id.try_into().unwrap())
+                .try_into()
+                .unwrap()
         }
-        self.predict(batch);
-        res
-    }
 
-    /// Remove all the tracks with expired life
-    ///
-    #[pyo3(name = "wasted", signature = ())]
-    fn wasted_py(&mut self) -> Vec<PyWastedVisualSortTrack> {
-        Python::with_gil(|py| {
-            py.allow_threads(|| {
-                self.wasted()
-                    .into_iter()
-                    .map(PyWastedVisualSortTrack::from)
-                    .collect()
+        /// Receive tracking information for observed bboxes of `scene_id` == 0
+        ///
+        /// # Parameters
+        /// * `bboxes` - bounding boxes received from a detector
+        ///
+        #[pyo3(signature = (py_batch))]
+        fn predict(
+            &mut self,
+            py_batch: PyVisualSortPredictionBatchRequest,
+        ) -> PyPredictionBatchResult {
+            let (mut batch, res) = PredictionBatchRequest::<VisualSortObservation>::new();
+            for (scene_id, observations) in py_batch.0.batch.get_batch() {
+                for o in observations {
+                    let f = o.feature.as_ref();
+                    batch.add(
+                        *scene_id,
+                        VisualSortObservation::new(
+                            f.map(|x| x.as_ref()),
+                            o.feature_quality,
+                            o.bounding_box.clone(),
+                            o.custom_object_id,
+                        ),
+                    );
+                }
+            }
+            self.0.predict(batch);
+
+            PyPredictionBatchResult(res)
+        }
+
+        /// Remove all the tracks with expired life
+        ///
+        #[pyo3(signature = ())]
+        fn wasted(&mut self) -> Vec<PyWastedVisualSortTrack> {
+            Python::with_gil(|py| {
+                py.allow_threads(|| {
+                    self.0
+                        .wasted()
+                        .into_iter()
+                        .map(WastedVisualSortTrack::from)
+                        .map(PyWastedVisualSortTrack)
+                        .collect()
+                })
             })
-        })
+        }
+
+        /// Clear all tracks with expired life
+        ///
+        #[pyo3(signature = ())]
+        pub fn clear_wasted(&mut self) {
+            Python::with_gil(|py| py.allow_threads(|| self.0.clear_wasted()));
+        }
+
+        /// Get idle tracks with not expired life
+        ///
+        #[pyo3(signature = (scene_id))]
+        pub fn idle_tracks(&mut self, scene_id: i64) -> Vec<PySortTrack> {
+            Python::with_gil(|py| {
+                py.allow_threads(|| unsafe {
+                    std::mem::transmute(self.0.idle_tracks_with_scene(scene_id.try_into().unwrap()))
+                })
+            })
+        }
     }
 
-    /// Clear all tracks with expired life
-    ///
-    #[pyo3(name = "clear_wasted", signature = ())]
-    pub fn clear_wasted_py(&mut self) {
-        Python::with_gil(|py| py.allow_threads(|| self.clear_wasted()));
-    }
+    #[derive(Debug, Clone)]
+    #[pyclass]
+    #[pyo3(name = "VisualSortPredictionBatchRequest")]
+    pub(crate) struct PyVisualSortPredictionBatchRequest(
+        pub(crate) VisualSortPredictionBatchRequest<'static>,
+    );
 
-    /// Get idle tracks with not expired life
-    ///
-    #[pyo3(name = "idle_tracks", signature = (scene_id))]
-    pub fn idle_tracks_py(&mut self, scene_id: i64) -> Vec<SortTrack> {
-        Python::with_gil(|py| {
-            py.allow_threads(|| self.idle_tracks_with_scene(scene_id.try_into().unwrap()))
-        })
+    #[pymethods]
+    impl PyVisualSortPredictionBatchRequest {
+        #[new]
+        fn new() -> Self {
+            Self(VisualSortPredictionBatchRequest::new())
+        }
+
+        fn prediction(&mut self) -> Option<PyPredictionBatchResult> {
+            self.0.prediction().map(PyPredictionBatchResult)
+        }
+
+        fn add(&mut self, scene_id: u64, elt: PyVisualSortObservation) {
+            self.0.add(scene_id, elt.0)
+        }
     }
 }

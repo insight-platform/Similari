@@ -13,7 +13,6 @@ use crate::trackers::visual_sort::track_attributes::VisualAttributes;
 use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::kalman_2d_box::Universal2DBoxKalmanFilter;
 use anyhow::Result;
-use pyo3::prelude::*;
 use std::default::Default;
 use std::iter::Iterator;
 use std::sync::Arc;
@@ -65,32 +64,38 @@ impl VisualSortMetricType {
     }
 }
 
-#[pyclass]
-#[pyo3(name = "VisualSortMetricType")]
-#[derive(Clone, Debug)]
-pub struct PyVisualSortMetricType(pub VisualSortMetricType);
+#[cfg(feature = "python")]
+pub mod python {
+    use super::VisualSortMetricType;
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl PyVisualSortMetricType {
-    #[staticmethod]
-    pub fn euclidean(threshold: f32) -> Self {
-        PyVisualSortMetricType(VisualSortMetricType::euclidean(threshold))
-    }
+    #[pyclass]
+    #[pyo3(name = "VisualSortMetricType")]
+    #[derive(Clone, Debug)]
+    pub struct PyVisualSortMetricType(pub VisualSortMetricType);
 
-    #[staticmethod]
-    pub fn cosine(threshold: f32) -> Self {
-        PyVisualSortMetricType(VisualSortMetricType::cosine(threshold))
-    }
+    #[pymethods]
+    impl PyVisualSortMetricType {
+        #[staticmethod]
+        pub fn euclidean(threshold: f32) -> Self {
+            PyVisualSortMetricType(VisualSortMetricType::euclidean(threshold))
+        }
 
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
+        #[staticmethod]
+        pub fn cosine(threshold: f32) -> Self {
+            PyVisualSortMetricType(VisualSortMetricType::cosine(threshold))
+        }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
+        #[classattr]
+        const __hash__: Option<Py<PyAny>> = None;
 
-    fn __str__(&self) -> String {
-        format!("{self:#?}")
+        fn __repr__(&self) -> String {
+            format!("{self:?}")
+        }
+
+        fn __str__(&self) -> String {
+            format!("{self:#?}")
+        }
     }
 }
 
@@ -308,7 +313,7 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
         let feature_quality = obs_attrs.visual_quality();
         let own_area_percentage_opt = *obs_attrs.own_area_percentage_opt();
 
-        let predicted_bbox = attrs.make_prediction(observation_bbox);
+        let mut predicted_bbox = attrs.make_prediction(observation_bbox);
         attrs.update_history(
             observation_bbox,
             &predicted_bbox,
@@ -332,7 +337,10 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
                 feature_quality,
                 match self.opts.positional_kind {
                     PositionalMetricType::Mahalanobis => predicted_bbox,
-                    PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
+                    PositionalMetricType::IoU(_) => {
+                        predicted_bbox.gen_vertices();
+                        predicted_bbox
+                    }
                 },
                 percentage,
             )
@@ -341,7 +349,10 @@ impl ObservationMetric<VisualAttributes, VisualObservationAttributes> for Visual
                 feature_quality,
                 match self.opts.positional_kind {
                     PositionalMetricType::Mahalanobis => predicted_bbox,
-                    PositionalMetricType::IoU(_) => predicted_bbox.gen_vertices(),
+                    PositionalMetricType::IoU(_) => {
+                        predicted_bbox.gen_vertices();
+                        predicted_bbox
+                    }
                 },
             )
         });

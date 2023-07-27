@@ -1,5 +1,3 @@
-use pyo3::prelude::*;
-
 /// The struct allows defining the constraints for objects comprared across different epochs.
 ///
 /// When the new objects batch is passed to the tracker it has a newer epoch that the tracks that are kept
@@ -13,7 +11,6 @@ use pyo3::prelude::*;
 /// * `R_Track` - radius of the circle surrounding the last bounding box of the track.
 ///
 
-#[pyclass]
 #[derive(Default, Debug, Clone)]
 pub struct SpatioTemporalConstraints {
     constraints: Vec<(usize, f32)>,
@@ -31,19 +28,11 @@ impl SpatioTemporalConstraints {
     }
 }
 
-#[pymethods]
 impl SpatioTemporalConstraints {
-    #[new]
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
-    /// Allows adding new constraints to the constraints engine
-    ///
-    /// # Parameters
-    /// * `constraints` - Vec of tuples (epoch_delta, max_allowed_distance)
-    ///
-    #[pyo3(text_signature = "($self, l: [(epoch_delta, max_allowed_distance)]")]
     pub fn add_constraints(&mut self, constraints: Vec<(usize, f32)>) {
         for (delta, max_distance) in constraints {
             assert!(
@@ -56,9 +45,6 @@ impl SpatioTemporalConstraints {
         self.constraints.dedup_by(|(e1, _), (e2, _)| *e1 == *e2);
     }
 
-    /// Validates the distance for specified epoch delta
-    ///
-    #[pyo3(text_signature = "($self, epoch_delta, dist)")]
     pub fn validate(&self, epoch_delta: usize, dist: f32) -> bool {
         assert!(
             dist >= 0.0,
@@ -69,6 +55,43 @@ impl SpatioTemporalConstraints {
         match constraint {
             None => true,
             Some((_, max_dist)) => dist <= *max_dist,
+        }
+    }
+}
+
+#[cfg(feature = "python")]
+pub mod python {
+    use pyo3::prelude::*;
+
+    use super::SpatioTemporalConstraints;
+
+    #[pyclass]
+    #[derive(Default, Debug, Clone)]
+    #[pyo3(name = "SpatioTemporalConstraints")]
+    pub struct PySpatioTemporalConstraints(pub(crate) SpatioTemporalConstraints);
+
+    #[pymethods]
+    impl PySpatioTemporalConstraints {
+        #[new]
+        pub fn new() -> Self {
+            Self(SpatioTemporalConstraints::default())
+        }
+
+        /// Allows adding new constraints to the constraints engine
+        ///
+        /// # Parameters
+        /// * `constraints` - Vec of tuples (epoch_delta, max_allowed_distance)
+        ///
+        #[pyo3(text_signature = "($self, l: [(epoch_delta, max_allowed_distance)]")]
+        pub fn add_constraints(&mut self, constraints: Vec<(usize, f32)>) {
+            self.0.add_constraints(constraints)
+        }
+
+        /// Validates the distance for specified epoch delta
+        ///
+        #[pyo3(text_signature = "($self, epoch_delta, dist)")]
+        pub fn validate(&self, epoch_delta: usize, dist: f32) -> bool {
+            self.0.validate(epoch_delta, dist)
         }
     }
 }

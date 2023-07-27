@@ -1,5 +1,5 @@
 use crate::track::{
-    LookupRequest, ObservationsDb, TrackAttributes, TrackAttributesUpdate, TrackStatus,
+    LookupRequest, ObservationsDb, Track, TrackAttributes, TrackAttributesUpdate, TrackStatus,
 };
 use crate::trackers::epoch_db::EpochDb;
 use crate::trackers::kalman_prediction::TrackAttributesKalmanPrediction;
@@ -8,9 +8,11 @@ use crate::utils::bbox::Universal2DBox;
 use crate::utils::kalman::kalman_2d_box::DIM_2D_BOX_X2;
 use crate::utils::kalman::KalmanState;
 use anyhow::Result;
-use pyo3::prelude::*;
+
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
+
+use self::metric::SortMetric;
 
 /// SORT metric implementation with IoU and Mahalanobis distances
 pub mod metric;
@@ -21,10 +23,6 @@ pub mod simple_api;
 /// Voting engine with Hungarian algorithm
 ///
 pub mod voting;
-
-/// Python bindings for SORT objects
-///
-pub mod sort_py;
 
 /// SORT tracker with Batch API
 pub mod batch_api;
@@ -255,6 +253,286 @@ impl TrackAttributes<SortAttributes, Universal2DBox> for SortAttributes {
     }
 }
 
+/// Online track structure that contains tracking information for the last tracker epoch
+///
+#[derive(Debug, Clone)]
+pub struct SortTrack {
+    /// id of the track
+    ///
+    pub id: u64,
+    /// when the track was lastly updated
+    ///
+    pub epoch: usize,
+    /// the bbox predicted by KF
+    ///
+    pub predicted_bbox: Universal2DBox,
+    /// the bbox passed by detector
+    ///
+    pub observed_bbox: Universal2DBox,
+    /// user-defined scene id that splits tracking space on isolated realms
+    ///
+    pub scene_id: u64,
+    /// current track length
+    ///
+    pub length: usize,
+    /// what kind of voting was led to the current merge
+    ///
+    pub voting_type: VotingType,
+    /// custom object id passed by the user to find the track easily
+    ///
+    pub custom_object_id: Option<i64>,
+}
+
+/// Online track structure that contains tracking information for the last tracker epoch
+///
+#[derive(Debug, Clone)]
+pub struct WastedSortTrack {
+    /// id of the track
+    ///
+    pub id: u64,
+    /// when the track was lastly updated
+    ///
+    pub epoch: usize,
+    /// the bbox predicted by KF
+    ///
+    pub predicted_bbox: Universal2DBox,
+    /// the bbox passed by detector
+    ///
+    pub observed_bbox: Universal2DBox,
+    /// user-defined scene id that splits tracking space on isolated realms
+    ///
+    pub scene_id: u64,
+    /// current track length
+    ///
+    pub length: usize,
+    /// history of predicted boxes
+    ///
+    pub predicted_boxes: Vec<Universal2DBox>,
+    /// history of observed boxes
+    ///
+    pub observed_boxes: Vec<Universal2DBox>,
+}
+
+impl From<Track<SortAttributes, SortMetric, Universal2DBox>> for WastedSortTrack {
+    fn from(track: Track<SortAttributes, SortMetric, Universal2DBox>) -> Self {
+        let attrs = track.get_attributes();
+        WastedSortTrack {
+            id: track.get_track_id(),
+            epoch: attrs.last_updated_epoch,
+            scene_id: attrs.scene_id,
+            length: attrs.track_length,
+            observed_bbox: attrs.observed_boxes.back().unwrap().clone(),
+            predicted_bbox: attrs.predicted_boxes.back().unwrap().clone(),
+            predicted_boxes: attrs.predicted_boxes.clone().into_iter().collect(),
+            observed_boxes: attrs.observed_boxes.clone().into_iter().collect(),
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub enum VotingType {
+    #[default]
+    Visual,
+    Positional,
+}
+
+#[derive(Clone, Default, Copy, Debug)]
+pub enum PositionalMetricType {
+    #[default]
+    Mahalanobis,
+    IoU(f32),
+}
+
+pub struct AutoWaste {
+    pub periodicity: usize,
+    pub counter: usize,
+}
+
+pub(crate) const DEFAULT_AUTO_WASTE_PERIODICITY: usize = 100;
+pub(crate) const MAHALANOBIS_NEW_TRACK_THRESHOLD: f32 = 1.0;
+
+#[cfg(feature = "python")]
+pub mod python {
+    use pyo3::prelude::*;
+
+    use crate::utils::bbox::python::PyUniversal2DBox;
+
+    use super::{PositionalMetricType, SortTrack, VotingType, WastedSortTrack};
+
+    #[pyclass]
+    #[pyo3(name = "PositionalMetricType")]
+    #[derive(Clone, Debug)]
+    pub struct PyPositionalMetricType(pub PositionalMetricType);
+
+    #[pymethods]
+    impl PyPositionalMetricType {
+        #[staticmethod]
+        pub fn maha() -> Self {
+            PyPositionalMetricType(PositionalMetricType::Mahalanobis)
+        }
+
+        #[staticmethod]
+        pub fn iou(threshold: f32) -> Self {
+            assert!(
+                threshold > 0.0 && threshold < 1.0,
+                "Threshold must lay between (0.0 and 1.0)"
+            );
+
+            PyPositionalMetricType(PositionalMetricType::IoU(threshold))
+        }
+
+        #[classattr]
+        const __hash__: Option<Py<PyAny>> = None;
+
+        fn __repr__(&self) -> String {
+            format!("{self:?}")
+        }
+
+        fn __str__(&self) -> String {
+            format!("{self:#?}")
+        }
+    }
+
+    #[pyclass]
+    #[pyo3(name = "SortTrack")]
+    #[derive(Debug, Clone)]
+    #[repr(transparent)]
+    pub struct PySortTrack(pub(crate) SortTrack);
+
+    #[pymethods]
+    impl PySortTrack {
+        #[classattr]
+        const __hash__: Option<Py<PyAny>> = None;
+
+        fn __repr__(&self) -> String {
+            format!("{self:?}")
+        }
+
+        fn __str__(&self) -> String {
+            format!("{self:#?}")
+        }
+
+        #[getter]
+        fn get_id(&self) -> u64 {
+            self.0.id
+        }
+
+        #[getter]
+        fn get_epoch(&self) -> usize {
+            self.0.epoch
+        }
+
+        #[getter]
+        fn get_predicted_bbox(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(self.0.predicted_bbox.clone())
+        }
+
+        #[getter]
+        fn get_observed_bbox(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(self.0.observed_bbox.clone())
+        }
+
+        #[getter]
+        fn get_scene_id(&self) -> u64 {
+            self.0.scene_id
+        }
+
+        #[getter]
+        fn get_length(&self) -> usize {
+            self.0.length
+        }
+
+        #[getter]
+        fn get_voting_type(&self) -> PyVotingType {
+            PyVotingType(self.0.voting_type)
+        }
+
+        #[getter]
+        fn get_custom_object_id(&self) -> Option<i64> {
+            self.0.custom_object_id
+        }
+    }
+
+    #[pyclass]
+    #[pyo3(name = "WastedSortTrack")]
+    #[derive(Debug, Clone)]
+    #[repr(transparent)]
+    pub struct PyWastedSortTrack(pub(crate) WastedSortTrack);
+
+    #[pymethods]
+    impl PyWastedSortTrack {
+        #[classattr]
+        const __hash__: Option<Py<PyAny>> = None;
+
+        fn __repr__(&self) -> String {
+            format!("{:?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+
+        #[getter]
+        fn id(&self) -> u64 {
+            self.0.id
+        }
+
+        #[getter]
+        fn epoch(&self) -> usize {
+            self.0.epoch
+        }
+
+        #[getter]
+        fn predicted_bbox(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(self.0.predicted_bbox.clone())
+        }
+
+        #[getter]
+        fn observed_bbox(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(self.0.observed_bbox.clone())
+        }
+
+        #[getter]
+        fn scene_id(&self) -> u64 {
+            self.0.scene_id
+        }
+
+        #[getter]
+        fn length(&self) -> usize {
+            self.0.length
+        }
+
+        #[getter]
+        fn predicted_boxes(&self) -> Vec<PyUniversal2DBox> {
+            unsafe { std::mem::transmute(self.0.predicted_boxes.clone()) }
+        }
+
+        #[getter]
+        fn observed_boxes(&self) -> Vec<PyUniversal2DBox> {
+            unsafe { std::mem::transmute(self.0.observed_boxes.clone()) }
+        }
+    }
+
+    #[pyclass]
+    #[pyo3(name = "VotingType")]
+    #[derive(Default, Debug, Clone, Copy)]
+    pub struct PyVotingType(pub(crate) VotingType);
+
+    #[pymethods]
+    impl PyVotingType {
+        #[classattr]
+        const __hash__: Option<Py<PyAny>> = None;
+
+        fn __repr__(&self) -> String {
+            format!("{self:?}")
+        }
+
+        fn __str__(&self) -> String {
+            format!("{self:#?}")
+        }
+    }
+}
+
 #[cfg(test)]
 mod track_tests {
     use crate::prelude::{NoopNotifier, ObservationBuilder, TrackBuilder};
@@ -324,181 +602,3 @@ mod track_tests {
         assert_eq!(t1.get_attributes().observed_boxes.len(), 2);
     }
 }
-
-/// Online track structure that contains tracking information for the last tracker epoch
-///
-#[derive(Debug, Clone)]
-#[pyclass]
-pub struct SortTrack {
-    /// id of the track
-    ///
-    #[pyo3(get)]
-    pub id: u64,
-    /// when the track was lastly updated
-    ///
-    #[pyo3(get)]
-    pub epoch: usize,
-    /// the bbox predicted by KF
-    ///
-    #[pyo3(get)]
-    pub predicted_bbox: Universal2DBox,
-    /// the bbox passed by detector
-    ///
-    #[pyo3(get)]
-    pub observed_bbox: Universal2DBox,
-    /// user-defined scene id that splits tracking space on isolated realms
-    ///
-    #[pyo3(get)]
-    pub scene_id: u64,
-    /// current track length
-    ///
-    #[pyo3(get)]
-    pub length: usize,
-    /// what kind of voting was led to the current merge
-    ///
-    #[pyo3(get)]
-    pub voting_type: VotingType,
-    /// custom object id passed by the user to find the track easily
-    ///
-    #[pyo3(get)]
-    pub custom_object_id: Option<i64>,
-}
-
-/// Online track structure that contains tracking information for the last tracker epoch
-///
-#[derive(Debug, Clone)]
-#[pyclass]
-#[pyo3(name = "WastedSortTrack")]
-pub struct PyWastedSortTrack {
-    /// id of the track
-    ///
-    #[pyo3(get)]
-    pub id: u64,
-    /// when the track was lastly updated
-    ///
-    #[pyo3(get)]
-    pub epoch: usize,
-    /// the bbox predicted by KF
-    ///
-    #[pyo3(get)]
-    pub predicted_bbox: Universal2DBox,
-    /// the bbox passed by detector
-    ///
-    #[pyo3(get)]
-    pub observed_bbox: Universal2DBox,
-    /// user-defined scene id that splits tracking space on isolated realms
-    ///
-    #[pyo3(get)]
-    pub scene_id: u64,
-    /// current track length
-    ///
-    #[pyo3(get)]
-    pub length: usize,
-    /// history of predicted boxes
-    ///
-    #[pyo3(get)]
-    pub predicted_boxes: Vec<Universal2DBox>,
-    /// history of observed boxes
-    ///
-    #[pyo3(get)]
-    pub observed_boxes: Vec<Universal2DBox>,
-}
-
-#[pymethods]
-impl SortTrack {
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
-
-    fn __str__(&self) -> String {
-        format!("{self:#?}")
-    }
-}
-
-#[pymethods]
-impl PyWastedSortTrack {
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
-
-    fn __str__(&self) -> String {
-        format!("{self:#?}")
-    }
-}
-
-#[pyclass]
-#[derive(Default, Debug, Clone, Copy)]
-pub enum VotingType {
-    #[default]
-    Visual,
-    Positional,
-}
-
-#[pymethods]
-impl VotingType {
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
-
-    fn __str__(&self) -> String {
-        format!("{self:#?}")
-    }
-}
-
-#[derive(Clone, Default, Copy, Debug)]
-pub enum PositionalMetricType {
-    #[default]
-    Mahalanobis,
-    IoU(f32),
-}
-
-#[pyclass]
-#[pyo3(name = "PositionalMetricType")]
-#[derive(Clone, Debug)]
-pub struct PyPositionalMetricType(pub PositionalMetricType);
-
-#[pymethods]
-impl PyPositionalMetricType {
-    #[staticmethod]
-    pub fn maha() -> Self {
-        PyPositionalMetricType(PositionalMetricType::Mahalanobis)
-    }
-
-    #[staticmethod]
-    pub fn iou(threshold: f32) -> Self {
-        assert!(
-            threshold > 0.0 && threshold < 1.0,
-            "Threshold must lay between (0.0 and 1.0)"
-        );
-        PyPositionalMetricType(PositionalMetricType::IoU(threshold))
-    }
-
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
-
-    fn __str__(&self) -> String {
-        format!("{self:#?}")
-    }
-}
-
-pub struct AutoWaste {
-    pub periodicity: usize,
-    pub counter: usize,
-}
-
-pub(crate) const DEFAULT_AUTO_WASTE_PERIODICITY: usize = 100;
-
-pub(crate) const MAHALANOBIS_NEW_TRACK_THRESHOLD: f32 = 1.0;

@@ -249,8 +249,10 @@ mod tests {
     }
 }
 
+#[cfg(feature = "python")]
 pub mod python {
-    use crate::prelude::{BoundingBox, Universal2DBox};
+    use crate::prelude::Universal2DBox;
+    use crate::utils::bbox::python::{PyBoundingBox, PyUniversal2DBox};
     use crate::utils::kalman::kalman_2d_box::{Universal2DBoxKalmanFilter, DIM_2D_BOX_X2};
     use crate::utils::kalman::KalmanState;
     use pyo3::prelude::*;
@@ -271,13 +273,13 @@ pub mod python {
     #[pymethods]
     impl PyUniversal2DBoxKalmanFilterState {
         #[pyo3(signature = ())]
-        pub fn universal_bbox(&self) -> Universal2DBox {
-            Universal2DBox::try_from(self.state).unwrap()
+        pub fn universal_bbox(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(Universal2DBox::try_from(self.state).unwrap())
         }
 
         #[pyo3(signature = ())]
-        pub fn bbox(&self) -> PyResult<BoundingBox> {
-            self.universal_bbox().as_ltwh_py()
+        pub fn bbox(&self) -> PyResult<PyBoundingBox> {
+            self.universal_bbox().as_ltwh()
         }
     }
 
@@ -292,9 +294,9 @@ pub mod python {
         }
 
         #[pyo3(signature = (bbox))]
-        pub fn initiate(&self, bbox: Universal2DBox) -> PyUniversal2DBoxKalmanFilterState {
+        pub fn initiate(&self, bbox: PyUniversal2DBox) -> PyUniversal2DBoxKalmanFilterState {
             PyUniversal2DBoxKalmanFilterState {
-                state: self.filter.initiate(&bbox),
+                state: self.filter.initiate(&bbox.0),
             }
         }
 
@@ -312,10 +314,10 @@ pub mod python {
         pub fn update(
             &self,
             state: PyUniversal2DBoxKalmanFilterState,
-            bbox: Universal2DBox,
+            bbox: PyUniversal2DBox,
         ) -> PyUniversal2DBoxKalmanFilterState {
             PyUniversal2DBoxKalmanFilterState {
-                state: self.filter.update(&state.state, &bbox),
+                state: self.filter.update(&state.state, &bbox.0),
             }
         }
 
@@ -323,9 +325,9 @@ pub mod python {
         pub fn distance(
             &self,
             state: PyUniversal2DBoxKalmanFilterState,
-            bbox: Universal2DBox,
+            bbox: PyUniversal2DBox,
         ) -> f32 {
-            self.filter.distance(state.state, &bbox)
+            self.filter.distance(state.state, &bbox.0)
         }
 
         #[staticmethod]

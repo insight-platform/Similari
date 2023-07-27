@@ -1,51 +1,22 @@
 use crate::track::ObservationAttributes;
-use crate::utils::clipping::clipping_py::PyPolygon;
 use crate::utils::clipping::sutherland_hodgman_clip;
 use crate::Errors::GenericBBoxConversionError;
 use crate::{Errors, EPS};
 use geo::{Area, Coord, LineString, Polygon};
-use pyo3::exceptions::PyAttributeError;
-use pyo3::prelude::*;
 use std::f32::consts::PI;
 
 /// Bounding box in the format (left, top, width, height)
 ///
 #[derive(Clone, Default, Debug, Copy)]
-#[pyclass]
 pub struct BoundingBox {
-    #[pyo3(get, set)]
-    left: f32,
-    #[pyo3(get, set)]
-    top: f32,
-    #[pyo3(get, set)]
-    width: f32,
-    #[pyo3(get, set)]
-    height: f32,
-    #[pyo3(get, set)]
-    confidence: f32,
+    pub left: f32,
+    pub top: f32,
+    pub width: f32,
+    pub height: f32,
+    pub confidence: f32,
 }
 
-#[pymethods]
 impl BoundingBox {
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
-
-    fn __str__(&self) -> String {
-        self.__repr__()
-    }
-
-    pub fn as_xyaah(&self) -> Universal2DBox {
-        Universal2DBox::from(self)
-    }
-
-    /// Constructor. Confidence is set to 1.0
-    ///
-    ///
-    #[new]
     pub fn new(left: f32, top: f32, width: f32, height: f32) -> Self {
         Self {
             left,
@@ -56,9 +27,6 @@ impl BoundingBox {
         }
     }
 
-    /// Creates the bbox with custom confidence
-    ///
-    #[staticmethod]
     pub fn new_with_confidence(
         left: f32,
         top: f32,
@@ -78,23 +46,42 @@ impl BoundingBox {
             confidence,
         }
     }
+
+    pub fn as_xyaah(&self) -> Universal2DBox {
+        Universal2DBox::from(self)
+    }
+
+    pub fn intersection(l: &BoundingBox, r: &BoundingBox) -> f64 {
+        assert!(l.width > 0.0);
+        assert!(l.height > 0.0);
+        assert!(r.width > 0.0);
+        assert!(r.height > 0.0);
+
+        let (ax0, ay0, ax1, ay1) = (l.left, l.top, l.left + l.width, l.top + l.height);
+        let (bx0, by0, bx1, by1) = (r.left, r.top, r.left + r.width, r.top + r.height);
+
+        let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
+        let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
+
+        let int_width = x2 - x1;
+        let int_height = y2 - y1;
+
+        if int_width > 0.0 && int_height > 0.0 {
+            (int_width * int_height) as f64
+        } else {
+            0.0_f64
+        }
+    }
 }
 
 /// Bounding box in the format (x, y, angle, aspect, height)
 #[derive(Default, Debug)]
-#[pyclass]
 pub struct Universal2DBox {
-    #[pyo3(get, set)]
     pub xc: f32,
-    #[pyo3(get, set)]
     pub yc: f32,
-    #[pyo3(get, set)]
     pub angle: Option<f32>,
-    #[pyo3(get, set)]
     pub aspect: f32,
-    #[pyo3(get, set)]
     pub height: f32,
-    #[pyo3(get)]
     pub confidence: f32,
     _vertex_cache: Option<Polygon<f64>>,
 }
@@ -112,70 +99,7 @@ impl Clone for Universal2DBox {
     }
 }
 
-#[pymethods]
 impl Universal2DBox {
-    #[classattr]
-    const __hash__: Option<Py<PyAny>> = None;
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
-
-    fn __str__(&self) -> String {
-        self.__repr__()
-    }
-
-    pub fn get_radius(&self) -> f32 {
-        let hw = self.aspect * self.height / 2.0_f32;
-        let hh = self.height / 2.0_f32;
-        (hw * hw + hh * hh).sqrt()
-    }
-
-    #[pyo3(name = "as_ltwh")]
-    pub fn as_ltwh_py(&self) -> PyResult<BoundingBox> {
-        let r = BoundingBox::try_from(self);
-        if let Ok(res) = r {
-            Ok(res)
-        } else {
-            Err(PyAttributeError::new_err(format!("{r:?}")))
-        }
-    }
-
-    #[pyo3(name = "gen_vertices")]
-    pub fn gen_vertices_py(&mut self) {
-        if self.angle.is_some() {
-            let c = Polygon::from(&*self);
-            self._vertex_cache = Some(c);
-        }
-    }
-
-    #[pyo3(name = "get_vertices")]
-    pub fn get_vertices_py(&self) -> PyPolygon {
-        PyPolygon::new(Polygon::from(self))
-    }
-
-    /// Sets the angle
-    ///
-    #[pyo3(name = "rotate", signature = (angle))]
-    pub fn rotate_py(&mut self, angle: f32) {
-        self.angle = Some(angle)
-    }
-
-    /// Sets the angle
-    ///
-    #[pyo3(name = "set_confidence", signature = (confidence))]
-    pub fn set_confidence_py(&mut self, confidence: f32) {
-        assert!(
-            (0.0..=1.0).contains(&confidence),
-            "Confidence must lay between 0.0 and 1.0"
-        );
-        self.confidence = confidence;
-    }
-
-    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
-    ///
-    #[new]
-    #[pyo3(signature = (xc, yc, angle, aspect, height))]
     pub fn new(xc: f32, yc: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
         Self {
             xc,
@@ -188,10 +112,6 @@ impl Universal2DBox {
         }
     }
 
-    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
-    ///
-    #[staticmethod]
-    #[pyo3(signature = (xc, yc, angle, aspect, height, confidence))]
     pub fn new_with_confidence(
         xc: f32,
         yc: f32,
@@ -216,18 +136,12 @@ impl Universal2DBox {
         }
     }
 
-    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
-    ///
-    #[staticmethod]
     pub fn ltwh(left: f32, top: f32, width: f32, height: f32) -> Self {
         Self::from(BoundingBox::new_with_confidence(
             left, top, width, height, 1.0,
         ))
     }
 
-    /// Constructor. Creates new generic bbox and doesn't generate vertex cache
-    ///
-    #[staticmethod]
     pub fn ltwh_with_confidence(
         left: f32,
         top: f32,
@@ -240,20 +154,31 @@ impl Universal2DBox {
         ))
     }
 
+    pub fn get_radius(&self) -> f32 {
+        let hw = self.aspect * self.height / 2.0_f32;
+        let hh = self.height / 2.0_f32;
+        (hw * hw + hh * hh).sqrt()
+    }
+
     pub fn area(&self) -> f32 {
         let w = self.height * self.aspect;
         w * self.height
     }
-}
 
-impl Universal2DBox {
-    pub fn get_vertices(&self) -> &Option<Polygon<f64>> {
+    #[inline]
+    pub fn get_vertices(&self) -> Polygon {
+        Polygon::from(self)
+    }
+
+    #[inline]
+    pub fn get_cached_vertices(&self) -> &Option<Polygon<f64>> {
         &self._vertex_cache
     }
 
-    pub fn gen_vertices(mut self) -> Self {
+    #[inline]
+    pub fn gen_vertices(&mut self) -> &Self {
         if self.angle.is_some() {
-            self._vertex_cache = Some(Polygon::from(&self));
+            self._vertex_cache = Some(self.get_vertices());
         }
         self
     }
@@ -270,6 +195,45 @@ impl Universal2DBox {
             confidence: self.confidence,
             _vertex_cache: None,
         }
+    }
+
+    /// Sets the angle
+    ///
+    pub fn rotate_mut(&mut self, angle: f32) {
+        self.angle = Some(angle)
+    }
+
+    /// Sets the angle
+    ///
+    pub fn set_confidence(&mut self, confidence: f32) {
+        assert!(
+            (0.0..=1.0).contains(&confidence),
+            "Confidence must lay between 0.0 and 1.0"
+        );
+        self.confidence = confidence;
+    }
+
+    pub fn sutherland_hodgman_clip(mut self, mut clipping: Universal2DBox) -> Polygon<f64> {
+        if self.angle.is_none() {
+            self.rotate_mut(0.0);
+        }
+
+        if clipping.angle.is_none() {
+            clipping.rotate_mut(0.0);
+        }
+
+        if self.get_cached_vertices().is_none() {
+            self.gen_vertices();
+        }
+
+        if clipping.get_cached_vertices().is_none() {
+            clipping.gen_vertices();
+        }
+
+        sutherland_hodgman_clip(
+            self.get_cached_vertices().as_ref().unwrap(),
+            clipping.get_cached_vertices().as_ref().unwrap(),
+        )
     }
 }
 
@@ -430,30 +394,6 @@ mod polygons {
 //     }
 // }
 
-impl BoundingBox {
-    pub fn intersection(l: &BoundingBox, r: &BoundingBox) -> f64 {
-        assert!(l.width > 0.0);
-        assert!(l.height > 0.0);
-        assert!(r.width > 0.0);
-        assert!(r.height > 0.0);
-
-        let (ax0, ay0, ax1, ay1) = (l.left, l.top, l.left + l.width, l.top + l.height);
-        let (bx0, by0, bx1, by1) = (r.left, r.top, r.left + r.width, r.top + r.height);
-
-        let (x1, y1) = (ax0.max(bx0), ay0.max(by0));
-        let (x2, y2) = (ax1.min(bx1), ay1.min(by1));
-
-        let int_width = x2 - x1;
-        let int_height = y2 - y1;
-
-        if int_width > 0.0 && int_height > 0.0 {
-            (int_width * int_height) as f64
-        } else {
-            0.0_f64
-        }
-    }
-}
-
 impl ObservationAttributes for BoundingBox {
     type MetricObject = f32;
 
@@ -549,18 +489,20 @@ impl Universal2DBox {
             let mut l = l.clone();
             let mut r = r.clone();
 
-            if l.get_vertices().is_none() {
+            if l.get_cached_vertices().is_none() {
                 let angle = l.angle.unwrap_or(0.0);
-                l = l.rotate(angle).gen_vertices();
+                l.rotate_mut(angle);
+                l.gen_vertices();
             }
 
-            if r.get_vertices().is_none() {
+            if r.get_cached_vertices().is_none() {
                 let angle = r.angle.unwrap_or(0.0);
-                r = r.rotate(angle).gen_vertices();
+                r.rotate_mut(angle);
+                r.gen_vertices();
             }
 
-            let p1 = l.get_vertices().as_ref().unwrap();
-            let p2 = r.get_vertices().as_ref().unwrap();
+            let p1 = l.get_cached_vertices().as_ref().unwrap();
+            let p2 = r.get_cached_vertices().as_ref().unwrap();
 
             sutherland_hodgman_clip(p1, p2).unsigned_area()
         }
@@ -599,6 +541,275 @@ impl PartialEq<Self> for Universal2DBox {
             && (self.angle.unwrap_or(0.0) - other.angle.unwrap_or(0.0)) < EPS
             && (self.aspect - other.aspect) < EPS
             && (self.height - other.height) < EPS
+    }
+}
+
+#[cfg(feature = "python")]
+pub mod python {
+    use crate::utils::clipping::clipping_py::PyPolygon;
+
+    use super::{BoundingBox, Universal2DBox};
+    use pyo3::{exceptions::PyAttributeError, prelude::*};
+
+    #[derive(Clone, Default, Debug, Copy)]
+    #[repr(transparent)]
+    #[pyclass]
+    #[pyo3(name = "BoundingBox")]
+    pub struct PyBoundingBox(pub(crate) BoundingBox);
+
+    #[pymethods]
+    impl PyBoundingBox {
+        #[classattr]
+        const __hash__: Option<Py<PyAny>> = None;
+
+        fn __repr__(&self) -> String {
+            format!("{:?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            self.__repr__()
+        }
+
+        #[getter]
+        pub fn get_left(&self) -> f32 {
+            self.0.left
+        }
+
+        #[setter]
+        pub fn set_left(&mut self, left: f32) {
+            self.0.left = left;
+        }
+
+        #[getter]
+        pub fn get_top(&self) -> f32 {
+            self.0.top
+        }
+
+        #[setter]
+        pub fn set_top(&mut self, top: f32) {
+            self.0.top = top;
+        }
+
+        #[getter]
+        pub fn get_width(&mut self) -> f32 {
+            self.0.width
+        }
+
+        #[setter]
+        pub fn set_width(&mut self, width: f32) {
+            self.0.width = width;
+        }
+
+        #[getter]
+        pub fn get_height(&mut self) -> f32 {
+            self.0.height
+        }
+
+        #[setter]
+        pub fn set_height(&mut self, height: f32) {
+            self.0.height = height;
+        }
+
+        #[getter]
+        pub fn get_confidence(&mut self) -> f32 {
+            self.0.confidence
+        }
+
+        #[setter]
+        pub fn set_confidence(&mut self, confidence: f32) {
+            self.0.confidence = confidence;
+        }
+
+        pub fn as_xyaah(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(self.0.as_xyaah())
+        }
+        /// Constructor. Confidence is set to 1.0
+        ///
+        #[new]
+        pub fn new(left: f32, top: f32, width: f32, height: f32) -> Self {
+            Self(BoundingBox::new(left, top, width, height))
+        }
+
+        /// Creates the bbox with custom confidence
+        ///
+        #[staticmethod]
+        pub fn new_with_confidence(
+            left: f32,
+            top: f32,
+            width: f32,
+            height: f32,
+            confidence: f32,
+        ) -> Self {
+            Self(BoundingBox::new_with_confidence(
+                left, top, width, height, confidence,
+            ))
+        }
+    }
+
+    #[derive(Default, Debug, Clone)]
+    #[repr(transparent)]
+    #[pyclass]
+    #[pyo3(name = "Universal2DBox")]
+    pub struct PyUniversal2DBox(pub(crate) Universal2DBox);
+
+    #[pymethods]
+    impl PyUniversal2DBox {
+        #[classattr]
+        const __hash__: Option<Py<PyAny>> = None;
+
+        fn __repr__(&self) -> String {
+            format!("{:?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            self.__repr__()
+        }
+
+        pub fn get_radius(&self) -> f32 {
+            self.0.get_radius()
+        }
+
+        pub fn as_ltwh(&self) -> PyResult<PyBoundingBox> {
+            let r = BoundingBox::try_from(&self.0);
+            if let Ok(res) = r {
+                Ok(PyBoundingBox(res))
+            } else {
+                Err(PyAttributeError::new_err(format!("{r:?}")))
+            }
+        }
+
+        pub fn gen_vertices(&mut self) {
+            self.0.gen_vertices();
+        }
+
+        pub fn get_vertices(&self) -> PyPolygon {
+            PyPolygon(self.0.get_vertices())
+        }
+
+        /// Sets the angle
+        ///
+        #[pyo3(signature = (angle))]
+        pub fn rotate(&mut self, angle: f32) {
+            self.0.rotate_mut(angle)
+        }
+
+        #[getter]
+        pub fn get_confidence(&self) -> f32 {
+            self.0.confidence
+        }
+
+        #[setter]
+        pub fn set_confidence(&mut self, confidence: f32) {
+            self.0.set_confidence(confidence)
+        }
+
+        #[getter]
+        pub fn get_xc(&self) -> f32 {
+            self.0.xc
+        }
+
+        #[setter]
+        pub fn set_xc(&mut self, xc: f32) {
+            self.0.xc = xc;
+        }
+
+        #[getter]
+        pub fn get_yc(&self) -> f32 {
+            self.0.yc
+        }
+
+        #[setter]
+        pub fn set_yc(&mut self, yc: f32) {
+            self.0.yc = yc;
+        }
+
+        #[getter]
+        pub fn get_angle(&self) -> Option<f32> {
+            self.0.angle
+        }
+
+        #[setter]
+        pub fn set_angle(&mut self, angle: Option<f32>) {
+            self.0.angle = angle;
+        }
+
+        #[getter]
+        pub fn get_aspect(&self) -> f32 {
+            self.0.aspect
+        }
+
+        #[setter]
+        pub fn set_aspect(&mut self, aspect: f32) {
+            self.0.aspect = aspect;
+        }
+
+        #[getter]
+        pub fn get_height(&self) -> f32 {
+            self.0.height
+        }
+
+        #[setter]
+        pub fn set_height(&mut self, height: f32) {
+            self.0.height = height;
+        }
+
+        /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+        ///
+        #[new]
+        #[pyo3(signature = (xc, yc, angle, aspect, height))]
+        pub fn new(xc: f32, yc: f32, angle: Option<f32>, aspect: f32, height: f32) -> Self {
+            Self(Universal2DBox::new(xc, yc, angle, aspect, height))
+        }
+
+        /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+        ///
+        #[staticmethod]
+        #[pyo3(signature = (xc, yc, angle, aspect, height, confidence))]
+        pub fn new_with_confidence(
+            xc: f32,
+            yc: f32,
+            angle: Option<f32>,
+            aspect: f32,
+            height: f32,
+            confidence: f32,
+        ) -> Self {
+            assert!(
+                (0.0..=1.0).contains(&confidence),
+                "Confidence must lay between 0.0 and 1.0"
+            );
+
+            Self(Universal2DBox::new_with_confidence(
+                xc, yc, angle, aspect, height, confidence,
+            ))
+        }
+
+        /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+        ///
+        #[staticmethod]
+        pub fn ltwh(left: f32, top: f32, width: f32, height: f32) -> Self {
+            Self(Universal2DBox::ltwh_with_confidence(
+                left, top, width, height, 1.0,
+            ))
+        }
+
+        /// Constructor. Creates new generic bbox and doesn't generate vertex cache
+        ///
+        #[staticmethod]
+        pub fn ltwh_with_confidence(
+            left: f32,
+            top: f32,
+            width: f32,
+            height: f32,
+            confidence: f32,
+        ) -> Self {
+            Self(Universal2DBox::ltwh_with_confidence(
+                left, top, width, height, confidence,
+            ))
+        }
+
+        pub fn area(&self) -> f32 {
+            self.0.area()
+        }
     }
 }
 

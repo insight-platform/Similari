@@ -1,5 +1,6 @@
 /// Python interface for `sutherland_hodgman_clip`
 ///
+#[cfg(feature = "python")]
 pub mod clipping_py;
 
 /// The function to calculate polygons solely owned by a bounding box

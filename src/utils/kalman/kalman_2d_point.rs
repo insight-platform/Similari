@@ -220,6 +220,7 @@ mod tests {
     }
 }
 
+#[cfg(feature = "python")]
 pub mod python {
     use crate::utils::kalman::kalman_2d_point::{Point2DKalmanFilter, DIM_2D_POINT_X2};
     use crate::utils::kalman::KalmanState;

@@ -47,8 +47,8 @@ fn bench_nms(objects: usize, b: &mut Bencher) {
         for (indx, i) in iterators.iter_mut().enumerate() {
             let b = i.next();
             let bb: Universal2DBox = b.unwrap().into();
-            observations.push((bb.rotate(indx as f32 / 10.0).gen_vertices(), None));
+            observations.push((bb.rotate(indx as f32 / 10.0).gen_vertices().clone(), None));
         }
-        nms(&observations, 0.8, None);
+        nms(observations.as_slice(), 0.8, None);
     });
 }

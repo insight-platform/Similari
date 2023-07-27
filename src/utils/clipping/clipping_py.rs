@@ -1,26 +1,17 @@
-use crate::utils::bbox::Universal2DBox;
-use crate::utils::clipping::sutherland_hodgman_clip;
+use crate::utils::bbox::python::PyUniversal2DBox;
 use geo::{Area, CoordsIter, Polygon};
 use pyo3::prelude::*;
 
 #[derive(Debug)]
 #[pyclass]
 #[pyo3(name = "Polygon")]
-pub struct PyPolygon {
-    polygon: Polygon<f64>,
-}
-
-impl PyPolygon {
-    pub fn new(polygon: Polygon<f64>) -> Self {
-        Self { polygon }
-    }
-}
+pub struct PyPolygon(pub(crate) Polygon<f64>);
 
 #[pymethods]
 impl PyPolygon {
     #[pyo3(text_signature = "($self)")]
     pub fn get_points(&self) -> Vec<(f64, f64)> {
-        self.polygon.coords_iter().map(|c| (c.x, c.y)).collect()
+        self.0.coords_iter().map(|c| (c.x, c.y)).collect()
     }
 
     #[classattr]
@@ -40,36 +31,16 @@ impl PyPolygon {
     name = "sutherland_hodgman_clip",
     text_signature = "(subject, clipping)"
 )]
-pub fn sutherland_hodgman_clip_py(subject: Universal2DBox, clipping: Universal2DBox) -> PyPolygon {
-    let mut subject = subject;
-    let mut clipping = clipping;
-
-    if subject.angle.is_none() {
-        subject.rotate_py(0.0);
-    }
-
-    if clipping.angle.is_none() {
-        clipping.rotate_py(0.0);
-    }
-
-    if subject.get_vertices().is_none() {
-        subject.gen_vertices_py();
-    }
-
-    if clipping.get_vertices().is_none() {
-        clipping.gen_vertices_py();
-    }
-
-    let clip = sutherland_hodgman_clip(
-        subject.get_vertices().as_ref().unwrap(),
-        clipping.get_vertices().as_ref().unwrap(),
-    );
-    PyPolygon { polygon: clip }
+pub fn sutherland_hodgman_clip_py(
+    subject: PyUniversal2DBox,
+    clipping: PyUniversal2DBox,
+) -> PyPolygon {
+    PyPolygon(subject.0.sutherland_hodgman_clip(clipping.0))
 }
 
 #[pyfunction]
 #[pyo3(name = "intersection_area", text_signature = "(subject, clipping)")]
-pub fn intersection_area_py(subject: Universal2DBox, clipping: Universal2DBox) -> f64 {
+pub fn intersection_area_py(subject: PyUniversal2DBox, clipping: PyUniversal2DBox) -> f64 {
     let poly = sutherland_hodgman_clip_py(subject, clipping);
-    poly.polygon.unsigned_area()
+    poly.0.unsigned_area()
 }

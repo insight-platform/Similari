@@ -25,7 +25,7 @@ where
     /// change auto waste job periodicity
     ///
     fn set_auto_waste(&mut self, periodicity: usize) {
-        let mut obj = self.get_auto_waste_obj_mut();
+        let obj = self.get_auto_waste_obj_mut();
         obj.periodicity = periodicity;
         obj.counter = 0;
     }

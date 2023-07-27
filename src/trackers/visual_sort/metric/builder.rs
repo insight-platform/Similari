@@ -1,7 +1,8 @@
 use crate::trackers::sort::PositionalMetricType;
 use crate::trackers::visual_sort::metric::{
-    PyVisualSortMetricType, VisualMetric, VisualMetricOptions, VisualSortMetricType,
+    VisualMetric, VisualMetricOptions, VisualSortMetricType,
 };
+
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -41,94 +42,21 @@ impl Default for VisualMetricBuilder {
 }
 
 impl VisualMetricBuilder {
-    pub(crate) fn visual_metric_py(&mut self, metric: PyVisualSortMetricType) {
-        self.visual_kind = metric.0;
-    }
-
-    pub(crate) fn positional_min_confidence_py(&mut self, conf: f32) {
-        assert!(
-            (0.01..=1.0).contains(&conf),
-            "Confidence must lay between (0.01 and 1.0)"
-        );
-        self.positional_min_confidence = conf;
-    }
-
-    pub(crate) fn visual_min_votes_py(&mut self, n: i64) {
-        self.visual_min_votes =
-            usize::try_from(n).expect("The number of required votes must be a positive number.");
-    }
-
-    pub(crate) fn positional_metric_py(&mut self, metric: PositionalMetricType) {
-        if let PositionalMetricType::IoU(t) = metric {
-            assert!(
-                t > 0.0 && t < 1.0,
-                "Threshold must lay between (0.0 and 1.0)"
-            );
-        }
-        self.positional_kind = metric;
-    }
-
-    pub(crate) fn visual_minimal_track_length_py(&mut self, length: usize) {
-        assert!(
-            length > 0,
-            "The minimum amount of visual_sort features collected before visual_sort metric is applied should be greater than 0."
-        );
-        self.visual_minimal_track_length = length;
-    }
-
-    pub(crate) fn visual_minimal_area_py(&mut self, area: f32) {
-        assert!(
-            area >= 0.0,
-            "The minimum area of bbox for visual_sort feature distance calculated and feature collected should be greater than 0."
-        );
-        self.visual_minimal_area = area;
-    }
-
-    pub(crate) fn visual_minimal_own_area_percentage_use_py(&mut self, area: f32) {
+    pub fn visual_minimal_own_area_percentage_use(mut self, area: f32) -> Self {
         assert!(
             (0.0..=1.0).contains(&area),
             "Argument must be contained within (0.0..=1.0)"
         );
         self.visual_minimal_own_area_percentage_use = area;
+        self
     }
 
-    pub(crate) fn visual_minimal_own_area_percentage_collect_py(&mut self, area: f32) {
+    pub fn visual_minimal_own_area_percentage_collect(mut self, area: f32) -> Self {
         assert!(
             (0.0..=1.0).contains(&area),
             "Argument must be contained within (0.0..=1.0)"
         );
         self.visual_minimal_own_area_percentage_collect = area;
-    }
-
-    pub(crate) fn visual_minimal_quality_use_py(&mut self, q: f32) {
-        assert!(
-            q >= 0.0,
-            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
-        );
-        self.visual_minimal_quality_use = q;
-    }
-
-    pub(crate) fn visual_max_observations_py(&mut self, n: usize) {
-        self.visual_max_observations = n;
-    }
-
-    pub(crate) fn visual_minimal_quality_collect_py(&mut self, q: f32) {
-        assert!(
-            q >= 0.0,
-            "The minimum quality of visual_sort feature should be greater than or equal to 0.0."
-        );
-        self.visual_minimal_quality_collect = q;
-    }
-}
-
-impl VisualMetricBuilder {
-    pub fn visual_minimal_own_area_percentage_use(mut self, area: f32) -> Self {
-        self.visual_minimal_own_area_percentage_use_py(area);
-        self
-    }
-
-    pub fn visual_minimal_own_area_percentage_collect(mut self, area: f32) -> Self {
-        self.visual_minimal_own_area_percentage_collect_py(area);
         self
     }
 
@@ -226,5 +154,65 @@ impl VisualMetricBuilder {
                     .visual_minimal_own_area_percentage_collect,
             }),
         }
+    }
+
+    #[inline]
+    pub fn set_visual_minimal_area(&mut self, visual_minimal_area: f32) {
+        self.visual_minimal_area = visual_minimal_area;
+    }
+
+    #[inline]
+    pub fn set_positional_kind(&mut self, positional_kind: PositionalMetricType) {
+        self.positional_kind = positional_kind;
+    }
+
+    #[inline]
+    pub fn set_visual_minimal_track_length(&mut self, visual_minimal_track_length: usize) {
+        self.visual_minimal_track_length = visual_minimal_track_length;
+    }
+
+    #[inline]
+    pub fn set_visual_minimal_quality_use(&mut self, visual_minimal_quality_use: f32) {
+        self.visual_minimal_quality_use = visual_minimal_quality_use;
+    }
+
+    #[inline]
+    pub fn set_visual_minimal_quality_collect(&mut self, visual_minimal_quality_collect: f32) {
+        self.visual_minimal_quality_collect = visual_minimal_quality_collect;
+    }
+
+    #[inline]
+    pub fn set_visual_max_observations(&mut self, visual_max_observations: usize) {
+        self.visual_max_observations = visual_max_observations;
+    }
+
+    #[inline]
+    pub fn set_visual_min_votes(&mut self, visual_min_votes: usize) {
+        self.visual_min_votes = visual_min_votes;
+    }
+
+    #[inline]
+    pub fn set_visual_minimal_own_area_percentage_use(
+        &mut self,
+        visual_minimal_own_area_percentage_use: f32,
+    ) {
+        self.visual_minimal_own_area_percentage_use = visual_minimal_own_area_percentage_use;
+    }
+    #[inline]
+    pub fn set_visual_minimal_own_area_percentage_collect(
+        &mut self,
+        visual_minimal_own_area_percentage_collect: f32,
+    ) {
+        self.visual_minimal_own_area_percentage_collect =
+            visual_minimal_own_area_percentage_collect;
+    }
+
+    #[inline]
+    pub fn set_positional_min_confidence(&mut self, positional_min_confidence: f32) {
+        self.positional_min_confidence = positional_min_confidence;
+    }
+
+    pub fn set_visual_kind(&mut self, visual_kind: VisualSortMetricType) {
+        self.visual_kind = visual_kind;
     }
 }
