@@ -72,7 +72,7 @@ impl Universal2DBoxKalmanFilter {
         let mut std: SVector<f32, DIM_2D_BOX_X2> = SVector::from_iterator(
             self.std_position(2.0, 1e-2, bbox.height)
                 .into_iter()
-                .chain(self.std_velocity(10.0, 1e-5, bbox.height).into_iter()),
+                .chain(self.std_velocity(10.0, 1e-5, bbox.height)),
         );
 
         std = std.component_mul(&std);
@@ -89,7 +89,7 @@ impl Universal2DBoxKalmanFilter {
         let std_vel = self.std_velocity(1.0, 1e-5, mean[4]);
 
         let mut std: SVector<f32, DIM_2D_BOX_X2> =
-            SVector::from_iterator(std_pos.into_iter().chain(std_vel.into_iter()));
+            SVector::from_iterator(std_pos.into_iter().chain(std_vel));
 
         std = std.component_mul(&std);
 

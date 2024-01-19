@@ -1,0 +1,100 @@
+name: Similari
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
+            name: manylinux-arm
+            arch: linux/arm64
+          - docker_file: docker/Dockerfile.manylinux_2_28_X64
+            name: manylinux-x86
+            arch: linux/amd64
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build docker image
+        uses: docker/build-push-action@v4
+        with:
+          file: ${{ matrix.docker_file }}
+          platforms: ${{ matrix.arch }}
+          tags: similari
+          push: false
+          load: true
+          context: .
+
+      - name: Copy wheels
+        run: docker run --rm -v $(pwd)/distfiles:/tmp similari cp -R /opt/dist /tmp
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: distfiles/dist
+
+      - name: Publish to PyPI
+        if: "startsWith(github.ref, 'refs/tags/')"
+        uses: PyO3/maturin-action@v1
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        with:
+          command: upload
+          args: --skip-existing distfiles/dist/*
+
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [x64]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.target }}
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: .
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
+      - name: Publish to PyPI
+        if: "startsWith(github.ref, 'refs/tags/')"
+        uses: PyO3/maturin-action@v1
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        with:
+          command: upload
+          args: --skip-existing dist/*

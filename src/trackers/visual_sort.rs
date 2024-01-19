@@ -168,9 +168,7 @@ pub mod python {
         }
     }
 
-    #[pyclass(
-        text_signature = "(feature_opt, feature_quality_opt, bounding_box, custom_object_id_opt)"
-    )]
+    #[pyclass]
     #[derive(Debug, Clone)]
     #[pyo3(name = "VisualSortObservation")]
     pub struct PyVisualSortObservation(pub(crate) VisualSortObservation<'static>);
@@ -205,9 +203,7 @@ pub mod python {
         }
     }
 
-    #[pyclass(
-        text_signature = "(feature_opt, feature_quality_opt, bounding_box, custom_object_id_opt)"
-    )]
+    #[pyclass]
     #[derive(Debug)]
     #[pyo3(name = "VisualSortObservationSet")]
     pub struct PyVisualSortObservationSet(pub(crate) VisualSortObservationSet<'static>);

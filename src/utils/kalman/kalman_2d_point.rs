@@ -54,7 +54,7 @@ impl Point2DKalmanFilter {
         let mut std: SVector<f32, DIM_2D_POINT_X2> = SVector::from_iterator(
             self.std_position(2.0)
                 .into_iter()
-                .chain(self.std_velocity(10.0).into_iter()),
+                .chain(self.std_velocity(10.0)),
         );
 
         std = std.component_mul(&std);
@@ -70,7 +70,7 @@ impl Point2DKalmanFilter {
         let std_vel = self.std_velocity(1.0);
 
         let mut std: SVector<f32, DIM_2D_POINT_X2> =
-            SVector::from_iterator(std_pos.into_iter().chain(std_vel.into_iter()));
+            SVector::from_iterator(std_pos.into_iter().chain(std_vel));
 
         std = std.component_mul(&std);
 
