@@ -81,7 +81,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          working-directory: queue_py
+          working-directory: .
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
@@ -89,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: queue_py/dist
+          path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
         uses: PyO3/maturin-action@v1
@@ -97,4 +97,4 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
-          args: --skip-existing queue_py/dist/*
+          args: --skip-existing dist/*
