@@ -503,7 +503,7 @@ pub mod python {
 
     use super::{BatchVisualSort, VisualSortPredictionBatchRequest};
 
-    #[pyclass(text_signature = "(distance_shards, voting_shards, opts)")]
+    #[pyclass]
     #[pyo3(name = "BatchVisualSort")]
     pub struct PyBatchVisualSort(pub(crate) BatchVisualSort);
 

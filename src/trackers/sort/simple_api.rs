@@ -435,10 +435,8 @@ pub mod python {
     use super::Sort;
     use pyo3::prelude::*;
 
-    #[pyclass(
-        name = "Sort",
-        text_signature = "(shards, bbox_history, max_idle_epochs, threshold)"
-    )]
+    #[pyclass]
+    #[pyo3(name = "Sort")]
     pub struct PySort(pub Sort);
 
     #[pymethods]

@@ -685,7 +685,7 @@ pub mod python {
 
     use super::VisualSort;
 
-    #[pyclass(text_signature = "(shards, opts)")]
+    #[pyclass]
     #[pyo3(name = "VisualSort")]
     pub struct PyVisualSort(pub(crate) VisualSort);
 
