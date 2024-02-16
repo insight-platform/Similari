@@ -166,6 +166,51 @@ pub mod python {
         fn __str__(&self) -> String {
             format!("{:#?}", self.0)
         }
+        
+        #[getter]
+        fn id(&self) -> u64 {
+            self.0.id
+        }
+
+        #[getter]
+        fn epoch(&self) -> usize {
+            self.0.epoch
+        }
+
+        #[getter]
+        fn predicted_bbox(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(self.0.predicted_bbox.clone())
+        }
+
+        #[getter]
+        fn observed_bbox(&self) -> PyUniversal2DBox {
+            PyUniversal2DBox(self.0.observed_bbox.clone())
+        }
+
+        #[getter]
+        fn scene_id(&self) -> u64 {
+            self.0.scene_id
+        }
+
+        #[getter]
+        fn length(&self) -> usize {
+            self.0.length
+        }
+
+        #[getter]
+        fn predicted_boxes(&self) -> Vec<PyUniversal2DBox> {
+            unsafe { std::mem::transmute(self.0.predicted_boxes.clone()) }
+        }
+
+        #[getter]
+        fn observed_boxes(&self) -> Vec<PyUniversal2DBox> {
+            unsafe { std::mem::transmute(self.0.observed_boxes.clone()) }
+        }
+
+        #[getter]
+        fn observed_boxes(&self) -> Vec<PyUniversal2DBox> {
+            unsafe { std::mem::transmute(self.0.observed_boxes.clone()) }
+        }
     }
 
     #[pyclass]
