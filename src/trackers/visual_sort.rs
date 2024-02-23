@@ -166,7 +166,7 @@ pub mod python {
         fn __str__(&self) -> String {
             format!("{:#?}", self.0)
         }
-        
+
         #[getter]
         fn id(&self) -> u64 {
             self.0.id

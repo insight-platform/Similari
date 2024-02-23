@@ -98,6 +98,14 @@ impl TrackAttributesKalmanPrediction for VisualAttributes {
     fn set_state(&mut self, state: KalmanState<{ DIM_2D_BOX_X2 }>) {
         self.state = Some(state);
     }
+
+    fn get_position_weight(&self) -> f32 {
+        self.opts.position_weight
+    }
+
+    fn get_velocity_weight(&self) -> f32 {
+        self.opts.velocity_weight
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -230,6 +238,8 @@ mod tests {
             5,
             1,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         );
         let mut attributes = VisualAttributes::new(Arc::new(opts));
         attributes.update_history(

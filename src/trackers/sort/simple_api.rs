@@ -1,3 +1,8 @@
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use rand::Rng;
+
 use crate::prelude::{NoopNotifier, ObservationBuilder, TrackStoreBuilder};
 use crate::store::TrackStore;
 use crate::track::Track;
@@ -11,9 +16,6 @@ use crate::trackers::spatio_temporal_constraints::SpatioTemporalConstraints;
 use crate::trackers::tracker_api::TrackerAPI;
 use crate::utils::bbox::Universal2DBox;
 use crate::voting::Voting;
-use rand::Rng;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// Easy to use SORT tracker implementation
 ///
@@ -42,6 +44,8 @@ impl Sort {
         method: PositionalMetricType,
         min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
+        kalman_position_weight: f32,
+        kalman_velocity_weight: f32,
     ) -> Self {
         assert!(bbox_history > 0);
         let epoch_db = RwLock::new(HashMap::default());
@@ -50,6 +54,8 @@ impl Sort {
             max_idle_epochs,
             bbox_history,
             spatio_temporal_constraints.unwrap_or_default(),
+            kalman_position_weight,
+            kalman_velocity_weight,
         ));
         let store = RwLock::new(
             TrackStoreBuilder::new(shards)
@@ -279,6 +285,8 @@ mod tests {
             IoU(DEFAULT_SORT_IOU_THRESHOLD),
             DEFAULT_MINIMAL_SORT_CONFIDENCE,
             None,
+            1.0 / 20.0,
+            1.0 / 160.0,
         );
         assert_eq!(t.current_epoch(), 0);
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
@@ -341,6 +349,8 @@ mod tests {
             IoU(DEFAULT_SORT_IOU_THRESHOLD),
             DEFAULT_MINIMAL_SORT_CONFIDENCE,
             None,
+            1.0 / 20.0,
+            1.0 / 160.0,
         );
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
         assert_eq!(t.current_epoch_with_scene(1), 0);
@@ -367,6 +377,8 @@ mod tests {
             IoU(DEFAULT_SORT_IOU_THRESHOLD),
             DEFAULT_MINIMAL_SORT_CONFIDENCE,
             None,
+            1.0 / 20.0,
+            1.0 / 160.0,
         );
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
 
@@ -390,6 +402,8 @@ mod tests {
             IoU(DEFAULT_SORT_IOU_THRESHOLD),
             DEFAULT_MINIMAL_SORT_CONFIDENCE,
             None,
+            1.0 / 20.0,
+            1.0 / 160.0,
         );
         let bb = BoundingBox::new(0.0, 0.0, 10.0, 20.0);
 
@@ -419,6 +433,8 @@ mod tests {
 
 #[cfg(feature = "python")]
 pub mod python {
+    use pyo3::prelude::*;
+
     use crate::{
         prelude::Universal2DBox,
         trackers::{
@@ -433,7 +449,6 @@ pub mod python {
     };
 
     use super::Sort;
-    use pyo3::prelude::*;
 
     #[pyclass]
     #[pyo3(name = "Sort")]
@@ -442,7 +457,16 @@ pub mod python {
     #[pymethods]
     impl PySort {
         #[new]
-        #[pyo3(signature = (shards=4, bbox_history=1, max_idle_epochs=5, method = None, min_confidence=0.05, spatio_temporal_constraints=None))]
+        #[pyo3(signature = (
+            shards = 4,
+            bbox_history = 1,
+            max_idle_epochs = 5,
+            method = None,
+            min_confidence = 0.05,
+            spatio_temporal_constraints = None,
+            kalman_position_weight = 1.0 / 20.0,
+            kalman_velocity_weight = 1.0 / 160.0
+        ))]
         pub fn new_py(
             shards: i64,
             bbox_history: i64,
@@ -450,6 +474,8 @@ pub mod python {
             method: Option<PyPositionalMetricType>,
             min_confidence: f32,
             spatio_temporal_constraints: Option<PySpatioTemporalConstraints>,
+            kalman_position_weight: f32,
+            kalman_velocity_weight: f32,
         ) -> Self {
             Self(Sort::new(
                 shards.try_into().expect("Positive number expected"),
@@ -460,6 +486,8 @@ pub mod python {
                 method.unwrap_or(PyPositionalMetricType::maha()).0,
                 min_confidence,
                 spatio_temporal_constraints.map(|x| x.0),
+                kalman_position_weight,
+                kalman_velocity_weight,
             ))
         }
 
@@ -580,7 +608,7 @@ pub mod python {
 
         /// Get idle tracks with not expired life
         ///
-        #[pyo3( signature = ())]
+        #[pyo3(signature = ())]
         pub fn idle_tracks(&mut self) -> Vec<PySortTrack> {
             self.idle_tracks_with_scene(0)
         }

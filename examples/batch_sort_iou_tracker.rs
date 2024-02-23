@@ -16,6 +16,8 @@ fn main() {
         IoU(DEFAULT_SORT_IOU_THRESHOLD),
         DEFAULT_MINIMAL_SORT_CONFIDENCE,
         None,
+        1.0 / 20.0,
+        1.0 / 160.0,
     );
 
     let pos_drift = 1.0;

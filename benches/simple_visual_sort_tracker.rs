@@ -113,6 +113,8 @@ fn bench_visual_sort(objects: usize, len: usize, b: &mut Bencher) {
         .spatio_temporal_constraints(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)]))
         .visual_minimal_own_area_percentage_use(0.5)
         .visual_minimal_own_area_percentage_collect(0.6)
+        .kalman_position_weight(1.0 / 20.0)
+        .kalman_velocity_weight(1.0 / 160.0)
         .visual_min_votes(2);
 
     let ncores = match objects {

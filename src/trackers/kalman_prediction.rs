@@ -6,8 +6,13 @@ pub trait TrackAttributesKalmanPrediction {
     fn get_state(&self) -> Option<KalmanState<{ DIM_2D_BOX_X2 }>>;
     fn set_state(&mut self, state: KalmanState<{ DIM_2D_BOX_X2 }>);
 
+    fn get_position_weight(&self) -> f32;
+
+    fn get_velocity_weight(&self) -> f32;
+
     fn make_prediction(&mut self, observation_bbox: &Universal2DBox) -> Universal2DBox {
-        let f = Universal2DBoxKalmanFilter::default();
+        let f =
+            Universal2DBoxKalmanFilter::new(self.get_position_weight(), self.get_velocity_weight());
 
         let current_state = if let Some(state) = self.get_state() {
             state

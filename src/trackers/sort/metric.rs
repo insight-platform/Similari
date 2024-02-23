@@ -131,6 +131,8 @@ mod tests {
             0,
             5,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         )));
 
         let mut metric = SortMetric::new(
@@ -161,6 +163,8 @@ mod tests {
             0,
             5,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         ));
 
         let candidate_attrs = SortAttributes::new(attr_opts.clone());

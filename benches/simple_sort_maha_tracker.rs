@@ -55,6 +55,8 @@ fn bench_sort(objects: usize, b: &mut Bencher) {
         Mahalanobis,
         DEFAULT_MINIMAL_SORT_CONFIDENCE,
         Some(SpatioTemporalConstraints::default().constraints(&[(1, 1.0)])),
+        1.0 / 20.0,
+        1.0 / 160.0,
     );
 
     let mut count = 0;
