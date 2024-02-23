@@ -176,7 +176,10 @@ impl VisualMetric {
                 match self.opts.positional_kind {
                     PositionalMetricType::Mahalanobis => {
                         let state = track_attributes.get_state().unwrap();
-                        let f = Universal2DBoxKalmanFilter::default();
+                        let f = Universal2DBoxKalmanFilter::new(
+                            track_attributes.get_position_weight(),
+                            track_attributes.get_velocity_weight(),
+                        );
                         let dist = f.distance(state, candidate_observation_bbox);
                         Some(Universal2DBoxKalmanFilter::calculate_cost(dist, true) / conf)
                     }

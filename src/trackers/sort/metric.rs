@@ -52,7 +52,10 @@ impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
             Some(match self.method {
                 PositionalMetricType::Mahalanobis => {
                     let state = mq.track_attrs.get_state().unwrap();
-                    let f = Universal2DBoxKalmanFilter::default();
+                    let f = Universal2DBoxKalmanFilter::new(
+                        mq.track_attrs.get_position_weight(),
+                        mq.track_attrs.get_velocity_weight(),
+                    );
                     let dist = f.distance(state, candidate_bbox);
                     (
                         Some(Universal2DBoxKalmanFilter::calculate_cost(dist, true) / conf),
