@@ -313,7 +313,7 @@ pub trait TrackAttributes<TA: TrackAttributes<TA, OA>, OA: ObservationAttributes
 
     /// The method is used by storage to determine when track is ready/not ready/wasted. Look at [TrackStatus](TrackStatus).
     ///
-    /// It uses attribute information collected across the track config and features information.
+    /// It uses attribute information collected across the track config.toml and features information.
     ///
     /// E.g.
     ///     track is ready when

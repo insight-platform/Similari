@@ -57,7 +57,7 @@ Predefined config file for the canonical (python+numpy) SORT:
 ```shell
 docker run --rm \
     -v $(pwd)/data:/data \
-    -v $(pwd)/python/motchallenge/confs/original-sort-config.yml:/opt/custom_config.yml \
+    -v $(pwd)/python/motchallenge/confs/original-sort-config.toml.yml:/opt/custom_config.yml \
     similari_py_mot /opt/custom_config.yml
 ```
 
@@ -66,7 +66,7 @@ Predefined config file for the Similari SORT that uses Mahalanobis metric:
 ```shell
 docker run --rm \
     -v $(pwd)/data:/data \
-    -v $(pwd)/python/motchallenge/confs/similari-maha-sort-config.yml:/opt/custom_config.yml \
+    -v $(pwd)/python/motchallenge/confs/similari-maha-sort-config.toml.yml:/opt/custom_config.yml \
     similari_py_mot /opt/custom_config.yml
 ```
 

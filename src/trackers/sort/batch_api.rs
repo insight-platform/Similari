@@ -153,6 +153,7 @@ fn voting_thread(
 }
 
 impl BatchSort {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         distance_shards: usize,
         voting_shards: usize,
@@ -161,6 +162,8 @@ impl BatchSort {
         method: PositionalMetricType,
         min_confidence: f32,
         spatio_temporal_constraints: Option<SpatioTemporalConstraints>,
+        kalman_position_weight: f32,
+        kalman_velocity_weight: f32,
     ) -> Self {
         assert!(bbox_history > 0);
         let epoch_db = RwLock::new(HashMap::default());
@@ -169,6 +172,8 @@ impl BatchSort {
             max_idle_epochs,
             bbox_history,
             spatio_temporal_constraints.unwrap_or_default(),
+            kalman_position_weight,
+            kalman_velocity_weight,
         ));
 
         let store = Arc::new(RwLock::new(
@@ -391,7 +396,10 @@ pub mod python {
         method = None,
         min_confidence = 0.05,
         spatio_temporal_constraints = None,
+        kalman_position_weight = 1.0 / 20.0,
+        kalman_velocity_weight = 1.0 / 160.0
     ))]
+        #[allow(clippy::too_many_arguments)]
         pub fn new(
             distance_shards: i64,
             voting_shards: i64,
@@ -400,6 +408,8 @@ pub mod python {
             method: Option<PyPositionalMetricType>,
             min_confidence: f32,
             spatio_temporal_constraints: Option<PySpatioTemporalConstraints>,
+            kalman_position_weight: f32,
+            kalman_velocity_weight: f32,
         ) -> Self {
             Self(BatchSort::new(
                 distance_shards
@@ -413,6 +423,8 @@ pub mod python {
                 method.unwrap_or(PyPositionalMetricType::maha()).0,
                 min_confidence,
                 spatio_temporal_constraints.map(|x| x.0),
+                kalman_position_weight,
+                kalman_velocity_weight,
             ))
         }
 
@@ -554,6 +566,8 @@ mod tests {
             Mahalanobis,
             DEFAULT_MINIMAL_SORT_CONFIDENCE,
             None,
+            1.0 / 20.0,
+            1.0 / 160.0,
         );
         let (mut batch, res) = PredictionBatchRequest::new();
         batch.add(0, (BoundingBox::new(0.0, 0.0, 5.0, 10.0).into(), Some(1)));

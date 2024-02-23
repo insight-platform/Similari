@@ -406,6 +406,8 @@ mod optimize {
             0,
             5,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         )));
 
         let mut obs = vec![Observation::new(
@@ -535,6 +537,8 @@ mod optimize {
             0,
             5,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         )));
 
         let mut obs = vec![Observation::new(
@@ -568,6 +572,8 @@ mod optimize {
             0,
             5,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         )));
 
         let mut obs = vec![Observation::new(
@@ -602,6 +608,8 @@ mod optimize {
             0,
             5,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         )));
 
         let mut obs = vec![Observation::new(
@@ -646,6 +654,8 @@ mod metric_tests {
             0,
             5,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         )))
     }
 

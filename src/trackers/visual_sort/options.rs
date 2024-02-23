@@ -12,6 +12,8 @@ pub struct VisualSortOptions {
     kept_history_length: usize,
     spatio_temporal_constraints: SpatioTemporalConstraints,
     metric_builder: VisualMetricBuilder,
+    kalman_position_weight: f32,
+    kalman_velocity_weight: f32,
 }
 
 impl VisualSortOptions {
@@ -22,6 +24,8 @@ impl VisualSortOptions {
                 self.max_idle_epochs,
                 self.kept_history_length,
                 self.spatio_temporal_constraints,
+                self.kalman_position_weight,
+                self.kalman_velocity_weight,
             ),
             self.metric_builder.build(),
         )
@@ -175,6 +179,16 @@ impl VisualSortOptions {
             .visual_minimal_own_area_percentage_collect(area);
         self
     }
+
+    pub fn kalman_position_weight(mut self, weight: f32) -> Self {
+        self.kalman_position_weight = weight;
+        self
+    }
+
+    pub fn kalman_velocity_weight(mut self, weight: f32) -> Self {
+        self.kalman_velocity_weight = weight;
+        self
+    }
 }
 
 impl Default for VisualSortOptions {
@@ -184,6 +198,8 @@ impl Default for VisualSortOptions {
             kept_history_length: 10,
             metric_builder: VisualMetricBuilder::default(),
             spatio_temporal_constraints: SpatioTemporalConstraints::default(),
+            kalman_position_weight: 1.0 / 20.0,
+            kalman_velocity_weight: 1.0 / 160.0,
         }
     }
 }
@@ -289,6 +305,16 @@ pub mod python {
             self.0
                 .metric_builder
                 .set_visual_minimal_own_area_percentage_collect(area);
+        }
+
+        #[pyo3(text_signature = "($self, weight)")]
+        pub(crate) fn kalman_position_weight(&mut self, weight: f32) {
+            self.0.kalman_position_weight = weight;
+        }
+
+        #[pyo3(text_signature = "($self, weight)")]
+        pub(crate) fn kalman_velocity_weight(&mut self, weight: f32) {
+            self.0.kalman_velocity_weight = weight;
         }
 
         #[classattr]
