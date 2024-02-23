@@ -37,6 +37,7 @@ impl Sort {
     /// * `max_idle_epochs` - how long track survives without being updated
     /// * `threshold` - how low IoU must be to establish a new track (default from the authors of SORT is 0.3)
     ///
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         shards: usize,
         bbox_history: usize,
@@ -467,6 +468,7 @@ pub mod python {
             kalman_position_weight = 1.0 / 20.0,
             kalman_velocity_weight = 1.0 / 160.0
         ))]
+        #[allow(clippy::too_many_arguments)]
         pub fn new_py(
             shards: i64,
             bbox_history: i64,

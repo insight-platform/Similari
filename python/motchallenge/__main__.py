@@ -84,4 +84,4 @@ def main(config_file_path: str):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1] if len(sys.argv) > 1 else 'motchallenge/config.yml')
+    main(sys.argv[1] if len(sys.argv) > 1 else 'motchallenge/config.toml.yml')

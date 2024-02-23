@@ -208,8 +208,8 @@ pub mod python {
         }
 
         #[getter]
-        fn observed_features(&self) -> Vec<f32> {
-            unsafe { std::mem::transmute(self.0.observed_features.clone()) }
+        fn observed_features(&self) -> Vec<Option<Vec<f32>>> {
+            self.0.observed_features.clone()
         }
     }
 

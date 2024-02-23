@@ -127,7 +127,7 @@ def load_config(config_file_path: str) -> Config:
     tracker_params_schema = SortParams
     if config.tracker.type == TrackerType.OriginalSort:
         tracker_params_schema = OriginalSortParams
-    # elif config.tracker.type == TrackerType.VisualSort:
+    # elif config.toml.tracker.type == TrackerType.VisualSort:
     #     tracker_params_schema = VisualSortParams
     tracker_params = OmegaConf.to_object(
         OmegaConf.unsafe_merge(

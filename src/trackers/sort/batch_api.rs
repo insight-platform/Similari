@@ -153,6 +153,7 @@ fn voting_thread(
 }
 
 impl BatchSort {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         distance_shards: usize,
         voting_shards: usize,
@@ -398,6 +399,7 @@ pub mod python {
         kalman_position_weight = 1.0 / 20.0,
         kalman_velocity_weight = 1.0 / 160.0
     ))]
+        #[allow(clippy::too_many_arguments)]
         pub fn new(
             distance_shards: i64,
             voting_shards: i64,
