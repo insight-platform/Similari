@@ -1,5 +1,6 @@
-from similari import BatchSort, BoundingBox, SpatioTemporalConstraints, PositionalMetricType, SortPredictionBatchRequest
 import timeit
+
+from similari import BatchSort, BoundingBox, SpatioTemporalConstraints, PositionalMetricType, SortPredictionBatchRequest
 
 if __name__ == '__main__':
     # all train
@@ -17,9 +18,14 @@ if __name__ == '__main__':
 
         constraints = SpatioTemporalConstraints()
         constraints.add_constraints([(1, 1.0)])
-        mot_tracker = BatchSort(distance_shards=shards, voting_shards=shards, bbox_history=10, max_idle_epochs=5,
-                         method=PositionalMetricType.iou(threshold=0.3),
-                         spatio_temporal_constraints=constraints)
+        mot_tracker = BatchSort(distance_shards=shards,
+                                voting_shards=shards,
+                                bbox_history=10,
+                                max_idle_epochs=5,
+                                method=PositionalMetricType.iou(threshold=0.3),
+                                spatio_temporal_constraints=constraints,
+                                kalman_position_weight=0.1,
+                                kalman_velocity_weight=0.1)
 
         def run_it(mot_tracker, detections):
             batch = SortPredictionBatchRequest()
@@ -33,10 +39,10 @@ if __name__ == '__main__':
         duration = timeit.timeit(lambda: run_it(mot_tracker, dets), number=count)
         print("Run for {} took {} ms".format(n, duration / float(count) * 1000.0))
 
+
     bench(10)
     bench(100)
     bench(200)
     bench(300)
     bench(500)
     bench(1000)
-
