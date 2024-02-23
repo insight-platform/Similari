@@ -19,6 +19,8 @@ fn main() {
             0,
             BBOX_HISTORY,
             SpatioTemporalConstraints::default(),
+            1.0 / 20.0,
+            1.0 / 160.0,
         ))))
         .metric(SortMetric::default())
         .notifier(NoopNotifier)

@@ -6,7 +6,16 @@ use similari::trackers::tracker_api::TrackerAPI;
 use similari::utils::bbox::Universal2DBox;
 
 fn main() {
-    let mut tracker = Sort::new(1, 10, 1, Mahalanobis, DEFAULT_MINIMAL_SORT_CONFIDENCE, None);
+    let mut tracker = Sort::new(
+        1,
+        10,
+        1,
+        Mahalanobis,
+        DEFAULT_MINIMAL_SORT_CONFIDENCE,
+        None,
+        1.0 / 20.0,
+        1.0 / 160.0,
+    );
 
     let pos_drift = 1.0;
     let box_drift = 0.1;

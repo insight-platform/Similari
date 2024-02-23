@@ -30,7 +30,7 @@ pub mod batch_api;
 /// Default IoU threshold that is defined by SORT author in the original repo
 pub const DEFAULT_SORT_IOU_THRESHOLD: f32 = 0.3;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SortAttributesOptions {
     /// The map that stores current epochs for the scene_id
     epoch_db: Option<RwLock<HashMap<u64, usize>>>,
@@ -39,6 +39,21 @@ pub struct SortAttributesOptions {
     /// The maximum length of collected objects for the track
     pub history_length: usize,
     pub spatio_temporal_constraints: SpatioTemporalConstraints,
+    pub position_weight: f32,
+    pub velocity_weight: f32,
+}
+
+impl Default for SortAttributesOptions {
+    fn default() -> Self {
+        Self {
+            epoch_db: None,
+            max_idle_epochs: 0,
+            history_length: 0,
+            spatio_temporal_constraints: SpatioTemporalConstraints::default(),
+            position_weight: 1.0 / 20.0,
+            velocity_weight: 1.0 / 160.0,
+        }
+    }
 }
 
 impl EpochDb for SortAttributesOptions {
@@ -57,12 +72,16 @@ impl SortAttributesOptions {
         max_idle_epochs: usize,
         history_length: usize,
         spatio_temporal_constraints: SpatioTemporalConstraints,
+        position_weight: f32,
+        velocity_weight: f32,
     ) -> Self {
         Self {
             epoch_db,
             max_idle_epochs,
             history_length,
             spatio_temporal_constraints,
+            position_weight,
+            velocity_weight,
         }
     }
 }
@@ -96,6 +115,14 @@ impl TrackAttributesKalmanPrediction for SortAttributes {
 
     fn set_state(&mut self, state: KalmanState<{ DIM_2D_BOX_X2 }>) {
         self.state = Some(state);
+    }
+
+    fn get_position_weight(&self) -> f32 {
+        self.opts.position_weight
+    }
+
+    fn get_velocity_weight(&self) -> f32 {
+        self.opts.velocity_weight
     }
 }
 
