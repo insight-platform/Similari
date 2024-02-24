@@ -28,9 +28,14 @@ jobs:
           - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
             name: manylinux-arm
             arch: linux/arm64
+            runner: ARM64
           - docker_file: docker/Dockerfile.manylinux_2_28_X64
             name: manylinux-x86
             arch: linux/amd64
+            runner: X64
+    runs-on:
+      - self-hosted
+      - ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v3
 
