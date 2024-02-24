@@ -21,7 +21,6 @@ permissions:
 jobs:
 
   linux:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
