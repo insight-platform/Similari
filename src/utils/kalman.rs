@@ -51,6 +51,20 @@ impl<const X: usize> KalmanState<X> {
         eprintln!("Mean={}", pretty_print!(self.mean.transpose()));
         eprintln!("Covariance={}", pretty_print!(self.covariance));
     }
+    /// Updates only the mean (not to be used without concrete needs)
+    ///
+    pub fn update_mean(&mut self, bounding_box: &Universal2DBox) {
+        let angle = bounding_box.angle.unwrap_or(0.);
+        let values = &[
+            bounding_box.xc,
+            bounding_box.yc,
+            angle,
+            bounding_box.aspect,
+            bounding_box.height,
+        ];
+        let vector = SVector::<f32, X>::from_vec(values.to_vec());
+        self.mean = vector;
+    }
 }
 
 impl<const X: usize> TryFrom<KalmanState<X>> for Universal2DBox {
