@@ -32,6 +32,24 @@ impl SortMetric {
             min_confidence,
         }
     }
+
+    /// Updates last observation in track without Kalman prediction
+    pub fn update_last_observation(
+        &mut self,
+        attrs: &mut SortAttributes,
+        features: &mut Vec<Observation<Universal2DBox>>,
+    ) -> anyhow::Result<()> {
+        let mut observation = features.pop().unwrap();
+        let observation_bbox = observation.attr().as_ref().unwrap();
+        features.clear();
+
+        attrs.update_history(observation_bbox, observation_bbox);
+
+        *observation.attr_mut() = Some(observation_bbox.clone());
+
+        features.push(observation);
+        Ok(())
+    }
 }
 
 impl ObservationMetric<SortAttributes, Universal2DBox> for SortMetric {
