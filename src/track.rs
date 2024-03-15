@@ -406,6 +406,13 @@ where
         self.observations.get(&feature_class)
     }
 
+    pub fn get_mut_observations(
+        &mut self,
+        feature_class: u64,
+    ) -> Option<&mut Vec<Observation<OA>>> {
+        self.observations.get_mut(&feature_class)
+    }
+
     /// Returns the current track merge history for the track
     ///
     pub fn get_merge_history(&self) -> &Vec<u64> {
