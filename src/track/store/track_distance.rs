@@ -3,6 +3,7 @@ use crate::track::{ObservationAttributes, ObservationMetricOk};
 use crossbeam::channel::Receiver;
 use std::vec::IntoIter;
 
+/// Represents the response from the track distance computation.
 ///
 trait TrackDistanceResponse<OA>: IntoIterator
 where
@@ -24,6 +25,7 @@ where
     fn channel(&self) -> &Receiver<Results<OA>>;
 }
 
+/// Represents the ok response from the track distance computation.
 ///
 pub struct TrackDistanceOk<OA>
 where
@@ -64,6 +66,7 @@ where
     }
 }
 
+/// Represents the error response from the track distance computation.
 ///
 pub struct TrackDistanceErr<OA>
 where

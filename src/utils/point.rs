@@ -1,1 +1,1 @@
-pub struct Point2D(f32, f32);
+pub struct Point2D(pub f32, pub f32);
