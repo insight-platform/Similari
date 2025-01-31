@@ -116,7 +116,7 @@ mod python {
 
     #[pymodule]
     #[pyo3(name = "similari")]
-    fn similari(_py: Python, m: &PyModule) -> PyResult<()> {
+    fn similari(m: &Bound<'_, PyModule>) -> PyResult<()> {
         pyo3_log::init();
 
         m.add_class::<PyBoundingBox>()?;
