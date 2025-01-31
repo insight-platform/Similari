@@ -60,7 +60,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-linux
           path: distfiles/dist
 
       - name: Publish to PyPI
@@ -91,10 +91,10 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
-      - name: Upload wheels on Windows
+      - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-windows
           path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
@@ -122,10 +122,10 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
-      - name: Upload wheels on MacOS
+      - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-macos
           path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
@@ -148,7 +148,7 @@ jobs:
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-ubuntu-latest
           path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
