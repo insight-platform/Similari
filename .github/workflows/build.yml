@@ -60,7 +60,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ github.run_id }}
+          name: wheels-linux-${{ github.run_id }}-${{ matrix.runner }}
           path: distfiles/dist
 
       - name: Publish to PyPI
@@ -94,7 +94,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows-${{ github.run_id }}
+          name: wheels-windows-${{ github.run_id }}-${{ matrix.runner }}
           path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
@@ -125,7 +125,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ github.run_id }}
+          name: wheels-macos-${{ github.run_id }}-${{ matrix.runner }}
           path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
@@ -148,7 +148,7 @@ jobs:
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-ubuntu-latest-${{ github.run_id }}
+          name: wheels-ubuntu-latest-${{ github.run_id }}-${{ matrix.runner }}
           path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
