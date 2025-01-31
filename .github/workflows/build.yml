@@ -58,7 +58,7 @@ jobs:
         run: docker run --rm -v $(pwd)/distfiles:/tmp similari cp -R /opt/dist /tmp
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: distfiles/dist
