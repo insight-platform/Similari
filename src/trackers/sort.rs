@@ -543,7 +543,7 @@ pub mod python {
     #[pyclass]
     #[pyo3(name = "VotingType")]
     #[derive(Default, Debug, Clone, Copy)]
-    pub struct PyVotingType(pub(crate) VotingType);
+    pub struct PyVotingType(pub VotingType);
 
     #[pymethods]
     impl PyVotingType {

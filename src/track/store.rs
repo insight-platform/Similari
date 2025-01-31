@@ -55,7 +55,7 @@ pub type StoreMutexGuard<'a, TA, M, FA, N> = MutexGuard<'a, HashMap<u64, Track<T
 pub type OwnedMergeResult<TA, M, FA, N> = Result<Option<Track<TA, M, FA, N>>>;
 
 #[derive(Debug)]
-pub(crate) enum Results<OA>
+pub enum Results<OA>
 where
     OA: ObservationAttributes,
 {
