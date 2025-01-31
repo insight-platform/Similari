@@ -91,7 +91,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
-      - name: Upload wheels
+      - name: Upload wheels on Windows
         uses: actions/upload-artifact@v4
         with:
           name: wheels
@@ -122,7 +122,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
-      - name: Upload wheels
+      - name: Upload wheels on MacOS
         uses: actions/upload-artifact@v4
         with:
           name: wheels
