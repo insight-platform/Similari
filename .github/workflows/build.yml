@@ -122,7 +122,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ github.job }}-${{ matrix.python }}
+          name: wheels-${{ github.job }}-${{ matrix.target }}-${{ matrix.python }}
           path: dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
