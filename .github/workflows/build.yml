@@ -41,9 +41,6 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
-      - name: Set up docker buildx
-        uses: docker/setup-buildx-action@v2
-
       - name: Build docker image
         uses: docker/build-push-action@v4
         with:
