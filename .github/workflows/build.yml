@@ -34,7 +34,6 @@ jobs:
             arch: linux/amd64
             runner: X64
     runs-on:
-      - ${{ matrix.hosting }}
       - ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v3
