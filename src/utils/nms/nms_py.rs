@@ -17,8 +17,6 @@ use pyo3::prelude::*;
 ///   as height of the box.
 /// * `nms_threshold` - the threshold that is used to remove excessive boxes out of the list.
 /// * `score_threshold` - the threshold that filters boxes by confidence value. If it's not used, then None can be set.
-///
-
 /**
 # Example
 

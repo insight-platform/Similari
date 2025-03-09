@@ -72,7 +72,7 @@ impl<'a> VisualSortObservationSet<'a> {
     }
 }
 
-impl<'a> Default for VisualSortObservationSet<'a> {
+impl Default for VisualSortObservationSet<'_> {
     fn default() -> Self {
         Self::new()
     }
