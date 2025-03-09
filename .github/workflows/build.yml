@@ -68,7 +68,7 @@ jobs:
           path: distfiles/dist
 
       - name: Publish to PyPI
-        if: "startsWith(github.ref, 'refs/tags/')"
+        if: startsWith(github.ref, 'refs/tags/')
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
@@ -101,7 +101,7 @@ jobs:
           name: wheels-${{ github.job }}-${{ matrix.python }}
           path: dist
       - name: Publish to PyPI
-        if: "startsWith(github.ref, 'refs/tags/')"
+        if: startsWith(github.ref, 'refs/tags/')
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
@@ -132,7 +132,7 @@ jobs:
           name: wheels-${{ github.job }}-${{ matrix.target }}-${{ matrix.python }}
           path: dist
       - name: Publish to PyPI
-        if: "startsWith(github.ref, 'refs/tags/')"
+        if: startsWith(github.ref, 'refs/tags/')
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
@@ -155,7 +155,7 @@ jobs:
           name: wheels-${{ github.job }}
           path: dist
       - name: Publish to PyPI
-        if: "startsWith(github.ref, 'refs/tags/')"
+        if: startsWith(github.ref, 'refs/tags/')
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
