@@ -542,6 +542,7 @@ pub mod python {
             Self(SortPredictionBatchRequest::new())
         }
 
+        #[pyo3(signature = (scene_id, bbox, custom_object_id=None))]
         fn add(&mut self, scene_id: u64, bbox: PyUniversal2DBox, custom_object_id: Option<i64>) {
             self.0.add(scene_id, bbox.0, custom_object_id)
         }

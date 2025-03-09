@@ -1,10 +1,11 @@
-FROM ghcr.io/insight-platform/manylinux_2_28_arm64:v0.0.3 as builder
+FROM ghcr.io/insight-platform/manylinux_2_28_arm64:v0.0.7 AS builder
 
 WORKDIR /opt
 COPY . .
 ARG PYTHON_INTERPRETER
+RUN chmod +x /opt/docker/build-manylinux.sh
 RUN bash /opt/docker/build-manylinux.sh
 RUN rm -rf target
 
-FROM alpine:3.18 as dist
+FROM alpine:3.18 AS dist
 COPY --from=builder /opt/dist /opt/dist

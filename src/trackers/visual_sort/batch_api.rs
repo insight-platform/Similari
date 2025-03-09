@@ -477,7 +477,7 @@ impl<'a> VisualSortPredictionBatchRequest<'a> {
     }
 }
 
-impl<'a> Default for VisualSortPredictionBatchRequest<'a> {
+impl Default for VisualSortPredictionBatchRequest<'_> {
     fn default() -> Self {
         Self::new()
     }
