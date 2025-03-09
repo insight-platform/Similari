@@ -64,7 +64,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ github.job }}
+          name: wheels-${{ github.job }}-${{ matrix.runner }}
           path: distfiles/dist
 
       - name: Publish to PyPI
