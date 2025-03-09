@@ -1,4 +1,4 @@
-FROM ghcr.io/insight-platform/manylinux_2_28_x64:v0.0.3 as builder
+FROM ghcr.io/insight-platform/manylinux_2_28_x64:v0.0.7 as builder
 
 WORKDIR /opt
 COPY . .
