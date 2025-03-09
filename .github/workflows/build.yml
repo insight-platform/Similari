@@ -88,6 +88,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           architecture: ${{ matrix.target }}
+      - name: Install pip
+        run: |
+          python -m ensurepip
+          python -m pip install --upgrade pip
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -120,6 +124,10 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
+      - name: Install pip
+        run: |
+          python -m ensurepip
+          python -m pip install --upgrade pip
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -148,7 +156,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
+      - name: Install pip
+        run: |
+          python -m ensurepip
+          python -m pip install --upgrade pip
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
