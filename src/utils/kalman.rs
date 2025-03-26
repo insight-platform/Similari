@@ -1,5 +1,6 @@
 use crate::prelude::{BoundingBox, Universal2DBox};
 use crate::Errors;
+use kalman_2d_box::DIM_2D_BOX;
 use nalgebra::{SMatrix, SVector};
 
 /// Kalman filter for the prediction of axis-aligned and oriented bounding boxes
@@ -42,6 +43,21 @@ macro_rules! pretty_print {
 pub struct KalmanState<const X: usize> {
     mean: SVector<f32, X>,
     covariance: SMatrix<f32, X, X>,
+}
+
+impl KalmanState<{ kalman_2d_box::DIM_2D_BOX_X2 }> {
+    pub fn mean_pos_xc(&self) -> f32 {
+        self.mean[0]
+    }
+    pub fn mean_pos_yc(&self) -> f32 {
+        self.mean[1]
+    }
+    pub fn mean_vel_xc(&self) -> f32 {
+        self.mean[DIM_2D_BOX]
+    }
+    pub fn mean_vel_yc(&self) -> f32 {
+        self.mean[DIM_2D_BOX + 1]
+    }
 }
 
 impl<const X: usize> KalmanState<X> {
